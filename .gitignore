@@ -7,3 +7,10 @@
 PRODUCTION-PLAN.md
 RASTER-AND-DST-PLAN.md
 docker-compose.override.yml
+
+# Regenerable raster artifacts — keep the demo .tif/.map (the DB dump +
+# MapServer need them on disk), but never track these churning ones:
+# DST per-run versioned cache (new file each run)
+sis-web-services/volume/*.r[0-9]*.tif
+# GDAL statistics sidecars (rewritten on read)
+sis-web-services/volume/*.aux.xml
