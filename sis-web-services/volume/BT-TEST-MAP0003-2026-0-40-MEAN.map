@@ -20,11 +20,9 @@ MAP
   LAYER
       TEMPLATE "getfeatureinfo.tmpl"
       NAME "BT-TEST-MAP0003-2026-0-40-MEAN"
-      DATA "BT-TEST-MAP0003-2026-0-40-MEAN.r1782208570832.tif"
+      DATA "BT-TEST-MAP0003-2026-0-40-MEAN.r1782214432846.tif"
       TYPE RASTER
       STATUS ON
-      PROCESSING "NODATA=0"
-      OFFSITE 0 0 0
       METADATA
         "wms_include_items" "all"
         "gml_include_items" "all"
@@ -32,10 +30,56 @@ MAP
       CLASS
         NAME "BT-TEST-MAP0003-2026-0-40-MEAN"
         STYLE
-            COLORRANGE "#2c7bb6" "#d7191c"
-            DATARANGE 1 3
-            RANGEITEM "pixel"
-          END # STYLE
+              COLORRANGE "#2c7bb6" "#2a58b9"
+              DATARANGE 1 1.2
+              RANGEITEM "pixel"
+            END # STYLE
+            STYLE
+              COLORRANGE "#2a58b9" "#2932bd"
+              DATARANGE 1.2 1.4
+              RANGEITEM "pixel"
+            END # STYLE
+            STYLE
+              COLORRANGE "#2932bd" "#4527c0"
+              DATARANGE 1.4 1.6
+              RANGEITEM "pixel"
+            END # STYLE
+            STYLE
+              COLORRANGE "#4527c0" "#6c25c3"
+              DATARANGE 1.6 1.8
+              RANGEITEM "pixel"
+            END # STYLE
+            STYLE
+              COLORRANGE "#6c25c3" "#9724c6"
+              DATARANGE 1.8 2
+              RANGEITEM "pixel"
+            END # STYLE
+            STYLE
+              COLORRANGE "#9724c6" "#c322ca"
+              DATARANGE 2 2.2
+              RANGEITEM "pixel"
+            END # STYLE
+            STYLE
+              COLORRANGE "#c322ca" "#cd20a7"
+              DATARANGE 2.2 2.4000000000000004
+              RANGEITEM "pixel"
+            END # STYLE
+            STYLE
+              COLORRANGE "#cd20a7" "#d01d7c"
+              DATARANGE 2.4000000000000004 2.6
+              RANGEITEM "pixel"
+            END # STYLE
+            STYLE
+              COLORRANGE "#d01d7c" "#d41b4d"
+              DATARANGE 2.6 2.8
+              RANGEITEM "pixel"
+            END # STYLE
+            STYLE
+              COLORRANGE "#d41b4d" "#d7191c"
+              DATARANGE 2.8 3
+              RANGEITEM "pixel"
+            END # STYLE
+            
       END # CLASS
   END # LAYER
 END # MAP

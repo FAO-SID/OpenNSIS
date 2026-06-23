@@ -75,9 +75,9 @@
       </gmd:citation>
       <gmd:abstract>
         <gco:CharacterString>sum of the following:
-- BT-TEST-BOREXT-2022-0-30-MEAN: reclass to 1 when value ≥ 15.93685075, else 0
-- BT-TEST-CALEXC-2024-20-40-MEAN: reclass to 1 when value ≥ 102.07815672, else 0
-- BT-TEST-TEXTSAND-2025-0-30-MEAN: reclass to 1 when value ≥ 35.49483155, else 0</gco:CharacterString>
+- BT-TEST-BOREXT-2022-0-30-MEAN: reclass to 1 when value ≥ 15, else 0
+- BT-TEST-CALEXC-2024-20-40-MEAN: reclass to 1 when value ≥ 100, else 0
+- BT-TEST-TEXTSAND-2025-0-30-MEAN: reclass to 1 when value ≥ 35.5, else 0</gco:CharacterString>
       </gmd:abstract>
       <gmd:status>
         <gmd:MD_ProgressCode codeList="http://standards.iso.org/ittf/PubliclyAvailableStandards/ISO_19139_Schemas/resources/codelist/ML_gmxCodelists.xml#MD_ProgressCode" codeListValue="completed" />
