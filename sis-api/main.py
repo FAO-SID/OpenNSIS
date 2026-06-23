@@ -1376,6 +1376,10 @@ async def get_project_authors(
 CSV_UPLOAD_MAX_BYTES = 50 * 1024 * 1024   # 50 MB
 CSV_UPLOAD_MAX_ROWS  = 200_000
 
+# validate_dataset stamps the dataset note with this exact string only when
+# EVERY check passed. ingest_dataset gates on it (see the guard there).
+VALIDATION_OK_NOTE = "Validation OK"
+
 @app.post("/api/etl/upload")
 async def upload_csv(
     file: UploadFile = File(...),
@@ -1629,6 +1633,17 @@ async def ingest_dataset(
             dataset = cur.fetchone()
             if not dataset:
                 raise HTTPException(status_code=404, detail="Dataset not found")
+
+            # Ingest only a dataset whose validation passed. validate_dataset
+            # stamps the note with VALIDATION_OK_NOTE only when every check is
+            # clean; anything else (never validated, column errors, missing
+            # required mappings, out-of-country coords) blocks ingest with a
+            # clear message instead of crashing mid-insert.
+            if (dataset.get("note") or "") != VALIDATION_OK_NOTE:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Validation must pass before ingesting. Run Validate "
+                           "and resolve all reported issues first.")
 
             project_id = dataset.get("project_id")
             # Resolve the country from the project itself so ingest writes rows
@@ -2645,7 +2660,7 @@ async def validate_dataset(
                 parts.append(f"{n_cols_err} column(s) with errors")
             if country_bounds.get("status") == "ERROR":
                 parts.append(f"{country_bounds['percent_inside']}% inside country bounds")
-            note = "Validation OK" if not parts else "Validation: " + "; ".join(parts)
+            note = VALIDATION_OK_NOTE if not parts else "Validation: " + "; ".join(parts)
             cur.execute("UPDATE api.uploaded_dataset SET note = %s WHERE table_name = %s",
                         (note, table_name))
 
