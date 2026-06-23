@@ -1394,12 +1394,13 @@ class AdminDashboard {
     status.textContent = 'Adding…';
     try {
       // DST outputs don't have an inspected raster yet — min/max stay NULL.
-      // Override the catalogue's default ramp with blue → red for DST-minted
-      // properties (suitability/score scale convention).
+      // Override the catalogue's default soil ramp with a distinct green (low)
+      // → red (high) ramp for DST-minted properties, so DST results read as a
+      // suitability/score scale rather than the usual soil-property browns.
       await api.createRasterMappedSoilProperty({
         mapped_property_id: pid, name: pname, property_type,
-        start_color: '#2c7bb6',  // blue
-        end_color:   '#d7191c',  // red
+        start_color: '#1a9850',  // green (low)
+        end_color:   '#d7191c',  // red (high)
       });
       this._rasterPropertyNums = await api.listRasterMappedSoilProperties();
       this._dstRenderOutputPropertyOptions(pid);

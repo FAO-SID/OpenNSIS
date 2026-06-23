@@ -113,6 +113,15 @@ sleep 3
 dx sis-database psql -d sis -U sis -f /tmp/init.sql
 dx sis-database psql -d sis -U sis -f /tmp/dump.sql
 
+# Colour-ramp fix for soil_data.class()/map(): correct the mapped_property
+# JOIN (was a predicate-less cross join → wrong colours) and interpolate the
+# ramp through HSV so green→red renders via yellow, not brown. Applied here
+# until it is regenerated into the dump itself.
+if [[ -f "$PROJECT_DIR/sis-database/fix_class_hsv_ramp.sql" ]]; then
+  dc cp "$PROJECT_DIR/sis-database/fix_class_hsv_ramp.sql" sis-database:/tmp/fix_ramp.sql
+  dx sis-database psql -d sis -U sis -f /tmp/fix_ramp.sql
+fi
+
 # Rotate the read-only federation role's password to the .env value.
 dx sis-database psql -d sis -U sis -v glosis_pw="$POSTGRES_GLOSIS_PASSWORD" \
   <<< "ALTER ROLE sis_glosis WITH PASSWORD :'glosis_pw';"
