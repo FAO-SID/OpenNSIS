@@ -2539,6 +2539,9 @@ class AdminDashboard {
           await this.dstReloadRecipes();
           if (lr.status === 'succeeded' && typeof this.loadLayers === 'function') {
             await this.loadLayers();
+            // loadLayers refreshes the data only — redraw the Rasters table so
+            // the freshly-registered DST output shows without a page reload.
+            if (typeof this.renderLayers === 'function') this.renderLayers();
           }
           return;
         }
