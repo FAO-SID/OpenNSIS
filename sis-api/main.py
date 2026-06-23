@@ -1186,16 +1186,35 @@ async def get_source_units(
                 })
             return options
 
+def _row_get(row, key, idx):
+    """Read a column from a cursor row regardless of cursor factory
+    (RealDictCursor → dict, default cursor → tuple)."""
+    if row is None:
+        return None
+    return row.get(key) if isinstance(row, dict) else row[idx]
+
+
 def _instance_country_code(cur) -> str:
     """This instance's country, from api.setting.COUNTRY_CODE. It is the
     authority for new-project ownership — every SIS deployment is one
     country, so a new project always belongs to the configured country
     regardless of what the client sends. Falls back to env, then 'BT'."""
     cur.execute("SELECT value FROM api.setting WHERE key = 'COUNTRY_CODE'")
-    row = cur.fetchone()
-    if row and row[0]:
-        return row[0].strip().upper()
+    val = _row_get(cur.fetchone(), "value", 0)
+    if val:
+        return val.strip().upper()
     return os.getenv("COUNTRY_CODE", "BT").upper()
+
+
+def _project_country_id(cur, project_id):
+    """Country that owns `project_id` in soil_data.project (first if the id
+    exists under several countries), or None. The composite FK on
+    api.uploaded_dataset / proj_x_org_x_ind must match this."""
+    if not project_id:
+        return None
+    cur.execute("SELECT country_id FROM soil_data.project WHERE project_id = %s "
+                "ORDER BY country_id LIMIT 1", (project_id,))
+    return _row_get(cur.fetchone(), "country_id", 0)
 
 
 @app.post("/api/codelist/projects", status_code=status.HTTP_201_CREATED)
@@ -1436,7 +1455,10 @@ async def upload_csv(
 
             # Register in api.uploaded_dataset. country_id is required since
             # the spatial_metadata → soil_data merge made project's PK composite.
-            country_id = os.getenv("COUNTRY_CODE", "BT").upper()
+            # Use this instance's configured country (api.setting), not the env
+            # default — the env is unset in deployment, so "BT" leaked in and
+            # broke the (country_id, project_id) FK on non-BT instances.
+            country_id = _project_country_id(cur, project_id) or _instance_country_code(cur)
             cur.execute("""
                 INSERT INTO api.uploaded_dataset
                     (table_name, file_name, user_id, status, n_rows, n_col,
@@ -1575,9 +1597,14 @@ async def save_dataset_columns(
                 """, (epsg, table_name))
 
             if project_id:
+                # Keep country_id in lock-step with the project so the composite
+                # FK to soil_data.project holds (self-heals datasets that were
+                # registered with a stale/default country at upload time).
+                proj_country = _project_country_id(cur, project_id) or _instance_country_code(cur)
                 cur.execute("""
-                    UPDATE api.uploaded_dataset SET project_id = %s WHERE table_name = %s
-                """, (project_id, table_name))
+                    UPDATE api.uploaded_dataset SET country_id = %s, project_id = %s
+                    WHERE table_name = %s
+                """, (proj_country, project_id, table_name))
 
             log_audit(current_user['user_id'], None, "etl_columns_saved",
                      {"table_name": table_name, "columns": len(columns)}, None)
@@ -1604,7 +1631,12 @@ async def ingest_dataset(
                 raise HTTPException(status_code=404, detail="Dataset not found")
 
             project_id = dataset.get("project_id")
-            country_id = dataset.get("country_id") or os.getenv("COUNTRY_CODE", "BT").upper()
+            # Resolve the country from the project itself so ingest writes rows
+            # (project_site, …) under the project's real owner — not the stale
+            # env default that the dataset may have been registered with.
+            country_id = (_project_country_id(cur, project_id)
+                          or dataset.get("country_id")
+                          or _instance_country_code(cur))
             epsg = dataset.get("cords_epsg") or "4326"
 
             # Get column mappings (non-ignored)
