@@ -1237,12 +1237,32 @@ async def save_etl_metadata(
     for backwards compatibility with single-country callers.
     """
     project_id = payload.get("project_id")
-    country_id = (payload.get("country_id") or os.getenv("COUNTRY_CODE", "BT")).upper()
+    req_country = (payload.get("country_id") or "").upper()
     authors = payload.get("authors", [])
     if not project_id:
         raise HTTPException(status_code=400, detail="project_id is required")
     with get_db() as conn:
         with conn.cursor() as cur:
+            # The author link FK references soil_data.project(country_id,
+            # project_id). Trust the project table over the request / env
+            # COUNTRY_CODE, which can disagree (e.g. demo data seeded under a
+            # different country than the instance's configured code). Use the
+            # requested country only if that exact project exists; otherwise
+            # resolve the project's real owner by project_id.
+            country_id = None
+            if req_country:
+                cur.execute("SELECT 1 FROM soil_data.project WHERE country_id=%s AND project_id=%s",
+                            (req_country, project_id))
+                if cur.fetchone():
+                    country_id = req_country
+            if country_id is None:
+                cur.execute("SELECT country_id FROM soil_data.project WHERE project_id=%s ORDER BY country_id LIMIT 1",
+                            (project_id,))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=404,
+                                        detail=f"Project '{project_id}' not found")
+                country_id = row[0]
             cur.execute(
                 "DELETE FROM soil_data.proj_x_org_x_ind WHERE country_id = %s AND project_id = %s",
                 (country_id, project_id),
@@ -1271,9 +1291,22 @@ async def get_project_authors(
     current_user: dict = Depends(get_current_user),
 ):
     """Get existing authors linked to a project from soil_data.proj_x_org_x_ind."""
-    cc = (country_id or os.getenv("COUNTRY_CODE", "BT")).upper()
+    req_country = (country_id or "").upper()
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Resolve the project's real owner (see save_etl_metadata) so the
+            # author list matches regardless of the instance's COUNTRY_CODE.
+            cc = req_country
+            if cc:
+                cur.execute("SELECT 1 FROM soil_data.project WHERE country_id=%s AND project_id=%s",
+                            (cc, project_id))
+                if not cur.fetchone():
+                    cc = None
+            if not cc:
+                cur.execute("SELECT country_id FROM soil_data.project WHERE project_id=%s ORDER BY country_id LIMIT 1",
+                            (project_id,))
+                row = cur.fetchone()
+                cc = row["country_id"] if row else (req_country or "")
             cur.execute("""
                 SELECT organisation_id, individual_id, position, tag, role
                 FROM soil_data.proj_x_org_x_ind
