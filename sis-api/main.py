@@ -1160,9 +1160,20 @@ async def get_source_units(
                 })
             return options
 
+def _instance_country_code(cur) -> str:
+    """This instance's country, from api.setting.COUNTRY_CODE. It is the
+    authority for new-project ownership — every SIS deployment is one
+    country, so a new project always belongs to the configured country
+    regardless of what the client sends. Falls back to env, then 'BT'."""
+    cur.execute("SELECT value FROM api.setting WHERE key = 'COUNTRY_CODE'")
+    row = cur.fetchone()
+    if row and row[0]:
+        return row[0].strip().upper()
+    return os.getenv("COUNTRY_CODE", "BT").upper()
+
+
 @app.post("/api/codelist/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(payload: dict, current_user: dict = Depends(get_current_user)):
-    country_id = (payload.get("country_id") or "").strip().upper() or os.getenv("COUNTRY_CODE", "BT").upper()
     pid = payload.get("project_id", "").strip()
     name = payload.get("name", "").strip()
     description = (payload.get("description") or "").strip() or None
@@ -1170,6 +1181,8 @@ async def create_project(payload: dict, current_user: dict = Depends(get_current
         raise HTTPException(status_code=400, detail="project_id and name are required")
     with get_db() as conn:
         with conn.cursor() as cur:
+            # New projects always belong to THIS instance's country.
+            country_id = _instance_country_code(cur)
             try:
                 cur.execute(
                     "INSERT INTO soil_data.project (country_id, project_id, name, description) VALUES (%s, %s, %s, %s)",
@@ -3943,15 +3956,16 @@ async def list_smd_projects(
 
 @app.post("/api/raster/projects", status_code=status.HTTP_201_CREATED)
 async def create_smd_project(payload: dict, current_user: dict = Depends(get_current_user)):
-    country_id = (payload.get("country_id") or "").strip()
     project_id = (payload.get("project_id") or "").strip()
-    if not country_id or not project_id:
-        raise HTTPException(status_code=400, detail="country_id and project_id are required")
+    if not project_id:
+        raise HTTPException(status_code=400, detail="project_id is required")
     # soil_data.project.name is NOT NULL UNIQUE — fall back to project_id.
     name = (payload.get("project_name") or "").strip() or project_id
     description = (payload.get("description") or "").strip() or None
     with get_db() as conn:
         with conn.cursor() as cur:
+            # New projects always belong to THIS instance's country.
+            country_id = _instance_country_code(cur)
             cur.execute("""
                 INSERT INTO soil_data.project (country_id, project_id, name, description)
                 VALUES (%s, %s, %s, %s)
