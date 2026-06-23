@@ -40,7 +40,10 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          # DST runs load country-scale rasters; 512M OOM-killed the worker
+          # mid-run. The engine now streams inputs (bounded memory), but keep
+          # headroom for GDAL/rasterio + the map-render step. 13×1G < 16G host.
+          memory: 1024M
 
   sis-api-glosis:
     container_name: ${PROJECT}-api-glosis

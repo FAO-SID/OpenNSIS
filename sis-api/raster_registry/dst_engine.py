@@ -33,6 +33,12 @@ log = logging.getLogger("raster_registry")
 
 SUPPORTED_OPS = {">", ">=", "<", "<=", "==", "!=", "between"}
 SUPPORTED_AGG = {"sum", "min", "max", "mean", "product"}
+# Identity element per aggregation — masked (no-data) pixels contribute this so
+# they don't affect the running accumulator (see execute_recipe's streaming fold).
+_AGG_IDENTITY = {
+    "sum": 0.0, "mean": 0.0, "product": 1.0,
+    "min": float("inf"), "max": float("-inf"),
+}
 RASTER_DIR = os.getenv("RASTER_DIR", "/srv/rasters")
 
 
@@ -190,29 +196,59 @@ def execute_recipe(
             layer_paths.append(path)
 
     profile = None
-    score_stack = []
 
-    # NULL (no-data) pixels are excluded per-layer from the aggregation
-    # rather than propagated. We carry a mask alongside each scored layer
-    # so np.ma.stack().sum()/.mean()/etc. naturally skips masked entries:
-    # the output is NULL only at pixels where EVERY input was NULL.
-    # `no_data_mode` is kept on the recipe for back-compat but is now a
-    # no-op — "skip" is the only mode.
+    # NULL (no-data) pixels are excluded per-layer from the aggregation rather
+    # than propagated: the output is NULL only at pixels where EVERY input was
+    # NULL. (`no_data_mode` is kept on the recipe for back-compat but is now a
+    # no-op — "skip" is the only mode.)
+    #
+    # We FOLD each input into a running accumulator instead of stacking all
+    # inputs in memory. The old stack-then-aggregate form held O(n_inputs)
+    # full rasters at once (plus the stack copy) and OOM-killed the worker on
+    # country-scale grids. This streaming form holds ~3 rasters regardless of
+    # how many inputs the recipe has.
+    ident = _AGG_IDENTITY[agg]
+    acc = None          # running aggregate (float32)
+    any_valid = None    # bool: at least one input was valid at this pixel
+    count = None        # number of valid inputs per pixel (mean only)
+
     for step, path in zip(steps, layer_paths):
         with rasterio.open(path) as src:
             if profile is None:
                 profile = src.profile.copy()
             arr = src.read(1, masked=True)
-            mask = np.ma.getmaskarray(arr)
-            data = np.ma.filled(arr, fill_value=0).astype(np.float32)
-            scored = _apply_op(data, step)
-            score_stack.append(np.ma.array(scored, mask=mask))
-
-    stacked = np.ma.stack(score_stack, axis=0)
-    result_masked = _aggregate(stacked, agg).astype(np.float32)
+        mask = np.ma.getmaskarray(arr)
+        valid = ~mask
+        data = np.ma.filled(arr, fill_value=0).astype(np.float32)
+        scored = _apply_op(data, step)
+        # Masked pixels contribute the identity element so they don't change
+        # the result (0 for sum/mean, 1 for product, ±inf for min/max).
+        contrib = np.where(valid, scored, np.float32(ident))
+        if acc is None:
+            acc = contrib.astype(np.float32, copy=True)
+            any_valid = valid.copy()
+            if agg == "mean":
+                count = valid.astype(np.float32)
+        else:
+            if agg in ("sum", "mean"):
+                acc += contrib
+                if agg == "mean":
+                    count += valid
+            elif agg == "product":
+                acc *= contrib
+            elif agg == "min":
+                np.minimum(acc, contrib, out=acc)
+            elif agg == "max":
+                np.maximum(acc, contrib, out=acc)
+            any_valid |= valid
+        del arr, mask, valid, data, scored, contrib
 
     nodata_value = -9999.0
-    result = np.ma.filled(result_masked, fill_value=nodata_value).astype(np.float32)
+    if agg == "mean":
+        with np.errstate(invalid="ignore", divide="ignore"):
+            acc = np.where(count > 0, acc / np.where(count > 0, count, 1.0), 0.0).astype(np.float32)
+    # Output is NULL only where no input had a valid pixel at all.
+    result = np.where(any_valid, acc, np.float32(nodata_value)).astype(np.float32)
 
     os.makedirs(output_dir, exist_ok=True)
     out_path = os.path.join(output_dir, f"{output_layer_id}.tif")

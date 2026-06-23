@@ -59,6 +59,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.on_event("startup")
+def _recover_orphaned_dst_runs():
+    """A DST run executes as an in-process background task. If the worker is
+    killed mid-run (e.g. OOM), the run-state row is stranded at 'queued' /
+    'running' forever and the UI polls it indefinitely. On every startup, fail
+    any such orphan so the user gets a clear result and can simply re-run."""
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    UPDATE api.dst_recipe
+                       SET run_status      = 'failed',
+                           run_error       = 'interrupted — the server restarted mid-run '
+                                             '(often out of memory); please run it again',
+                           run_finished_at = now()
+                     WHERE run_status IN ('queued', 'running')
+                """)
+                n = cur.rowcount
+            conn.commit()
+        if n:
+            log.warning("startup: marked %d orphaned DST run(s) as failed", n)
+    except Exception:
+        log.exception("startup: failed to recover orphaned DST runs")
+
+
 # ==================== Authentication ====================
 
 LOGIN_MAX_ATTEMPTS = 5
