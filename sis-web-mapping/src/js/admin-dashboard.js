@@ -1021,6 +1021,15 @@ class AdminDashboard {
     }
   }
 
+  // The API may emit absolute MapServer URLs (e.g. http://localhost/mapserver/…)
+  // that point at the server's own host, not the browser's. Strip the origin so
+  // the request resolves against whatever origin:port the SPA is served from.
+  _relMapserverUrl(u) {
+    if (!u) return u;
+    try { const x = new URL(u, window.location.origin); return x.pathname + x.search; }
+    catch (e) { return u; }
+  }
+
   async checkAllWms() {
     const btn = document.getElementById('check-wms-btn');
     btn.disabled = true;
@@ -1040,7 +1049,7 @@ class AdminDashboard {
         return;
       }
       try {
-        const res = await fetch(layer.get_legend_url, { method: 'GET', cache: 'no-store' });
+        const res = await fetch(this._relMapserverUrl(layer.get_legend_url), { method: 'GET', cache: 'no-store' });
         const ct = res.headers.get('content-type') || '';
         if (res.ok && ct.startsWith('image/')) {
           cell.innerHTML = '<span style="color:#2a7;font-weight:bold;" title="OK">✓</span>';
@@ -2171,7 +2180,7 @@ class AdminDashboard {
     rows.forEach(tr => {
       const layerSel = tr.querySelector('.dst-row-layer');
       const layer = layerSel.value || '(no layer)';
-      const threshold = tr.querySelector('.dst-row-threshold').value;
+      const threshold = tr.querySelector('.dst-row-threshold-val').value || tr.querySelector('.dst-row-threshold').value;
       const below = tr.querySelector('.dst-row-below').value;
       const above = tr.querySelector('.dst-row-above').value;
       const thrStr = threshold === '' || threshold == null ? '<threshold>' : threshold;
@@ -2273,7 +2282,7 @@ class AdminDashboard {
     if (!hasRange) {
       slider.min = 0; slider.max = 0; slider.step = 'any';
       slider.value = ''; slider.disabled = true;
-      if (readout) readout.textContent = '—';
+      if (readout) { readout.value = ''; readout.disabled = true; readout.removeAttribute('min'); readout.removeAttribute('max'); }
       return;
     }
     const lo = Number(mn), hi = Number(mx);
@@ -2284,7 +2293,7 @@ class AdminDashboard {
           : (lo + (hi - lo) / 2);
     if (v < lo) v = lo; if (v > hi) v = hi;
     slider.value = v;
-    if (readout) readout.textContent = Number(v).toFixed(3);
+    if (readout) { readout.disabled = false; readout.min = lo; readout.max = hi; readout.value = slider.value; }
   }
 
   _dstRenderRow(step) {
@@ -2301,8 +2310,9 @@ class AdminDashboard {
       <td class="dst-row-max" style="text-align:right;color:#555;padding-left:6px;padding-right:56px;">${fmt(match?.stats_maximum)}</td>
       <td style="padding-right:6px;"><input type="number" class="dst-row-below no-spinner" step="any" value="${step.false_score ?? 0}" style="width:35px;"></td>
       <td style="padding-left:6px;padding-right:6px;text-align:center;white-space:nowrap;">
-        <div class="dst-row-threshold-val" style="color:#444;font-size:var(--fs-sm);font-weight:600;">—</div>
-        <input type="range" class="dst-row-threshold" style="width:120px;vertical-align:middle;">
+        <input type="number" class="dst-row-threshold-val no-spinner" step="any" title="Type a precise threshold"
+               style="width:74px;color:#444;font-size:var(--fs-sm);font-weight:600;text-align:center;">
+        <input type="range" class="dst-row-threshold" style="width:120px;vertical-align:middle;display:block;margin:5px auto 0;">
       </td>
       <td style="padding-left:6px;"><input type="number" class="dst-row-above no-spinner" step="any" value="${step.true_score ?? 1}" style="width:35px;"></td>
       <td><button type="button" class="btn btn-sm dst-row-remove" style="background:#dc3545;color:#fff;" title="Remove">×</button></td>
@@ -2324,11 +2334,25 @@ class AdminDashboard {
       // This layer is now used here → drop it from the other rows' lists.
       this._dstRebuildRowLayerOptions();
     });
-    // Slider drag → update the readout and the auto-description.
+    // Slider drag → mirror into the precise number box + refresh description.
     tr.querySelector('.dst-row-threshold').addEventListener('input', (e) => {
       const ro = tr.querySelector('.dst-row-threshold-val');
-      if (ro) ro.textContent = e.currentTarget.value === '' ? '—'
-        : Number(e.currentTarget.value).toFixed(3);
+      if (ro) ro.value = e.currentTarget.value;
+      this._dstRefreshAutoDescription();
+    });
+    // Typing a precise value → clamp the slider to it (the box keeps the exact
+    // figure even outside the slider's coarse step granularity).
+    tr.querySelector('.dst-row-threshold-val').addEventListener('input', (e) => {
+      const slider = tr.querySelector('.dst-row-threshold');
+      const raw = e.currentTarget.value;
+      if (raw !== '' && !slider.disabled) {
+        let n = Number(raw);
+        if (Number.isFinite(n)) {
+          const lo = Number(slider.min), hi = Number(slider.max);
+          if (n < lo) n = lo; if (n > hi) n = hi;
+          slider.value = n;
+        }
+      }
       this._dstRefreshAutoDescription();
     });
     // Below / above edits also refresh the auto-description.
@@ -2372,7 +2396,7 @@ class AdminDashboard {
     const rows = Array.from(tbody.querySelectorAll('tr.dst-row'));
     const steps = rows.map((tr, idx) => {
       const layer_id = tr.querySelector('.dst-row-layer').value;
-      const threshold = tr.querySelector('.dst-row-threshold').value;
+      const threshold = tr.querySelector('.dst-row-threshold-val').value || tr.querySelector('.dst-row-threshold').value;
       const below = tr.querySelector('.dst-row-below').value;
       const above = tr.querySelector('.dst-row-above').value;
       if (!layer_id) throw new Error(`Row ${idx + 1}: pick a layer`);

@@ -20,6 +20,19 @@ class SISApiClient {
   /**
    * Make authenticated request with API key
    */
+  // FastAPI's `detail` can be a string, a structured object (e.g. the DST
+  // validation report {message, report:{errors:[…]}}), or a 422 error list.
+  // Flatten any of those to a readable message instead of "[object Object]".
+  _detailToMessage(detail) {
+    if (detail == null) return '';
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) return detail.map(d => (d && d.msg) || JSON.stringify(d)).join('; ');
+    let msg = detail.message || detail.detail || '';
+    const errs = detail.report && Array.isArray(detail.report.errors) ? detail.report.errors : null;
+    if (errs && errs.length) msg = (msg ? msg + ': ' : '') + errs.join('; ');
+    return msg || JSON.stringify(detail);
+  }
+
   async request(endpoint, options = {}) {
     const headers = {
       'X-API-Key': this.apiKey,
@@ -34,7 +47,7 @@ class SISApiClient {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(error.detail || `API Error: ${response.status}`);
+      throw new Error(this._detailToMessage(error.detail) || `API Error: ${response.status}`);
     }
 
     return response.json();
@@ -67,7 +80,7 @@ class SISApiClient {
         throw new Error('Session expired. Please login again.');
       }
       const error = await response.json().catch(() => ({ detail: response.statusText }));
-      throw new Error(error.detail || `API Error: ${response.status}`);
+      throw new Error(this._detailToMessage(error.detail) || `API Error: ${response.status}`);
     }
 
     return response.json();
