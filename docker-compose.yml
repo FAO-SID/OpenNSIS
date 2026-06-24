@@ -172,9 +172,14 @@ services:
       context: ./sis-web-mapping
       dockerfile: Dockerfile
       args:
-        API_URL: http://localhost
+        # Relative URLs so the SPA calls its own origin — works on a domain or
+        # a bare IP, http or https, with no rebuild when the host changes. The
+        # old http://localhost defaults only worked when the browser ran on the
+        # server itself. Override via .env only if the API / MapServer are
+        # served from a different origin.
+        API_URL: ${API_URL:-}
         API_KEY: ${WEB_MAPPING_API_KEY}
-        MAPSERVER_URL: http://localhost/mapserver
+        MAPSERVER_URL: ${MAPSERVER_URL:-/mapserver}
     ports:
       - "8001:8000"
     networks:

@@ -1,10 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 
-# Set working directory
-PROJECT_DIR="/home/carva014/Work/Code/FAO/SIS-dev"      # << EDIT THIS LINE!
-COUNTRY=BT                                              # ISO 3166-1 alpha-2; full name and centroid are looked up from soil_data.country
-ORG_LOGO_URL="https://tse4.mm.bing.net/th/id/OIP.hV37F63PxOkqMwTAlCNnvQAAAA?r=0&pid=Api"
+# Set working directory.
+# These three may be overridden from the environment (e.g. by
+# ops/single/first-deploy.sh) so the same script drives a scripted server
+# deploy without editing it; the defaults preserve local-dev behaviour.
+PROJECT_DIR="${PROJECT_DIR:-/home/carva014/Work/Code/FAO/SIS-dev}"   # << or export PROJECT_DIR=…
+COUNTRY="${COUNTRY:-BT}"                                # ISO 3166-1 alpha-2; full name and centroid are looked up from soil_data.country
+ORG_LOGO_URL="${ORG_LOGO_URL:-https://tse4.mm.bing.net/th/id/OIP.hV37F63PxOkqMwTAlCNnvQAAAA?r=0&pid=Api}"
 
 cd "$PROJECT_DIR"
 
