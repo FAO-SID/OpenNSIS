@@ -1595,6 +1595,16 @@ async def save_dataset_columns(
                     col["column_name"]
                 ))
 
+            # A skipped (ignore) or unmapped column can't carry a meaningful
+            # validation result — clear any stale one so the UI stops showing an
+            # error for a column the user has excluded.
+            cur.execute("""
+                UPDATE api.uploaded_dataset_column
+                SET validation = NULL
+                WHERE table_name = %s
+                  AND (ignore_column = true OR destination_table IS NULL)
+            """, (table_name,))
+
             if epsg:
                 cur.execute("""
                     UPDATE api.uploaded_dataset SET cords_epsg = %s WHERE table_name = %s
@@ -2633,7 +2643,13 @@ async def validate_dataset(
                                     r["error_rows"] = sorted(set(r["error_rows"]) | outside_set)
                                     r["status"] = "ERROR"
 
-            # Persist per-column validation
+            # Persist per-column validation. Wipe every column's result first
+            # so a column that was un-mapped or set to skip doesn't keep a stale
+            # error from a previous mapping — validate only writes results for
+            # the columns it actually checked this run.
+            cur.execute(
+                "UPDATE api.uploaded_dataset_column SET validation = NULL WHERE table_name = %s",
+                (table_name,))
             total_errors = 0
             for csv_col, r in col_results.items():
                 text = "OK" if r["status"] == "OK" else "; ".join(r["errors"])
