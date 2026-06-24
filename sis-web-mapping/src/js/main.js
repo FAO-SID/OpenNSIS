@@ -457,6 +457,18 @@ function safeUrl(url) {
   } catch (e) { return '#'; }
 }
 
+// MapServer URLs are emitted server-side as absolute http://localhost/mapserver/…
+// (the API's MAPSERVER_WMS_URL), which points at the visitor's own machine, not
+// the SIS host — so preview images and WMS links fail to load. Strip the origin
+// so the browser requests /mapserver/… on whatever origin served the app.
+function relMapserverUrl(url) {
+  if (!url) return url;
+  try {
+    const u = new URL(url, window.location.origin);
+    return /\/mapserver\b/.test(u.pathname) ? (u.pathname + u.search) : url;
+  } catch (e) { return url; }
+}
+
 // Restrictive mailto: builder — only allow simple email-shaped strings.
 function safeMailto(addr) {
   if (typeof addr !== 'string') return '#';
@@ -496,7 +508,7 @@ function formatMetadata(m) {
 
   // Browse-graphic / thumbnail (WMS GetMap JPEG)
   if (m.md_browse_graphic) {
-    const safe = safeUrl(m.md_browse_graphic);
+    const safe = safeUrl(relMapserverUrl(m.md_browse_graphic));
     html += `<div style="margin:15px 0;text-align:center;">
       <a href="${e(safe)}" target="_blank" rel="noopener noreferrer" title="Open preview">
         <img src="${e(safe)}" alt="Preview"
@@ -611,7 +623,7 @@ function formatMetadata(m) {
       <div style="display:flex;flex-direction:column;gap:6px;">`
       + m.online_resources.map(u => {
           const icon = u.protocol?.startsWith('WWW:LINK') || u.protocol?.startsWith('WWW:DOWNLOAD') ? '📥' : '🔗';
-          return `<a href="${e(safeUrl(u.url))}" target="_blank" rel="noopener noreferrer" style="padding:8px;background:#fff;border:1px solid #ddd;border-radius:4px;text-decoration:none;color:#2c3e50;display:flex;gap:10px;align-items:center;">
+          return `<a href="${e(safeUrl(relMapserverUrl(u.url)))}" target="_blank" rel="noopener noreferrer" style="padding:8px;background:#fff;border:1px solid #ddd;border-radius:4px;text-decoration:none;color:#2c3e50;display:flex;gap:10px;align-items:center;">
             <span style="font-size:18px;">${icon}</span>
             <div style="flex:1;">
               <div style="font-weight:600;">${e(u.url_name || u.protocol)}</div>
