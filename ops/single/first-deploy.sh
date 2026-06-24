@@ -50,8 +50,8 @@ echo " Repo / branch : $REPO_URL  ($BRANCH)"
 echo " Country       : $CC   →   http://<IP>/  (nginx :80)"
 echo " Install dir   : $DEST"
 echo "============================================================"
-echo "Press Ctrl-C now if that's wrong. Continuing in 4s…"
-sleep 4
+echo "Press Ctrl-C now if that's wrong. Continuing in 10s…"
+sleep 10
 
 # All on-server work over a single SSH session. The remote reads the vars from
 # the env we set on the ssh command line.
