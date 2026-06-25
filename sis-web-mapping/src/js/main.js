@@ -1271,7 +1271,9 @@ async function showProfileObservations(feature, popup, coordinate) {
 function showLegend(legendUrl) {
   const legendContainer = document.getElementById('legend');
   const legendContent = legendContainer.querySelector('.legend-content');
-  legendContent.innerHTML = `<img src="${legendUrl}" alt="Legend">`;
+  // get_legend_url is emitted as http://localhost/mapserver/… — relativize it
+  // so the legend image loads from the SIS host, not the visitor's machine.
+  legendContent.innerHTML = `<img src="${relMapserverUrl(legendUrl)}" alt="Legend">`;
   legendContainer.style.display = 'block';
 }
 
