@@ -1501,17 +1501,24 @@ async def list_datasets(current_user: dict = Depends(get_current_user)):
             cur.execute("SELECT * FROM api.uploaded_dataset ORDER BY table_name DESC")
             return cur.fetchall()
 
+# Rows returned to the preview/mapping table. The UI paginates these client-
+# side (100/page), so a 100-row cap made every CSV a single, un-navigable page.
+# 5000 covers realistic soil-profile CSVs while keeping the payload light;
+# ingest still processes the full staging table regardless.
+ETL_PREVIEW_MAX_ROWS = 5000
+
 @app.get("/api/etl/datasets/{table_name}/preview")
 async def get_dataset_preview(table_name: str, current_user: dict = Depends(get_current_user)):
-    """Get first 100 rows from a staging table."""
+    """Get up to ETL_PREVIEW_MAX_ROWS rows from a staging table (paginated in the UI)."""
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("SELECT 1 FROM api.uploaded_dataset WHERE table_name = %s", (table_name,))
             if not cur.fetchone():
                 raise HTTPException(status_code=404, detail="Dataset not found")
-            cur.execute(pgsql.SQL("SELECT * FROM {}.{} ORDER BY _row_id LIMIT 100").format(
+            cur.execute(pgsql.SQL("SELECT * FROM {}.{} ORDER BY _row_id LIMIT {}").format(
                 pgsql.Identifier('soil_data_upload'),
-                pgsql.Identifier(table_name)
+                pgsql.Identifier(table_name),
+                pgsql.Literal(ETL_PREVIEW_MAX_ROWS)
             ))
             rows = cur.fetchall()
             all_cols = [desc[0] for desc in cur.description] if cur.description else []
