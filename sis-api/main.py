@@ -3876,7 +3876,7 @@ async def inspect_raster(
 ):
     """Inspect a GeoTIFF. Either upload via multipart (`file`) OR pass a
     path inside the sis-web-services volume (`path`)."""
-    from raster_registry.inspect import inspect_geotiff
+    from raster_registry.inspect import inspect_geotiff, ensure_nodata
 
     tmp_path = None
     try:
@@ -3889,6 +3889,13 @@ async def inspect_raster(
                 while chunk := await file.read(1 << 20):  # 1 MB chunks
                     out.write(chunk)
             tif_path = tmp_path
+            # Auto-assign NoData when the upload has none, so the inspect result
+            # (and thus the preview + the no-NoData validation rule + masked
+            # stats) reflects what register will persist — no manual pre-clean.
+            try:
+                ensure_nodata(tif_path)
+            except Exception:
+                log.exception("inspect: ensure_nodata failed for %s", tif_path)
         elif path:
             # Allow only paths inside the MapServer volume — this prevents an
             # admin from reading arbitrary files on disk via this endpoint.
@@ -3980,6 +3987,17 @@ async def register_raster_endpoint(
         else:
             raise HTTPException(status_code=400,
                                 detail="Provide either `file` (multipart) or `path` (form)")
+
+        # Assign a NoData value now — after the file is in place, before
+        # populate / .map / metadata — instead of rejecting rasters that ship
+        # without one. Best-effort: a failure here must not abort registration.
+        try:
+            from raster_registry.inspect import ensure_nodata
+            assigned_nd = ensure_nodata(target_path)
+            if assigned_nd is not None:
+                log.info("register: assigned NoData=%s to %s", assigned_nd, target_path)
+        except Exception:
+            log.exception("register: ensure_nodata failed for %s", target_path)
 
         keyword_list = [k.strip() for k in (keywords or "").split(",") if k.strip()] or None
 

@@ -9,8 +9,66 @@ import os
 from typing import Optional, List
 from pydantic import BaseModel
 
+import numpy as np
 import rasterio
 from rasterio.warp import transform_bounds
+
+
+def ensure_nodata(path: str) -> Optional[float]:
+    """If band 1 declares no NoData, assign a sensible one *in place* and return
+    it; return None if the file already had one (then it's left untouched).
+
+    Mirrors the manual pre-clean operators used to run before upload:
+      * a -999 background  → standardise on -9999 (remap the pixels + tag);
+      * data min > -9999   → -9999 is a safe sentinel below the data → tag only;
+      * data dips < -9999  → a very-negative float sentinel (-3.4e38) / the int
+                             dtype minimum → tag only.
+
+    Only the -999 case rewrites pixels (block-wise, so memory stays bounded on
+    large rasters); every other case just stamps the NoData tag. Single-band
+    rasters (what the rest of the pipeline assumes) — band 1 only.
+    """
+    with rasterio.open(path) as src:
+        nd = src.nodatavals[0] if src.nodatavals else None
+        if nd is not None and not (isinstance(nd, float) and math.isnan(nd)):
+            return None                      # already declared — leave as-is
+        dt = np.dtype(src.dtypes[0])
+        is_float = np.issubdtype(dt, np.floating)
+        profile = src.profile.copy()
+        try:
+            dmin = float(src.stats(indexes=[1])[0].min)
+        except Exception:
+            a = src.read(1, masked=True)
+            dmin = float(a.min()) if a.count() else 0.0
+
+    remap_from = None
+    if abs(dmin + 999.0) < 1e-3:             # -999 background → standard -9999
+        nodata, remap_from = -9999.0, -999.0
+    elif dmin > -9999.0:                      # -9999 sits below the data → safe
+        nodata = -9999.0
+    else:                                     # data goes very negative
+        nodata = -3.4e38 if is_float else float(np.iinfo(dt).min)
+    if not is_float:                          # keep it representable in the dtype
+        info = np.iinfo(dt)
+        if not (info.min <= nodata <= info.max):
+            nodata = float(info.min)
+
+    if remap_from is None:
+        # No pixels to touch — just stamp the tag (cheap, no full read/write).
+        with rasterio.open(path, "r+") as dst:
+            dst.nodata = nodata
+        return nodata
+
+    # Remap the -999 background → nodata, one block at a time.
+    profile.update(nodata=nodata)
+    tmp = path + ".nd.tif"
+    with rasterio.open(path) as src, rasterio.open(tmp, "w", **profile) as dst:
+        for _, window in src.block_windows(1):
+            block = src.read(1, window=window)
+            block = np.where(block == remap_from, nodata, block).astype(dt)
+            dst.write(block, 1, window=window)
+    os.replace(tmp, path)
+    return nodata
 
 
 def _clean_float(v) -> Optional[float]:
