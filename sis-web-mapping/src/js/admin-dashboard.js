@@ -1218,9 +1218,11 @@ class AdminDashboard {
       newPid.value = newPid.value.toUpperCase().replace(/[^A-Z0-9_]/g, '');
     });
 
-    // Date fields: accept forgiving input. Replace `/` with `-` as the
-    // user types, and zero-pad single-digit month/day so `2025/10/5`
-    // becomes `2025-10-05` as soon as the value matches a full date.
+    // Date fields: accept forgiving input, but normalise ONLY on blur —
+    // turn `/` into `-` and zero-pad single-digit month/day (`2025/10/5` →
+    // `2025-10-05`). Normalising on every keystroke re-padded a single-digit
+    // day to two digits mid-typing; with maxlength=10 that left no room for
+    // the second digit, so typing `2000-01-11` got stuck at `2000-01-01`.
     const normaliseDate = (el) => {
       let v = el.value;
       if (v.includes('/')) v = v.replace(/\//g, '-');
@@ -1231,7 +1233,7 @@ class AdminDashboard {
     ['raster-publication-date','raster-time-period-begin','raster-time-period-end']
       .forEach(id => {
         const el = document.getElementById(id);
-        el.addEventListener('input', () => { normaliseDate(el); refresh(); });
+        el.addEventListener('input', () => { refresh(); });
         el.addEventListener('blur',  () => { normaliseDate(el); refresh(); });
       });
 
