@@ -9,6 +9,8 @@ import os
 from typing import Optional, List
 from pydantic import BaseModel
 
+import warnings
+
 import numpy as np
 import rasterio
 from rasterio.warp import transform_bounds
@@ -232,12 +234,17 @@ def inspect_geotiff(tif_path: str) -> RasterMetadata:
         bands: List[BandStats] = []
         for band_idx in range(1, src.count + 1):
             stats = None
+            # Force a fresh recompute (clear_cache) honouring NoData. Some
+            # producers ship bogus cached STATISTICS_MEAN/STDDEV (e.g. -9999)
+            # that GDAL would otherwise return as-is; recomputing also reflects
+            # any NoData we just assigned, and skips NaN.
             try:
-                s = src.stats(indexes=[band_idx])
-                if s and s[0] is not None:
-                    rs = s[0]
-                    stats = (float(rs.min), float(rs.max),
-                             float(rs.mean), float(rs.std))
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")  # statistics() is deprecated in rasterio 2.0
+                    st = src.statistics(band_idx, approx=False, clear_cache=True)
+                if st is not None:
+                    stats = (float(st.min), float(st.max),
+                             float(st.mean), float(st.std))
             except Exception:
                 stats = None
 
