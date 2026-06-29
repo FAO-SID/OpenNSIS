@@ -501,12 +501,13 @@ class AdminDashboard {
                         <th>Measurements</th>
                         <th>Public limit</th>
                         <th title="Random coordinate offset in meters. Blank = precise coords.">Spatial blur (meters)</th>
+                        <th title="Share only profile locations (points) on the map — no observational data is shared or shown.">Share locations only</th>
                         <th>Published</th>
                         <th>Delete</th>
                       </tr>
                     </thead>
                     <tbody id="soil-profile-layers-tbody">
-                      <tr><td colspan="7" class="loading">Loading soil profile layers...</td></tr>
+                      <tr><td colspan="8" class="loading">Loading soil profile layers...</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -3112,7 +3113,7 @@ class AdminDashboard {
 
     const rows = this.soilProfileLayers || [];
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No projects found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No projects found</td></tr>';
       return;
     }
 
@@ -3151,6 +3152,15 @@ class AdminDashboard {
           <span class="sp-blur-status" data-project-id="${pid}"></span>
         </td>
         <td>
+          <button class="btn btn-sm sp-loc-only-btn"
+                  data-project-id="${pid}" data-value="${r.locations_only ? '0' : '1'}"
+                  style="${r.locations_only ? 'background:#e0a800;color:#fff;' : ''}"
+                  title="${r.locations_only ? 'Only locations are shared — no observational data' : 'Full data is shared'}">
+            ${r.locations_only ? 'Yes' : 'No'}
+          </button>
+          <span class="sp-loc-only-status" data-project-id="${pid}"></span>
+        </td>
+        <td>
           <button class="btn ${r.is_published ? 'btn-secondary' : 'btn-success'} sp-publish-btn"
                   data-project-id="${pid}" data-publish="${r.is_published ? '0' : '1'}">
             ${r.is_published ? 'Unpublish' : 'Publish'}
@@ -3171,6 +3181,15 @@ class AdminDashboard {
         const publish = e.currentTarget.dataset.publish === '1';
         await this.flushPendingSoilProfileEdits();
         this.toggleSoilProfilePublish(projectId, publish);
+      });
+    });
+
+    tbody.querySelectorAll('.sp-loc-only-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const projectId = e.currentTarget.dataset.projectId;
+        const value = e.currentTarget.dataset.value === '1';
+        await this.flushPendingSoilProfileEdits();
+        this.toggleSoilProfileLocationsOnly(projectId, value);
       });
     });
 
@@ -3235,6 +3254,16 @@ class AdminDashboard {
       this.renderSoilProfileLayers();
     } catch (error) {
       alert('Error updating publish state: ' + error.message);
+    }
+  }
+
+  async toggleSoilProfileLocationsOnly(projectId, locationsOnly) {
+    try {
+      await api.setSoilProfileLocationsOnly(projectId, locationsOnly);
+      await this.loadSoilProfileLayers();
+      this.renderSoilProfileLayers();
+    } catch (error) {
+      alert('Error updating "locations only": ' + error.message);
     }
   }
 

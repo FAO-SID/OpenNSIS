@@ -2991,6 +2991,7 @@ async def list_soil_profile_layers(current_user: dict = Depends(get_current_user
           COALESCE(pl.is_published, TRUE) AS is_published,
           pm.profile_limit,
           pm.spatial_blur_m,
+          COALESCE(pm.locations_only, FALSE) AS locations_only,
           COALESCE(pt.total_profiles, 0) AS total_profile_count,
           COALESCE(ppc.published_profiles, 0) AS published_profile_count,
           COALESCE(tobs.total_observations, 0) AS total_observation_count,
@@ -3103,6 +3104,37 @@ async def set_soil_profile_blur(
                 raise HTTPException(status_code=404, detail="Project or stub mapset not found")
             conn.commit()
     return {"project_id": project_id, "spatial_blur_m": body.spatial_blur_m}
+
+
+class SoilProfileLocationsOnlyUpdate(BaseModel):
+    locations_only: bool
+
+
+@app.patch("/api/layer/soil_profiles/{project_id}/locations-only")
+async def set_soil_profile_locations_only(
+    project_id: str,
+    body: SoilProfileLocationsOnlyUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Share only profile locations (points) for this project — no observational
+    data. Enforced in api.vw_api_observation (SIS data panel/CSV + GloSIS
+    federation); the points keep publishing via api.vw_api_profile."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE soil_data.mapset m
+                SET locations_only = %s
+                FROM soil_data.project p
+                WHERE m.mapset_id = p.country_id || '-' || p.project_id
+                  AND p.project_id = %s
+                """,
+                (body.locations_only, project_id),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Project or stub mapset not found")
+            conn.commit()
+    return {"project_id": project_id, "locations_only": body.locations_only}
 
 
 @app.get("/api/stats/dashboard")

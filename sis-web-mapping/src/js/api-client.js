@@ -257,6 +257,13 @@ class SISApiClient {
     });
   }
 
+  async setSoilProfileLocationsOnly(projectId, locationsOnly) {
+    return this.authenticatedRequest(`/api/layer/soil_profiles/${encodeURIComponent(projectId)}/locations-only`, {
+      method: 'PATCH',
+      body: JSON.stringify({ locations_only: locationsOnly })
+    });
+  }
+
   // Dashboard
   async getDashboardStats() {
     return this.authenticatedRequest('/api/stats/dashboard');
