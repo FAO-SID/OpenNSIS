@@ -323,6 +323,10 @@ class AdminDashboard {
                     <div class="chart-wrap"><canvas id="chart-profiles-per-project"></canvas></div>
                   </div>
                   <div class="chart-card">
+                    <h4 class="chart-title">Rasters per project</h4>
+                    <div class="chart-wrap"><canvas id="chart-rasters-per-project"></canvas></div>
+                  </div>
+                  <div class="chart-card">
                     <h4 class="chart-title">Top measured properties</h4>
                     <div class="chart-wrap"><canvas id="chart-top-properties"></canvas></div>
                   </div>
@@ -3407,6 +3411,24 @@ class AdminDashboard {
           }],
         },
         options: { ...baseOpts, indexAxis: 'y', scales: { x: { beginAtZero: true } } },
+      }
+    );
+
+    // Rasters per project (horizontal bar)
+    const rp = stats.rasters_per_project || [];
+    this._dashboardCharts.rastersPerProject = new Chart(
+      document.getElementById('chart-rasters-per-project'),
+      {
+        type: 'bar',
+        data: {
+          labels: rp.map(r => r.project_name),
+          datasets: [{
+            data: rp.map(r => r.raster_count),
+            backgroundColor: paletteFor(rp.length),
+            borderRadius: 4,
+          }],
+        },
+        options: { ...baseOpts, indexAxis: 'y', scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } },
       }
     );
 

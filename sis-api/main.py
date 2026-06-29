@@ -3185,6 +3185,20 @@ async def dashboard_stats(current_user: dict = Depends(get_current_user)):
             """)
             out["profiles_per_project"] = cur.fetchall()
 
+            # Rasters per project (registered grid layers)
+            cur.execute("""
+                SELECT p.name AS project_name,
+                       count(l.layer_id) AS raster_count
+                FROM soil_data.project p
+                JOIN soil_data.mapset m
+                       ON m.country_id = p.country_id AND m.project_id = p.project_id
+                JOIN soil_data.layer l ON l.mapset_id = m.mapset_id
+                WHERE m.spatial_representation_type_code = 'grid'
+                GROUP BY p.name
+                ORDER BY raster_count DESC;
+            """)
+            out["rasters_per_project"] = cur.fetchall()
+
             # Top 10 measured properties
             cur.execute("""
                 SELECT o.property_num_id AS property,
