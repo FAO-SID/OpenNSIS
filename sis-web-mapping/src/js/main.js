@@ -1011,22 +1011,24 @@ function addProfileLayerControl() {
     // resolves for both grid and vector layers.
     const mapsetId = profileMapsetIds[projectName];
 
-    // Privacy warnings for this layer. Each is a generic ⚠ — never any value.
-    const addWarn = (title) => {
+    // Privacy warnings for this layer — a single ⚠ listing every applicable
+    // restriction (never any value).
+    const warnings = [];
+    if (mapsetId && locationsOnlyMapsetIds.has(mapsetId)) {
+      warnings.push('This layer shares only profile locations — no observational/attribute data is shared.');
+    }
+    if (mapsetId && blurredMapsetIds.has(mapsetId)) {
+      warnings.push('Profile locations on this layer are approximate (privacy protection applied).');
+    }
+    if (warnings.length) {
       const warn = document.createElement('span');
       warn.className = 'layer-privacy-warning';
       warn.textContent = '⚠';
-      warn.title = title;
-      warn.setAttribute('aria-label', title);
+      warn.title = warnings.join('\n');
+      warn.setAttribute('aria-label', warnings.join(' '));
       warn.style.cursor = 'help';
       warn.style.color = '#b8860b';
       layerItem.appendChild(warn);
-    };
-    if (mapsetId && locationsOnlyMapsetIds.has(mapsetId)) {
-      addWarn('This layer shares only profile locations — no observational/attribute data is shared.');
-    }
-    if (mapsetId && blurredMapsetIds.has(mapsetId)) {
-      addWarn('Profile locations on this layer are approximate (privacy protection applied).');
     }
 
     if (mapsetId) {
