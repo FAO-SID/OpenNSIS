@@ -81,9 +81,9 @@ if [ "$ASSUME_YES" != 1 ]; then
 fi
 
 # ---- 2. DB migrations ------------------------------------------------------
-# Each migrations/NNN_*.sql runs once, in filename order, inside a single
-# transaction together with its bookkeeping insert — so a failure rolls the
-# whole file back and records nothing. Migrations must be idempotent.
+# Each sis-database/migrations/NNN_*.sql runs once, in filename order, inside a
+# single transaction together with its bookkeeping insert — so a failure rolls
+# the whole file back and records nothing. Migrations must be idempotent.
 echo "### 2/4  database migrations"
 dbpsql -v ON_ERROR_STOP=1 -q <<'SQL'
 CREATE SCHEMA IF NOT EXISTS api;
@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS api.schema_migration (
 SQL
 shopt -s nullglob
 applied_any=0
-for f in migrations/*.sql; do
+for f in sis-database/migrations/*.sql; do
   name=$(basename "$f")
   done_=$(dbpsql -tAc "SELECT 1 FROM api.schema_migration WHERE filename = '$name'" | tr -d '[:space:]')
   if [ "$done_" = "1" ]; then

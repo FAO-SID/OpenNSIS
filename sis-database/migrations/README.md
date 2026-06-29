@@ -1,7 +1,8 @@
 # Database migrations
 
-Incremental, **idempotent** SQL applied to a *live* database by `../update.sh`,
-so countries can update an installed SIS without wiping the data they uploaded.
+Incremental, **idempotent** SQL applied to a *live* database by the repo-root
+`update.sh`, so countries can update an installed SIS without wiping the data
+they uploaded.
 
 This is the in-place counterpart to the full seed dump
 (`sis-database/sis-database_latest_with_codelist.sql`): the dump is what a
@@ -16,10 +17,10 @@ forward without reloading (and thus erasing) its data.
 api.schema_migration (filename text primary key, applied_at timestamptz)
 ```
 
-On each run it applies every `migrations/NNN_*.sql` not yet in that table, in
-**filename order**, each inside a single transaction together with its
-bookkeeping insert. A failure rolls the whole file back and records nothing, so
-re-running is safe.
+On each run it applies every `sis-database/migrations/NNN_*.sql` not yet in that
+table, in **filename order** (by basename), each inside a single transaction
+together with its bookkeeping insert. A failure rolls the whole file back and
+records nothing, so re-running is safe.
 
 ## Writing a migration
 
@@ -53,3 +54,5 @@ volumes).
 - `001_hsv_colour_ramp.sql` — HSV colour-ramp triggers (`soil_data.class`,
   `soil_data.map`, `soil_data._ramp_color`); also fixes `map()`'s
   mapped_property join. Idempotent; already in fresh dumps.
+- `002_vw_api_profile_mapset_id.sql` — `api.vw_api_profile` exposes `mapset_id`
+  (DROP + CREATE, no dependents). Idempotent; already in fresh dumps.

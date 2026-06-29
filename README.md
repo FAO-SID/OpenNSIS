@@ -161,14 +161,16 @@ the install dir:
 ./update.sh          # add -y to skip the confirmation prompt
 ```
 
-It `git pull`s, applies any pending DB migrations (`migrations/*.sql`, tracked
-in `api.schema_migration`), rebuilds **only the application containers**
+It `git pull`s, applies any pending DB migrations
+(`sis-database/migrations/*.sql`, tracked in `api.schema_migration`), rebuilds
+**only the application containers**
 (`sis-api`, `sis-api-glosis`, `sis-web-mapping`) and reloads nginx. It never
 runs `down`, never passes `-v`, and never reloads the seed dump — so the
 Postgres / pyCSW / raster volumes (everything you uploaded) are preserved.
 
 DB schema/function/view changes ship as numbered, idempotent migrations under
-`migrations/` (see `migrations/README.md`). Base-image upgrades of the data
+`sis-database/migrations/` (see `sis-database/migrations/README.md`). Base-image
+upgrades of the data
 containers (Postgres / pyCSW / MapServer) are a deliberate manual step and are
 out of `update.sh`'s scope.
 
