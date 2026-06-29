@@ -278,7 +278,7 @@ async def check_for_updates(current_user: dict = Depends(get_current_admin_user)
     """Compare the running build against the repo branch on GitHub (read-only).
     Returns how many newer commits exist and the command to apply them; it does
     not (and cannot) update anything itself."""
-    import urllib.request, urllib.error
+    import urllib.request, urllib.error, json
     sha = (os.getenv("GIT_SHA", "unknown") or "unknown").strip()
     out = {"current": sha, "repo": UPDATE_REPO, "branch": UPDATE_BRANCH,
            "command": "./update.sh", "available": None}
