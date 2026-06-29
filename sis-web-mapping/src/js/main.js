@@ -19,7 +19,8 @@ let currentLayers = {};
 let profileLayers = {};
 let profileColors = {};
 let profileMapsetIds = {};
-let blurredMapsetIds = new Set();   // mapset_ids whose profile coords are blurred
+let blurredMapsetIds = new Set();        // mapset_ids whose profile coords are blurred
+let locationsOnlyMapsetIds = new Set();  // mapset_ids sharing points only, no attribute data
 let activeLayer = null;
 let activePopup = null;   // the map info-popup overlay (set in setupPopup)
 
@@ -724,10 +725,12 @@ async function loadProfiles() {
     // Which profile layers have spatial blur applied (booleans only — the
     // radius is never sent). Used to warn that locations are approximate.
     try {
-      const blur = await api.getProfileBlurFlags();
-      blurredMapsetIds = new Set((blur && blur.blurred_mapset_ids) || []);
+      const flags = await api.getProfileBlurFlags();
+      blurredMapsetIds = new Set((flags && flags.blurred_mapset_ids) || []);
+      locationsOnlyMapsetIds = new Set((flags && flags.locations_only_mapset_ids) || []);
     } catch (e) {
       blurredMapsetIds = new Set();
+      locationsOnlyMapsetIds = new Set();
     }
 
     if (!profiles || profiles.length === 0) {
@@ -1008,17 +1011,22 @@ function addProfileLayerControl() {
     // resolves for both grid and vector layers.
     const mapsetId = profileMapsetIds[projectName];
 
-    // Privacy warning: this layer's profile coordinates are blurred. Show a
-    // generic warning only — never the blur radius.
-    if (mapsetId && blurredMapsetIds.has(mapsetId)) {
+    // Privacy warnings for this layer. Each is a generic ⚠ — never any value.
+    const addWarn = (title) => {
       const warn = document.createElement('span');
-      warn.className = 'layer-blur-warning';
+      warn.className = 'layer-privacy-warning';
       warn.textContent = '⚠';
-      warn.title = 'Profile locations on this layer are approximate (privacy protection applied).';
-      warn.setAttribute('aria-label', warn.title);
+      warn.title = title;
+      warn.setAttribute('aria-label', title);
       warn.style.cursor = 'help';
       warn.style.color = '#b8860b';
       layerItem.appendChild(warn);
+    };
+    if (mapsetId && locationsOnlyMapsetIds.has(mapsetId)) {
+      addWarn('This layer shares only profile locations — no observational/attribute data is shared.');
+    }
+    if (mapsetId && blurredMapsetIds.has(mapsetId)) {
+      addWarn('Profile locations on this layer are approximate (privacy protection applied).');
     }
 
     if (mapsetId) {

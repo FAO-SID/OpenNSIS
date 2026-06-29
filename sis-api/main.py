@@ -875,16 +875,25 @@ async def get_profiles(
 
 @app.get("/api/profile/blur")
 async def get_profile_blur_flags(api_client: dict = Depends(verify_api_key)):
-    """Which soil-profile layers have spatial blur applied. Returns booleans
-    only (the blur radius itself is never exposed) so the map can warn that a
-    layer's profile locations are approximate."""
+    """Per-layer privacy flags for soil-profile layers, so the map can warn:
+      * blurred_mapset_ids       — coordinates are blurred (radius never exposed)
+      * locations_only_mapset_ids — only points are shared, no observational data
+    Booleans/ids only; no sensitive values are returned."""
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT mapset_id FROM soil_data.mapset
-                WHERE spatial_blur_m IS NOT NULL AND spatial_blur_m > 0
+                SELECT mapset_id,
+                       COALESCE(spatial_blur_m, 0) > 0 AS blurred,
+                       COALESCE(locations_only, FALSE) AS loc_only
+                FROM soil_data.mapset
+                WHERE (spatial_blur_m IS NOT NULL AND spatial_blur_m > 0)
+                   OR locations_only IS TRUE
             """)
-            return {"blurred_mapset_ids": [r[0] for r in cur.fetchall()]}
+            rows = cur.fetchall()
+            return {
+                "blurred_mapset_ids": [r[0] for r in rows if r[1]],
+                "locations_only_mapset_ids": [r[0] for r in rows if r[2]],
+            }
 
 @app.get("/api/observation")
 async def get_observations(

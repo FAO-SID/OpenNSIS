@@ -3122,6 +3122,11 @@ class AdminDashboard {
       const name = this.escapeHtml(r.project_name || r.project_id);
       const limitVal = r.profile_limit == null ? '' : String(r.profile_limit);
       const blurVal = r.spatial_blur_m == null ? '' : String(r.spatial_blur_m);
+      // Same look as the Users → Active toggle, colours inverted: locations-only
+      // is a restriction, so "Yes" is red (danger) and "No" is green (success).
+      const locOnlyBadge = r.locations_only
+        ? `<span class="badge badge-danger sp-loc-only-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="Only locations are shared — no observational data. Click to share full data.">Yes</span>`
+        : `<span class="badge badge-success sp-loc-only-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="Full data is shared. Click to share locations only.">No</span>`;
       const totalProfiles = Number(r.total_profile_count || 0);
       const pubProfiles = Number(r.published_profile_count || 0);
       const totalObs = Number(r.total_observation_count || 0);
@@ -3151,15 +3156,7 @@ class AdminDashboard {
                  placeholder="precise" inputmode="numeric">
           <span class="sp-blur-status" data-project-id="${pid}"></span>
         </td>
-        <td>
-          <button class="btn btn-sm sp-loc-only-btn"
-                  data-project-id="${pid}" data-value="${r.locations_only ? '0' : '1'}"
-                  style="${r.locations_only ? 'background:#e0a800;color:#fff;' : ''}"
-                  title="${r.locations_only ? 'Only locations are shared — no observational data' : 'Full data is shared'}">
-            ${r.locations_only ? 'Yes' : 'No'}
-          </button>
-          <span class="sp-loc-only-status" data-project-id="${pid}"></span>
-        </td>
+        <td>${locOnlyBadge}</td>
         <td>
           <button class="btn ${r.is_published ? 'btn-secondary' : 'btn-success'} sp-publish-btn"
                   data-project-id="${pid}" data-publish="${r.is_published ? '0' : '1'}">
@@ -3184,8 +3181,8 @@ class AdminDashboard {
       });
     });
 
-    tbody.querySelectorAll('.sp-loc-only-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+    tbody.querySelectorAll('.sp-loc-only-toggle').forEach(el => {
+      el.addEventListener('click', async (e) => {
         const projectId = e.currentTarget.dataset.projectId;
         const value = e.currentTarget.dataset.value === '1';
         await this.flushPendingSoilProfileEdits();
