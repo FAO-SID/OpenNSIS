@@ -152,6 +152,26 @@ only one or two services without touching the data, prefer:
 docker compose up -d --build --no-deps sis-api sis-web-mapping
 ```
 
+### Updating to the latest release
+
+To pull the latest code and apply it **without touching your data**, run from
+the install dir:
+
+```bash
+./update.sh          # add -y to skip the confirmation prompt
+```
+
+It `git pull`s, applies any pending DB migrations (`migrations/*.sql`, tracked
+in `api.schema_migration`), rebuilds **only the application containers**
+(`sis-api`, `sis-api-glosis`, `sis-web-mapping`) and reloads nginx. It never
+runs `down`, never passes `-v`, and never reloads the seed dump — so the
+Postgres / pyCSW / raster volumes (everything you uploaded) are preserved.
+
+DB schema/function/view changes ship as numbered, idempotent migrations under
+`migrations/` (see `migrations/README.md`). Base-image upgrades of the data
+containers (Postgres / pyCSW / MapServer) are a deliberate manual step and are
+out of `update.sh`'s scope.
+
 ### Per-country settings
 
 Edit the `COUNTRY`, `COUNTRY_LONG` and `ORG_LOGO_URL` variables at the top
