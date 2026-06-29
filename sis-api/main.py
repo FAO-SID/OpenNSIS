@@ -256,6 +256,70 @@ async def create_user(
             except psycopg2.IntegrityError:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
 
+# ==================== Software version / update awareness ====================
+# Read-only: report the running build's git SHA (stamped at deploy via the
+# GIT_SHA env) and compare it against the repo's branch on GitHub. This NEVER
+# performs an update — applying one is the deliberate host command ./update.sh.
+# The only outbound call is an unauthenticated, read-only GitHub compare.
+
+UPDATE_REPO = os.getenv("UPDATE_REPO", "FAO-SID/SIS-dev")
+UPDATE_BRANCH = os.getenv("UPDATE_BRANCH", "main")
+
+
+@app.get("/api/admin/version")
+async def get_software_version(current_user: dict = Depends(get_current_admin_user)):
+    """The running build's version stamp (no network)."""
+    return {"sha": os.getenv("GIT_SHA", "unknown"),
+            "repo": UPDATE_REPO, "branch": UPDATE_BRANCH}
+
+
+@app.get("/api/admin/update-check")
+async def check_for_updates(current_user: dict = Depends(get_current_admin_user)):
+    """Compare the running build against the repo branch on GitHub (read-only).
+    Returns how many newer commits exist and the command to apply them; it does
+    not (and cannot) update anything itself."""
+    import urllib.request, urllib.error
+    sha = (os.getenv("GIT_SHA", "unknown") or "unknown").strip()
+    out = {"current": sha, "repo": UPDATE_REPO, "branch": UPDATE_BRANCH,
+           "command": "./update.sh", "available": None}
+    if sha in ("", "unknown"):
+        out["error"] = ("This build carries no version stamp (GIT_SHA). Updates can "
+                        "still be applied on the host with ./update.sh.")
+        return out
+    url = f"https://api.github.com/repos/{UPDATE_REPO}/compare/{sha}...{UPDATE_BRANCH}"
+    req = urllib.request.Request(url, headers={
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "sis-update-check",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.load(r)
+    except urllib.error.HTTPError as e:
+        out["error"] = ("Version not found on the remote (is this commit pushed?)."
+                        if e.code == 404 else f"GitHub returned HTTP {e.code}.")
+        return out
+    except Exception as e:
+        out["error"] = f"Could not reach GitHub: {e}"
+        return out
+    # base=local, head=branch → ahead_by = commits the branch has that we don't.
+    new_commits = int(data.get("ahead_by") or 0)
+    commits = []
+    for c in (data.get("commits") or [])[-25:]:
+        commits.append({
+            "sha": (c.get("sha") or "")[:7],
+            "message": (c.get("commit", {}).get("message") or "").splitlines()[0],
+            "date": (c.get("commit", {}).get("committer", {}) or {}).get("date"),
+        })
+    out.update({
+        "available": new_commits > 0,
+        "new_commits": new_commits,
+        "status": data.get("status"),              # identical|ahead|behind|diverged
+        "latest": (commits[-1]["sha"] if commits else sha),
+    })
+    out["commits"] = list(reversed(commits))       # newest first for display
+    return out
+
+
 @app.get("/api/users", response_model=List[User])
 async def list_users(current_user: dict = Depends(get_current_admin_user)):
     """List all users (admin only)."""

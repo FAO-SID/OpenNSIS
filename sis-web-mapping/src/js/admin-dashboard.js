@@ -86,6 +86,7 @@ class AdminDashboard {
       await this.loadUsers();
       this.renderSettings();
       this.renderUsers();
+      this.loadSoftwareVersion();
       this.initViewEditor();
       this.initGlosis();
     } else {
@@ -266,6 +267,24 @@ class AdminDashboard {
                     <button type="button" class="btn btn-secondary btn-sm" id="cancel-user" style="display:none;">Cancel</button>
                   </form>
                 </div>
+              </div>
+
+              <hr class="admin-divider">
+
+              <div class="admin-section" id="software-section">
+                <h3 class="admin-section-title">Software &amp; updates</h3>
+                <p style="color:#555;font-size:var(--fs-sm);margin:0 0 var(--sp-3);">
+                  The installed version and whether a newer release is available on the
+                  <code>FAO-SID/SIS-dev</code> repository. Applying an update is a host
+                  command (<code>./update.sh</code>) — this panel only checks, it never
+                  changes anything.
+                </p>
+                <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;">
+                  <span>Installed version:&nbsp;<code id="sw-current">…</code></span>
+                  <button type="button" class="btn btn-sm btn-primary" id="sw-check-btn">Check for updates</button>
+                  <span id="sw-status" style="font-size:var(--fs-sm);color:#555;"></span>
+                </div>
+                <div id="sw-result" style="display:none;margin-top:var(--sp-3);"></div>
               </div>
 
               <hr class="admin-divider">
@@ -886,6 +905,9 @@ class AdminDashboard {
       e.preventDefault();
       this.handleAccountSubmit();
     });
+
+    const swBtn = document.getElementById('sw-check-btn');
+    if (swBtn) swBtn.addEventListener('click', () => this.checkForUpdates());
 
     // ETL metadata form — prevent default submit, save handled by unified button
     document.getElementById('etl-metadata-form').addEventListener('submit', (e) => {
@@ -2633,6 +2655,70 @@ class AdminDashboard {
       }
     } catch (e) {
       document.getElementById('dst-status').textContent = e.message;
+    }
+  }
+
+  // ==================== Software & updates ====================
+
+  async loadSoftwareVersion() {
+    const el = document.getElementById('sw-current');
+    if (!el) return;
+    try {
+      const v = await api.getSoftwareVersion();
+      el.textContent = v.sha || 'unknown';
+    } catch (e) {
+      el.textContent = 'unknown';
+    }
+  }
+
+  async checkForUpdates() {
+    const btn = document.getElementById('sw-check-btn');
+    const status = document.getElementById('sw-status');
+    const result = document.getElementById('sw-result');
+    if (!btn || !status || !result) return;
+    btn.disabled = true;
+    status.textContent = 'Checking GitHub…';
+    status.style.color = '#555';
+    result.style.display = 'none';
+    try {
+      const r = await api.checkForUpdates();
+      const cur = document.getElementById('sw-current');
+      if (cur && r.current) cur.textContent = r.current;
+
+      if (r.error) {
+        status.textContent = r.error;
+        status.style.color = '#b8860b';
+      } else if (r.available) {
+        const n = r.new_commits || 0;
+        status.textContent = `Update available — ${n} new commit${n === 1 ? '' : 's'}.`;
+        status.style.color = '#c0392b';
+        const list = (r.commits || []).map(c => {
+          const d = c.date ? ` <span style="color:#888;">(${this.escapeHtml(c.date.slice(0, 10))})</span>` : '';
+          return `<li><code>${this.escapeHtml(c.sha)}</code> ${this.escapeHtml(c.message)}${d}</li>`;
+        }).join('');
+        result.innerHTML = `
+          <div style="border:1px solid #e0c36b;background:#fff8e1;border-radius:6px;padding:var(--sp-3);">
+            <p style="margin:0 0 var(--sp-2);">A newer version is available
+              (<code>${this.escapeHtml(r.current)}</code> → <code>${this.escapeHtml(r.latest || '')}</code>).
+              To apply it, run on the server:</p>
+            <pre style="margin:0 0 var(--sp-3);background:#f3f3f3;padding:8px;border-radius:4px;">cd &lt;install dir&gt; &amp;&amp; ./update.sh</pre>
+            <details>
+              <summary style="cursor:pointer;">What's new (${(r.commits || []).length} shown)</summary>
+              <ul style="margin:var(--sp-2) 0 0;padding-left:1.2em;font-size:var(--fs-sm);">${list}</ul>
+            </details>
+            <p style="margin:var(--sp-3) 0 0;color:#777;font-size:var(--fs-xs);">
+              This panel only checks — it never changes anything. The update preserves your data.</p>
+          </div>`;
+        result.style.display = 'block';
+      } else {
+        status.textContent = `Up to date (${this.escapeHtml(r.current || '')}).`;
+        status.style.color = '#2a7';
+      }
+    } catch (e) {
+      status.textContent = 'Check failed: ' + (e && e.message ? e.message : e);
+      status.style.color = '#c0392b';
+    } finally {
+      btn.disabled = false;
     }
   }
 

@@ -113,6 +113,9 @@ shopt -u nullglob
 # ---- 3. rebuild + recreate the application containers -----------------------
 # Data containers (sis-database / sis-metadata / sis-web-services) are NOT in
 # this list and keep running with their volumes intact.
+# Stamp the new version so the Administration → Software & updates panel
+# reflects the just-pulled commit (compose passes ${GIT_SHA} into sis-api).
+export GIT_SHA="$NEW"
 echo "### 3/4  rebuild app containers (data containers untouched)"
 $DC up -d --build $APP_SVCS
 

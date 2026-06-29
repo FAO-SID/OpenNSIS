@@ -55,6 +55,9 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       PYCSW_URL: http://sis-metadata:8000
       MAPSERVER_WMS_URL: http://localhost/mapserver
+      # Version stamp for the Administration → Software & updates panel.
+      # deploy.sh / update.sh export GIT_SHA before bringing sis-api up.
+      GIT_SHA: ${GIT_SHA:-unknown}
     volumes:
       # Raster registry / DST engine needs to read & write TIFFs that
       # MapServer also serves. Read-write so DST runs can drop outputs.

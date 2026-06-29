@@ -11,6 +11,10 @@ ORG_LOGO_URL="${ORG_LOGO_URL:-https://tse4.mm.bing.net/th/id/OIP.hV37F63PxOkqMwT
 
 cd "$PROJECT_DIR"
 
+# Version stamp for the Administration → Software & updates panel (compose
+# passes ${GIT_SHA} into sis-api). Harmless if not a git checkout.
+export GIT_SHA="$(git -C "$PROJECT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+
 ####################
 # Bootstrap .env   #
 ####################

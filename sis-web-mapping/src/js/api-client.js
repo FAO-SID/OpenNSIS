@@ -268,6 +268,14 @@ class SISApiClient {
     return this.authenticatedRequest('/api/users');
   }
 
+  async getSoftwareVersion() {
+    return this.authenticatedRequest('/api/admin/version');
+  }
+
+  async checkForUpdates() {
+    return this.authenticatedRequest('/api/admin/update-check');
+  }
+
   async createUser(userId, password, isAdmin = false) {
     return this.authenticatedRequest('/api/users', {
       method: 'POST',
