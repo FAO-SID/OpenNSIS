@@ -872,6 +872,20 @@ async def get_profiles(
                      {"record_count": len(data)}, get_client_ip(request))
             return [dict(row) for row in data]
 
+
+@app.get("/api/profile/blur")
+async def get_profile_blur_flags(api_client: dict = Depends(verify_api_key)):
+    """Which soil-profile layers have spatial blur applied. Returns booleans
+    only (the blur radius itself is never exposed) so the map can warn that a
+    layer's profile locations are approximate."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT mapset_id FROM soil_data.mapset
+                WHERE spatial_blur_m IS NOT NULL AND spatial_blur_m > 0
+            """)
+            return {"blurred_mapset_ids": [r[0] for r in cur.fetchall()]}
+
 @app.get("/api/observation")
 async def get_observations(
     request: Request,

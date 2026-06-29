@@ -148,6 +148,10 @@ class SISApiClient {
     return this.request('/api/profile');
   }
 
+  async getProfileBlurFlags() {
+    return this.request('/api/profile/blur');
+  }
+
   async getObservations(profileCode = null) {
     const endpoint = profileCode 
       ? `/api/observation?profile_code=${encodeURIComponent(profileCode)}`

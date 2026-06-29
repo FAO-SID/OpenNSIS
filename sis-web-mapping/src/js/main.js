@@ -19,6 +19,7 @@ let currentLayers = {};
 let profileLayers = {};
 let profileColors = {};
 let profileMapsetIds = {};
+let blurredMapsetIds = new Set();   // mapset_ids whose profile coords are blurred
 let activeLayer = null;
 let activePopup = null;   // the map info-popup overlay (set in setupPopup)
 
@@ -719,7 +720,16 @@ function generateProjectColors(projectNames) {
 async function loadProfiles() {
   try {
     const profiles = await api.getProfiles();
-    
+
+    // Which profile layers have spatial blur applied (booleans only — the
+    // radius is never sent). Used to warn that locations are approximate.
+    try {
+      const blur = await api.getProfileBlurFlags();
+      blurredMapsetIds = new Set((blur && blur.blurred_mapset_ids) || []);
+    } catch (e) {
+      blurredMapsetIds = new Set();
+    }
+
     if (!profiles || profiles.length === 0) {
       console.log('No profiles found in database');
       return;
@@ -997,6 +1007,20 @@ function addProfileLayerControl() {
     // mapset_id IS the catalogue identifier, so /api/raster/metadata/<id>
     // resolves for both grid and vector layers.
     const mapsetId = profileMapsetIds[projectName];
+
+    // Privacy warning: this layer's profile coordinates are blurred. Show a
+    // generic warning only — never the blur radius.
+    if (mapsetId && blurredMapsetIds.has(mapsetId)) {
+      const warn = document.createElement('span');
+      warn.className = 'layer-blur-warning';
+      warn.textContent = '⚠';
+      warn.title = 'Profile locations on this layer are approximate (privacy protection applied).';
+      warn.setAttribute('aria-label', warn.title);
+      warn.style.cursor = 'help';
+      warn.style.color = '#b8860b';
+      layerItem.appendChild(warn);
+    }
+
     if (mapsetId) {
       const infoIcons = document.createElement('div');
       infoIcons.className = 'layer-icons';
