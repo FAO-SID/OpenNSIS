@@ -3357,6 +3357,7 @@ class AdminDashboard {
     if (!grid) return;
     const fmt = (n) => Number(n || 0).toLocaleString();
     const cards = [
+      { label: 'Rasters', value: fmt(t.raster_count), accent: 'b' },
       { label: 'Projects', value: fmt(t.project_count), accent: 'c' },
       { label: 'Sites', value: fmt(t.site_count), accent: 'e' },
       { label: 'Profiles', value: fmt(t.profile_count), accent: 'a' },

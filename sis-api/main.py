@@ -3164,7 +3164,11 @@ async def dashboard_stats(current_user: dict = Depends(get_current_user)):
                    FROM soil_data.observation_num o
                    JOIN soil_data.result_num r
                      ON r.observation_num_id = o.observation_num_id) AS property_count,
-                  (SELECT count(*) FROM soil_data.site) AS site_count;
+                  (SELECT count(*) FROM soil_data.site) AS site_count,
+                  -- Registered raster layers (grid mapsets).
+                  (SELECT count(*) FROM soil_data.layer l
+                   JOIN soil_data.mapset m ON m.mapset_id = l.mapset_id
+                   WHERE m.spatial_representation_type_code = 'grid') AS raster_count;
             """)
             out["totals"] = cur.fetchone()
 
