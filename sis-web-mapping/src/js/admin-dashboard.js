@@ -189,7 +189,7 @@ class AdminDashboard {
             <li><button class="tab-btn active" data-tab="administration">Administration</button></li>
             <li><button class="tab-btn" data-tab="layers">Soil profiles</button></li>
             <li><button class="tab-btn" data-tab="add-raster">Rasters</button></li>
-            <li><button class="tab-btn" data-tab="dst">DST</button></li>
+            <li><button class="tab-btn" data-tab="dst">Raster calculator</button></li>
             <li><button class="tab-btn" data-tab="dashboard">Dashboard</button></li>
           </ul>
 
