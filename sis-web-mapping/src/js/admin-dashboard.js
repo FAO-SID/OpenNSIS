@@ -185,7 +185,7 @@ class AdminDashboard {
           </div>
           
           <ul class="dashboard-tabs">
-            <li><button class="tab-btn" data-tab="account">My Account</button></li>
+            <li><button class="tab-btn" data-tab="account">My account</button></li>
             <li><button class="tab-btn active" data-tab="administration">Administration</button></li>
             <li><button class="tab-btn" data-tab="layers">Soil profiles</button></li>
             <li><button class="tab-btn" data-tab="add-raster">Rasters</button></li>
@@ -272,7 +272,7 @@ class AdminDashboard {
               <hr class="admin-divider">
 
               <div class="admin-section" id="software-section">
-                <h3 class="admin-section-title">Software &amp; updates</h3>
+                <h3 class="admin-section-title">Software update</h3>
                 <p style="color:#555;font-size:var(--fs-sm);margin:0 0 var(--sp-3);">
                   The installed version and whether a newer release is available on the
                   <code>FAO-SID/SIS-dev</code> repository. Applying an update is a host
