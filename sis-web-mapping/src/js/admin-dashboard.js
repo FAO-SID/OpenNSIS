@@ -411,7 +411,7 @@ class AdminDashboard {
                         <div class="etl-metadata-grid" style="margin-bottom:var(--sp-4);">
                           <label for="etl-abstract">Abstract</label>
                           <div><textarea id="etl-abstract" rows="6" style="width:400px;max-width:none;font-family:inherit;font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--color-border-strong);border-radius:var(--radius-sm);" placeholder="Project description..."></textarea></div>
-                          <label for="etl-license">License</label>
+                          <label for="etl-license">Licence</label>
                           <div>
                             <select id="etl-license" style="width:100%;">
                               <option value="">-- Select --</option>
@@ -463,9 +463,9 @@ class AdminDashboard {
                       </form>
                     </div>
 
-                    <!-- Standardization -->
+                    <!-- Standardisation -->
                     <div id="etl-mapping-section" class="etl-section">
-                      <h3 class="etl-section-title">Standardization</h3>
+                      <h3 class="etl-section-title">Standardisation</h3>
                       <table class="admin-table" id="etl-mapping-table">
                         <thead>
                           <tr>
@@ -504,7 +504,7 @@ class AdminDashboard {
                         <th>Profiles</th>
                         <th>Measurements</th>
                         <th>Public limit</th>
-                        <th title="Random coordinate offset in meters. Blank = precise coords.">Spatial blur (meters)</th>
+                        <th title="Random coordinate offset in metres. Blank = precise coords.">Spatial blur (metres)</th>
                         <th title="Share only profile locations (points) on the map — no observational data is shared or shown.">Share locations only</th>
                         <th>Published</th>
                         <th>Delete</th>
@@ -632,7 +632,7 @@ class AdminDashboard {
                     <option value="UNCT">UNCT</option>
                   </select>
 
-                  <label>License</label>
+                  <label>Licence</label>
                   <select id="raster-license" style="width:220px;">
                     <option value="">-- Select --</option>
                     <option value="CC BY">CC BY</option>
@@ -929,7 +929,7 @@ class AdminDashboard {
       this.closeDetailPanel();
     });
 
-    // ETL unified save (attribution + standardization)
+    // ETL unified save (attribution + standardisation)
     document.getElementById('etl-save-btn').addEventListener('click', () => {
       this.handleEtlSave();
     });
@@ -1774,7 +1774,7 @@ class AdminDashboard {
       rules.push('upper depth must be less than lower depth');
     }
     if (!stats)   missing.push('stats');
-    if (!license) missing.push('license');
+    if (!license) missing.push('licence');
 
     // Authors — at least one fully-specified row (org + individual picked).
     const authorRows = document.querySelectorAll('#raster-author-rows .etl-author-row');
@@ -3697,7 +3697,7 @@ class AdminDashboard {
   }
 
   // Inline-row variant of the "Add Property" flow. Inserts a temp row at
-  // the bottom of the standardization table with three inputs (ID, name,
+  // the bottom of the standardisation table with three inputs (ID, name,
   // definition) and Add / Cancel buttons. Returns a promise that resolves
   // to the new property (on Add success) or null (on Cancel / failure).
   async etlPromptAddProperty() {
@@ -4011,7 +4011,7 @@ class AdminDashboard {
       const proj = (this.etlCodelists.projects || []).find(p => p.project_id === projectId);
       if (proj) { proj.abstract = abstract || null; proj.license = license || null; }
 
-      // Save standardization (column mapping)
+      // Save standardisation (column mapping)
       const section = document.getElementById('etl-mapping-section');
       const tableName = section.dataset.tableName;
       if (tableName) {

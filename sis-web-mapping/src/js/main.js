@@ -592,7 +592,7 @@ function formatMetadata(m) {
 
   // ---------- Constraints / license ----------
   const constrRows = [
-    ['License (other constraints)', m.other_constraints],
+    ['Licence (other constraints)', m.other_constraints],
     ['Access constraints',          m.access_constraints],
     ['Use constraints',             m.use_constraints],
   ].filter(r => r[1]);
@@ -949,7 +949,7 @@ function addProfileLayerControl() {
   const content = document.createElement('div');
   content.className = 'layer-group-content';
   
-  // Add a checkbox and color picker for each project
+  // Add a checkbox and colour picker for each project
   Object.entries(profileColors).forEach(([projectName, color]) => {
     const layerItem = document.createElement('div');
     layerItem.className = 'layer-item';
@@ -969,7 +969,7 @@ function addProfileLayerControl() {
     label.textContent = projectName;
     label.style.flex = '1';
     
-    // Create circular color picker wrapper
+    // Create circular colour picker wrapper
     const colorWrapper = document.createElement('div');
     colorWrapper.style.position = 'relative';
     colorWrapper.style.width = '24px';
@@ -979,7 +979,7 @@ function addProfileLayerControl() {
     colorWrapper.style.border = '2px solid #fff';
     colorWrapper.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
     colorWrapper.style.cursor = 'pointer';
-    colorWrapper.title = 'Change color';
+    colorWrapper.title = 'Change colour';
     
     const colorPicker = document.createElement('input');
     colorPicker.type = 'color';

@@ -560,7 +560,7 @@ class SISApiClient {
   async registerRaster(file, formFields, overrideFilename) {
     const fd = new FormData();
     // Use FormData's filename arg to rename on the wire — avoids
-    // constructing a new File() (which has wonky behavior on large blobs
+    // constructing a new File() (which has wonky behaviour on large blobs
     // in some browsers).
     if (overrideFilename) {
       fd.append('file', file, overrideFilename);
