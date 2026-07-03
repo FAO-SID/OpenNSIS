@@ -73,6 +73,36 @@ def ensure_nodata(path: str) -> Optional[float]:
     return nodata
 
 
+def to_cog(src_path: str, dst_path: Optional[str] = None) -> str:
+    """Rewrite a raster as a Cloud-Optimised GeoTIFF (in place, or to dst_path).
+
+    DEFLATE + predictor 2, 512-px internal tiles, and overviews resampled with
+    NEAREST — which keeps categorical values intact and loses nothing meaningful
+    on continuous data. GDAL's COG driver is CreateCopy-only, so it reads the
+    source and writes a fresh COG; the result is swapped in atomically (a new
+    inode also forces MapServer's GDAL cache to re-read). Any NoData already set
+    on the source is preserved. Shared by the raster upload and the DST engine.
+    """
+    import rasterio.shutil as _rio_shutil
+    out = dst_path or src_path
+    tmp = out + ".cog.tif"
+    try:
+        _rio_shutil.copy(
+            src_path, tmp, driver="COG",
+            compress="DEFLATE", predictor=2, blocksize=512,
+            overview_resampling="nearest", num_threads="ALL_CPUS",
+        )
+        os.replace(tmp, out)
+    except Exception:
+        if os.path.exists(tmp):
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+        raise
+    return out
+
+
 def _clean_float(v) -> Optional[float]:
     """Return None for NaN / infinity / None — keeps the JSON encoder happy."""
     if v is None:

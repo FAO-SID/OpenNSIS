@@ -261,7 +261,7 @@ def execute_recipe(
     # tiling and overviews — so MapServer renders faster when zoomed out and the
     # file is a valid COG for direct download. GDAL's COG driver is CreateCopy-
     # only, so write a plain tiled GeoTIFF first and copy it into a COG.
-    import rasterio.shutil as _rio_shutil
+    from raster_registry.inspect import to_cog
 
     src_profile = profile.copy()
     src_profile.update(
@@ -271,25 +271,16 @@ def execute_recipe(
     src_profile.pop("interleave", None)
 
     tmp_src = out_path + ".src.tif"
-    tmp_cog = out_path + ".cog.tif"
     try:
         with rasterio.open(tmp_src, "w", **src_profile) as dst:
             dst.write(result, 1)
-        _rio_shutil.copy(
-            tmp_src, tmp_cog, driver="COG",
-            compress="DEFLATE", predictor=2, blocksize=512,
-            # nearest keeps exact score values in the overviews — averaging
-            # would invent in-between values and corrupt categorical outputs.
-            overview_resampling="nearest", num_threads="ALL_CPUS",
-        )
-        os.replace(tmp_cog, out_path)
+        to_cog(tmp_src, out_path)          # tiled GeoTIFF → COG at out_path (atomic)
     finally:
-        for _p in (tmp_src, tmp_cog):
-            if os.path.exists(_p):
-                try:
-                    os.remove(_p)
-                except OSError:
-                    pass
+        if os.path.exists(tmp_src):
+            try:
+                os.remove(tmp_src)
+            except OSError:
+                pass
 
     log.info("DST engine wrote %s (%d steps, agg=%s)", out_path, len(steps), agg)
     return out_path

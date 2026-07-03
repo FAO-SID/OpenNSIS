@@ -4176,6 +4176,18 @@ async def register_raster_endpoint(
         except Exception:
             log.exception("register: ensure_nodata failed for %s", target_path)
 
+        # Store every registered raster as a Cloud-Optimised GeoTIFF (tiled +
+        # overviews + DEFLATE), same as the Raster-calculator outputs — MapServer
+        # renders it faster and it's a valid COG for direct download. Runs after
+        # ensure_nodata so the NoData value is carried into the COG. Best-effort:
+        # a conversion failure must not abort registration.
+        try:
+            from raster_registry.inspect import to_cog
+            to_cog(target_path)
+            log.info("register: converted %s to COG", target_path)
+        except Exception:
+            log.exception("register: COG conversion failed for %s", target_path)
+
         keyword_list = [k.strip() for k in (keywords or "").split(",") if k.strip()] or None
 
         with get_db() as conn:
