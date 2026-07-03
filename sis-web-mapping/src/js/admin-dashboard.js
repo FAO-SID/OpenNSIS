@@ -4309,14 +4309,13 @@ class AdminDashboard {
   }
 
   async ingestDataset(tableName) {
-    // Send the currently-picked license from the ETL form so the stub mapset
-    // can record it as other_constraints. A licence is required.
+    // Send the currently-picked licence when the Metadata form has one. Do NOT
+    // hard-block on an empty select: the Ingest button lives on the list view,
+    // where the Metadata form may never have been loaded — the backend enforces
+    // the licence rule and falls back to the licence already recorded on the
+    // project's stub mapset.
     const licenseEl = document.getElementById('etl-license');
     const license = (licenseEl && licenseEl.value || '').trim() || null;
-    if (!license) {
-      this.setRowResult(tableName, 'A licence is required — pick one in the Metadata section before ingesting.', true);
-      return;
-    }
     this.setRowResult(tableName, 'Ingesting...', false);
     try {
       const result = await api.ingestDataset(tableName, { license });
