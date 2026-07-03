@@ -428,8 +428,8 @@ class AdminDashboard {
                         </div>
 
                         <div class="etl-metadata-grid" style="margin-bottom:var(--sp-4);">
-                          <label for="etl-abstract">Description</label>
-                          <div><textarea id="etl-abstract" rows="6" style="width:400px;max-width:none;font-family:inherit;font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--color-border-strong);border-radius:var(--radius-sm);" placeholder="Project description..."></textarea></div>
+                          <label for="etl-abstract">Abstract</label>
+                          <div><textarea id="etl-abstract" rows="6" style="width:400px;max-width:none;font-family:inherit;font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--color-border-strong);border-radius:var(--radius-sm);" placeholder="Abstract for this dataset (defaults to the project description)..."></textarea></div>
                           <label for="etl-license">Licence</label>
                           <div>
                             <select id="etl-license" style="width:100%;">
@@ -3797,7 +3797,7 @@ class AdminDashboard {
       return;
     }
     const proj = (this.etlCodelists.projects || []).find(p => p.project_id === projectId);
-    abstractEl.value = proj?.description || '';
+    abstractEl.value = proj?.abstract || '';
     licenseEl.value = proj?.license || '';
   }
 
@@ -3816,14 +3816,16 @@ class AdminDashboard {
         return;
       }
 
-      // Save project description and license
-      const description = document.getElementById('etl-abstract').value.trim();
+      // Save the dataset abstract and license (the abstract is reused as the
+      // project description, which raster/profile registration copies into the
+      // mapset abstract for the ISO metadata).
+      const abstract = document.getElementById('etl-abstract').value.trim();
       const license = document.getElementById('etl-license').value;
-      await api.updateProject(projectId, { description: description || null, license: license || null });
+      await api.updateProject(projectId, { abstract: abstract || null, license: license || null });
 
       // Update local cache
       const proj = (this.etlCodelists.projects || []).find(p => p.project_id === projectId);
-      if (proj) { proj.description = description || null; proj.license = license || null; }
+      if (proj) { proj.abstract = abstract || null; proj.license = license || null; }
 
       // Save standardisation (column mapping)
       const section = document.getElementById('etl-mapping-section');
