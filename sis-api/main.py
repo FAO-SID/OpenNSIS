@@ -1455,8 +1455,8 @@ def _delete_all_project_profiles(cur, cc, project_id) -> dict:
             cur.execute("SELECT 1 FROM soil_data.project_site WHERE site_id=%s LIMIT 1", (sid,))
             if not cur.fetchone():
                 cur.execute("DELETE FROM soil_data.site WHERE site_id=%s", (sid,)); deleted["site"] += cur.rowcount
-    cur.execute("UPDATE api.uploaded_dataset SET status='Removed' WHERE country_id=%s AND project_id=%s",
-                (cc, project_id))
+    cur.execute("UPDATE api.uploaded_dataset SET status='Removed', note='Removed' "
+                "WHERE country_id=%s AND project_id=%s", (cc, project_id))
     return deleted
 
 
