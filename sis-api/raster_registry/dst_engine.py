@@ -278,7 +278,9 @@ def execute_recipe(
         _rio_shutil.copy(
             tmp_src, tmp_cog, driver="COG",
             compress="DEFLATE", predictor=2, blocksize=512,
-            overview_resampling="average", num_threads="ALL_CPUS",
+            # nearest keeps exact score values in the overviews — averaging
+            # would invent in-between values and corrupt categorical outputs.
+            overview_resampling="nearest", num_threads="ALL_CPUS",
         )
         os.replace(tmp_cog, out_path)
     finally:
