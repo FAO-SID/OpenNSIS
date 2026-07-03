@@ -352,12 +352,8 @@ class AdminDashboard {
               <section class="layers-section">
                 <h3 class="layers-section-title">Projects</h3>
                 <p style="color:#666;margin:0 0 12px;">Create, edit and delete projects. Deleting a project lets you delete or reassign its soil profiles and rasters.</p>
-                <div class="project-create-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
-                  <input id="new-project-id" placeholder="Project ID (A-Z, 0-9)" title="Uppercase letters and digits only — no spaces, symbols or lower case." style="width:180px;" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
-                  <input id="new-project-name" placeholder="Name" style="width:200px;">
-                  <input id="new-project-desc" placeholder="Abstract (optional)" style="width:260px;">
-                  <button type="button" class="btn btn-primary btn-sm" onclick="adminDashboard.createProjectFromTab()">Create project</button>
-                  <span id="project-create-status" style="font-size:12px;"></span>
+                <div style="margin-bottom:14px;">
+                  <button type="button" class="btn btn-primary btn-sm" onclick="adminDashboard.openProjectModal(null)">+ New project</button>
                 </div>
                 <table class="admin-table" id="projects-table">
                   <thead>
@@ -1217,32 +1213,12 @@ class AdminDashboard {
     }).join('');
     tbody.querySelectorAll('.proj-edit-btn').forEach(b => b.addEventListener('click', (e) => {
       const p = (this.projects || []).find(x => String(x.project_id) === e.currentTarget.dataset.projectId);
-      if (p) this.openEditProjectModal(p);
+      if (p) this.openProjectModal(p);
     }));
     tbody.querySelectorAll('.proj-del-btn').forEach(b => b.addEventListener('click', (e) => {
       const p = (this.projects || []).find(x => String(x.project_id) === e.currentTarget.dataset.projectId);
       if (p) this.openDeleteProjectModal(p);
     }));
-  }
-
-  async createProjectFromTab() {
-    const idEl = document.getElementById('new-project-id');
-    const nameEl = document.getElementById('new-project-name');
-    const descEl = document.getElementById('new-project-desc');
-    const status = document.getElementById('project-create-status');
-    const id = idEl.value.trim().toUpperCase(), name = nameEl.value.trim(), desc = descEl.value.trim();
-    if (!id || !name) { status.textContent = 'Project ID and Name are required'; status.style.color = '#dc3545'; return; }
-    if (!/^[A-Z0-9]+$/.test(id)) {
-      status.textContent = 'Project ID must be uppercase letters and digits only (no spaces, symbols or lower case).';
-      status.style.color = '#dc3545'; return;
-    }
-    try {
-      await api.createProject({ project_id: id, name, description: desc || null });
-      status.textContent = 'Created'; status.style.color = '#28a745';
-      idEl.value = ''; nameEl.value = ''; descEl.value = '';
-      await this.loadProjects(); this.renderProjects();
-      setTimeout(() => { status.textContent = ''; }, 2500);
-    } catch (e) { status.textContent = 'Error: ' + e.message; status.style.color = '#dc3545'; }
   }
 
   _openModal(title, bodyHtml, width) {
@@ -1319,14 +1295,23 @@ class AdminDashboard {
     this._refreshProjectAuthorDropdowns();
   }
 
-  async openEditProjectModal(project) {
-    const pid = project.project_id;
-    const cc = project.country_id || '';
-    const { body } = this._openModal(`Edit project — ${project.name || pid}`, `
+  // Unified create/edit modal. `project` null => create (editable, validated
+  // Project ID); otherwise edit (id shown read-only). Both offer the same
+  // organisation/authors editor.
+  async openProjectModal(project) {
+    const isNew = !project;
+    const pid = isNew ? '' : project.project_id;
+    const cc = isNew ? '' : (project.country_id || '');
+    const idRow = isNew
+      ? `<input class="pm-id" placeholder="Project ID (A-Z, 0-9)" title="Uppercase letters and digits only — no spaces, symbols or lower case." style="width:100%;box-sizing:border-box;margin-bottom:12px;" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">`
+      : `<input class="pm-id" value="${this.escapeHtml(pid)}" disabled style="width:100%;box-sizing:border-box;margin-bottom:12px;background:#f2f2f2;color:#666;">`;
+    const { body } = this._openModal(isNew ? 'New project' : `Edit project — ${project.name || pid}`, `
+      <label style="display:block;font-weight:600;margin-bottom:4px;">Project ID</label>
+      ${idRow}
       <label style="display:block;font-weight:600;margin-bottom:4px;">Name</label>
-      <input class="pm-name" style="width:100%;box-sizing:border-box;margin-bottom:12px;" value="${this.escapeHtml(project.name || '')}">
+      <input class="pm-name" style="width:100%;box-sizing:border-box;margin-bottom:12px;" value="${this.escapeHtml(isNew ? '' : (project.name || ''))}">
       <label style="display:block;font-weight:600;margin-bottom:4px;">Abstract</label>
-      <textarea class="pm-abstract" rows="3" style="width:100%;box-sizing:border-box;margin-bottom:14px;">${this.escapeHtml(project.description || '')}</textarea>
+      <textarea class="pm-abstract" rows="3" style="width:100%;box-sizing:border-box;margin-bottom:14px;">${this.escapeHtml(isNew ? '' : (project.description || ''))}</textarea>
       <label style="display:block;font-weight:600;margin-bottom:4px;">Authors</label>
       <div style="display:flex;gap:6px;font-size:12px;color:#666;margin-bottom:4px;">
         <div style="flex:1;">Organisation</div><div style="flex:1;">Author</div><div style="width:120px;">Position</div><div style="width:150px;">Role</div><div style="width:26px;"></div>
@@ -1336,17 +1321,19 @@ class AdminDashboard {
       <div class="pm-status" style="margin-top:10px;font-size:12px;"></div>
       <div style="margin-top:14px;text-align:right;">
         <button type="button" class="btn btn-secondary btn-sm pm-cancel">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm pm-save">Save</button>
+        <button type="button" class="btn btn-primary btn-sm pm-save">${isNew ? 'Create project' : 'Save'}</button>
       </div>`, 660);
     body.querySelector('.pm-add-author').addEventListener('click', () => this.addProjectAuthorRow());
     body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
-    body.querySelector('.pm-save').addEventListener('click', () => this.saveProjectEdit(pid, cc));
+    body.querySelector('.pm-save').addEventListener('click', () => this.saveProject(isNew, pid, cc));
     try {
-      const [orgs, inds, authors] = await Promise.all([
-        api.getOrganisations(), api.getIndividuals(), api.getProjectAuthors(pid, cc)
-      ]);
+      const [orgs, inds] = await Promise.all([api.getOrganisations(), api.getIndividuals()]);
       this._projOrgs = orgs || []; this._projInds = inds || [];
-      const list = Array.isArray(authors) ? authors : (authors && authors.authors) || [];
+      let list = [];
+      if (!isNew) {
+        const authors = await api.getProjectAuthors(pid, cc);
+        list = Array.isArray(authors) ? authors : (authors && authors.authors) || [];
+      }
       if (list.length === 0) this.addProjectAuthorRow();
       else list.forEach(a => this.addProjectAuthorRow(a));
     } catch (e) {
@@ -1355,10 +1342,18 @@ class AdminDashboard {
     }
   }
 
-  async saveProjectEdit(projectId, countryId) {
+  async saveProject(isNew, pid, cc) {
     const overlay = document.getElementById('project-modal-overlay');
     if (!overlay) return;
     const status = overlay.querySelector('.pm-status');
+    let projectId = pid;
+    if (isNew) {
+      projectId = (overlay.querySelector('.pm-id').value || '').trim().toUpperCase();
+      if (!/^[A-Z0-9]+$/.test(projectId)) {
+        status.textContent = 'Project ID must be uppercase letters and digits only (no spaces, symbols or lower case).';
+        status.style.color = '#dc3545'; return;
+      }
+    }
     const name = overlay.querySelector('.pm-name').value.trim();
     const abstract = overlay.querySelector('.pm-abstract').value.trim();
     if (!name) { status.textContent = 'Name is required'; status.style.color = '#dc3545'; return; }
@@ -1373,10 +1368,14 @@ class AdminDashboard {
         tag: 'pointOfContact', role: r.querySelector('.proj-role-sel').value || 'author'
       });
     });
-    status.textContent = 'Saving...'; status.style.color = '#666';
+    status.textContent = isNew ? 'Creating...' : 'Saving...'; status.style.color = '#666';
     try {
-      await api.updateProject(projectId, { name, description: abstract || null });
-      await api.saveEtlMetadata({ project_id: projectId, country_id: countryId, authors });
+      if (isNew) await api.createProject({ project_id: projectId, name, description: abstract || null });
+      else await api.updateProject(projectId, { name, description: abstract || null });
+      // On edit always save (to persist removals); on create only if any given.
+      if (!isNew || authors.length) {
+        await api.saveEtlMetadata({ project_id: projectId, country_id: cc || undefined, authors });
+      }
       overlay.remove();
       await this.loadProjects(); this.renderProjects();
     } catch (e) { status.textContent = 'Error: ' + e.message; status.style.color = '#dc3545'; }
