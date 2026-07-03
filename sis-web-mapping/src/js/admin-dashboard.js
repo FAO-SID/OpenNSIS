@@ -877,6 +877,13 @@ class AdminDashboard {
       this.handleEtlValidate();
     });
 
+    // Picking a licence is part of validation — re-validate so the note clears
+    // the "licence not set" issue immediately (and Ingest unblocks).
+    document.getElementById('etl-license').addEventListener('change', () => {
+      const section = document.getElementById('etl-mapping-section');
+      if (section && section.dataset.tableName) this.handleEtlValidate();
+    });
+
     // Preview pagination
     document.getElementById('etl-preview-prev').addEventListener('click', () => {
       if (this.etlPreviewPage > 0) { this.etlPreviewPage--; this.renderEtlPreviewPage(); }
@@ -3913,7 +3920,8 @@ class AdminDashboard {
     statusEl.style.color = '#555';
     try {
       await this.persistCurrentMappings();
-      const result = await api.validateDataset(tableName);
+      const license = document.getElementById('etl-license')?.value || '';
+      const result = await api.validateDataset(tableName, license);
       const cols = result.columns || {};
 
       // Apply per-column results in the mapping table
@@ -4301,13 +4309,17 @@ class AdminDashboard {
   }
 
   async ingestDataset(tableName) {
+    // Send the currently-picked license from the ETL form so the stub mapset
+    // can record it as other_constraints. A licence is required.
+    const licenseEl = document.getElementById('etl-license');
+    const license = (licenseEl && licenseEl.value || '').trim() || null;
+    if (!license) {
+      this.setRowResult(tableName, 'A licence is required — pick one in the Metadata section before ingesting.', true);
+      return;
+    }
     this.setRowResult(tableName, 'Ingesting...', false);
     try {
-      // Send the currently-picked license from the ETL form so the stub
-      // mapset can record it as other_constraints. Empty string → null.
-      const licenseEl = document.getElementById('etl-license');
-      const license = (licenseEl && licenseEl.value || '').trim() || null;
-      const result = await api.ingestDataset(tableName, license ? { license } : undefined);
+      const result = await api.ingestDataset(tableName, { license });
       let msg = result.message || `Ingested ${result.ingested}/${result.total} rows`;
       if (result.errors && result.errors.length) {
         msg += `\nErrors: ${result.errors.length}`;

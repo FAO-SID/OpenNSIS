@@ -2159,6 +2159,18 @@ async def ingest_dataset(
                           or _instance_country_code(cur))
             epsg = dataset.get("cords_epsg") or "4326"
 
+            # A licence is required — supplied now, or already on the project's
+            # stub mapset from a previous ingest. (Belt-and-braces alongside the
+            # validate-time check, in case a licence was cleared after Validate.)
+            if not (license_val or "").strip():
+                cur.execute("SELECT other_constraints FROM soil_data.mapset WHERE mapset_id = %s",
+                            (f"{country_id}-{project_id}",))
+                _lr = cur.fetchone()
+                if not (_lr and (_lr.get("other_constraints") or "").strip()):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="A licence is required before ingesting. Select a licence and try again.")
+
             # Get column mappings (non-ignored)
             cur.execute("""
                 SELECT column_name, destination_table, destination_column,
@@ -2663,10 +2675,14 @@ async def edit_dataset_cells(
 @app.post("/api/etl/datasets/{table_name}/validate")
 async def validate_dataset(
     table_name: str,
+    payload: Optional[dict] = None,
     current_user: dict = Depends(get_current_user)
 ):
     """Validate CSV values against destination column datatypes and check constraints.
     Saves per-column result in api.uploaded_dataset_column.validation.
+
+    Optional JSON body: { "license": "<...>" } — a licence must be chosen for
+    validation to pass (it becomes the dataset's mapset licence at ingest).
     """
     # Datatype + constraint rules per (dest_table, dest_column)
     # kind: int | smallint | real | date | enum | text
@@ -3197,13 +3213,18 @@ async def validate_dataset(
                 parts.append(f"{n_cols_err} column(s) with errors")
             if country_bounds.get("status") == "ERROR":
                 parts.append(f"{country_bounds['percent_inside']}% inside country bounds")
+            # A licence must be chosen before the dataset can be ingested.
+            license_val = (payload or {}).get("license") if isinstance(payload, dict) else None
+            license_missing = not (license_val or "").strip()
+            if license_missing:
+                parts.append("licence not set")
             note = VALIDATION_OK_NOTE if not parts else "Validation: " + "; ".join(parts)
             cur.execute("UPDATE api.uploaded_dataset SET note = %s WHERE table_name = %s",
                         (note, table_name))
 
             log_audit(current_user['user_id'], None, "etl_validated",
                      {"table_name": table_name, "columns_with_errors": n_cols_err,
-                      "missing_required": missing_required,
+                      "missing_required": missing_required, "license_missing": license_missing,
                       "country_bounds": country_bounds}, None)
 
             return {
@@ -3211,6 +3232,7 @@ async def validate_dataset(
                 "columns": col_results,
                 "total_rows": len(rows),
                 "missing_required": missing_required,
+                "license_missing": license_missing,
                 "country_bounds": country_bounds,
             }
 

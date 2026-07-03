@@ -488,9 +488,10 @@ class SISApiClient {
     });
   }
 
-  async validateDataset(tableName) {
+  async validateDataset(tableName, license) {
     return this.authenticatedRequest(`/api/etl/datasets/${encodeURIComponent(tableName)}/validate`, {
-      method: 'POST'
+      method: 'POST',
+      body: JSON.stringify({ license: license || null })
     });
   }
 
