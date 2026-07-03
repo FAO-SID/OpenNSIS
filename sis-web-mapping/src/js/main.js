@@ -705,7 +705,8 @@ async function showMetadataPopup(metadataUrl) {
 
 function generateProjectColors(projectNames) {
   const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', 
+    '#63452C',                                      // default soil-profile colour
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
     '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
     '#F8B739', '#52B788', '#E63946', '#457B9D'
   ];
@@ -863,7 +864,7 @@ function getUnifiedClusterStyle(feature) {
       }
     });
     
-    const color = profileColors[dominantProject] || '#007BFF';
+    const color = profileColors[dominantProject] || '#63452C';
     
     // Convert hex to rgba
     const hexToRgba = (hex, alpha) => {
@@ -888,7 +889,7 @@ function getUnifiedClusterStyle(feature) {
   } else {
     // Single point style - use project color
     const projectName = features[0].get('project_name');
-    const color = profileColors[projectName] || '#007BFF';
+    const color = profileColors[projectName] || '#63452C';
     
     const hexToRgba = (hex, alpha) => {
       const r = parseInt(hex.slice(1, 3), 16);
