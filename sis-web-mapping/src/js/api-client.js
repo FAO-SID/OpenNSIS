@@ -271,6 +271,12 @@ class SISApiClient {
     });
   }
 
+  async deleteSoilProfileData(projectId) {
+    return this.authenticatedRequest(`/api/layer/soil_profiles/${encodeURIComponent(projectId)}/profiles`, {
+      method: 'DELETE'
+    });
+  }
+
   // Dashboard
   async getDashboardStats() {
     return this.authenticatedRequest('/api/stats/dashboard');

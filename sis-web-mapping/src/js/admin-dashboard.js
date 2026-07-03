@@ -4363,15 +4363,11 @@ class AdminDashboard {
   // so the soil_data rows for this project's profiles are removed without
   // touching the uploaded CSV table itself.
   async deleteProjectProfiles(projectId, projectName) {
+    if (!confirm(`Delete ALL soil profiles for "${projectName || projectId}"? This cannot be undone. The project itself is kept.`)) return;
     try {
-      const datasets = (await api.getDatasets() || []).filter(d => d.project_id === projectId);
-      if (datasets.length === 0) {
-        alert('No ingested CSV uploads found for this project.');
-        return;
-      }
-      for (const d of datasets) {
-        await api.pruneDataset(d.table_name);
-      }
+      // Delete by project (not by csv tag), so profiles orphaned from a deleted
+      // ETL dataset are removed too.
+      await api.deleteSoilProfileData(projectId);
       await this.loadEtlDatasets();
       await this.loadSoilProfileLayers();
       this.renderSoilProfileLayers();

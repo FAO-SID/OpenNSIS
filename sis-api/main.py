@@ -1407,20 +1407,64 @@ def _project_raster_layer_ids(cur, cc, project_id):
     return [r["layer_id"] for r in cur.fetchall()]
 
 
+def _delete_all_project_profiles(cur, cc, project_id) -> dict:
+    """Delete ALL of a project's soil-profile data by walking
+    project_site -> plot -> profile -> element -> specimen -> result_num, so it
+    works regardless of the plot's csv tag (profiles orphaned from a deleted
+    dataset are still removed — csv-scoped pruning misses those). Plots on a
+    site shared with another project are preserved. Clears this project's
+    project_site links, deletes sites no longer referenced, and marks its ETL
+    datasets Removed. Keeps the project row and its publish stub. `cur` is a
+    RealDictCursor inside a caller transaction."""
+    cur.execute("SELECT site_id FROM soil_data.project_site WHERE country_id=%s AND project_id=%s",
+                (cc, project_id))
+    site_ids = [r["site_id"] for r in cur.fetchall()]
+    deleted = {}
+    if site_ids:
+        cur.execute("""SELECT DISTINCT site_id FROM soil_data.project_site
+                       WHERE site_id = ANY(%s) AND NOT (country_id=%s AND project_id=%s)""",
+                    (site_ids, cc, project_id))
+        shared = {r["site_id"] for r in cur.fetchall()}
+        own_sites = [s for s in site_ids if s not in shared]
+        if own_sites:
+            cur.execute("SELECT plot_id FROM soil_data.plot WHERE site_id = ANY(%s)", (own_sites,))
+            plot_ids = [r["plot_id"] for r in cur.fetchall()]
+            if plot_ids:
+                cur.execute("SELECT profile_id FROM soil_data.profile WHERE plot_id = ANY(%s)", (plot_ids,))
+                profile_ids = [r["profile_id"] for r in cur.fetchall()]
+                element_ids = []
+                if profile_ids:
+                    cur.execute("SELECT element_id FROM soil_data.element WHERE profile_id = ANY(%s)", (profile_ids,))
+                    element_ids = [r["element_id"] for r in cur.fetchall()]
+                specimen_ids = []
+                if element_ids:
+                    cur.execute("SELECT specimen_id FROM soil_data.specimen WHERE element_id = ANY(%s)", (element_ids,))
+                    specimen_ids = [r["specimen_id"] for r in cur.fetchall()]
+                if specimen_ids:
+                    cur.execute("DELETE FROM soil_data.result_num WHERE specimen_id = ANY(%s)", (specimen_ids,)); deleted["result_num"] = cur.rowcount
+                    cur.execute("DELETE FROM soil_data.specimen WHERE specimen_id = ANY(%s)", (specimen_ids,)); deleted["specimen"] = cur.rowcount
+                if element_ids:
+                    cur.execute("DELETE FROM soil_data.element WHERE element_id = ANY(%s)", (element_ids,)); deleted["element"] = cur.rowcount
+                if profile_ids:
+                    cur.execute("DELETE FROM soil_data.profile WHERE profile_id = ANY(%s)", (profile_ids,)); deleted["profile"] = cur.rowcount
+                cur.execute("DELETE FROM soil_data.plot WHERE plot_id = ANY(%s)", (plot_ids,)); deleted["plot"] = cur.rowcount
+        cur.execute("DELETE FROM soil_data.project_site WHERE country_id=%s AND project_id=%s", (cc, project_id))
+        deleted["project_site"] = cur.rowcount
+        deleted["site"] = 0
+        for sid in own_sites:
+            cur.execute("SELECT 1 FROM soil_data.project_site WHERE site_id=%s LIMIT 1", (sid,))
+            if not cur.fetchone():
+                cur.execute("DELETE FROM soil_data.site WHERE site_id=%s", (sid,)); deleted["site"] += cur.rowcount
+    cur.execute("UPDATE api.uploaded_dataset SET status='Removed' WHERE country_id=%s AND project_id=%s",
+                (cc, project_id))
+    return deleted
+
+
 def _delete_project_profiles(cur, cc, project_id) -> dict:
-    """Delete all of a project's soil-profile data: prune each ETL dataset, drop
-    residual project_site links (shared sites are kept), remove the profile
-    publish-stub layer/mapset '<CC>-<PROJ>', and the upload records."""
-    cur.execute("SELECT * FROM api.uploaded_dataset WHERE country_id = %s AND project_id = %s",
-                (cc, project_id))
-    datasets = cur.fetchall()
-    total = {}
-    for ds in datasets:
-        for k, v in _prune_dataset_rows(cur, ds).items():
-            total[k] = total.get(k, 0) + v
-    cur.execute("DELETE FROM soil_data.project_site WHERE country_id = %s AND project_id = %s",
-                (cc, project_id))
-    total["project_site_links"] = cur.rowcount
+    """Full profile teardown for deleting a project: delete all profile data
+    (by project, not csv), then the profile publish-stub layer/mapset
+    '<CC>-<PROJ>' and the upload records (so the project row can be removed)."""
+    total = _delete_all_project_profiles(cur, cc, project_id)
     stub = f"{cc}-{project_id}"
     cur.execute("DELETE FROM soil_data.layer WHERE layer_id = %s", (stub,))
     cur.execute("DELETE FROM soil_data.mapset WHERE mapset_id = %s", (stub,))
@@ -3692,6 +3736,26 @@ async def set_soil_profile_hide_download(
                 raise HTTPException(status_code=404, detail="Project or stub mapset not found")
             conn.commit()
     return {"project_id": project_id, "hide_download": body.hide_download}
+
+
+@app.delete("/api/layer/soil_profiles/{project_id}/profiles")
+async def delete_soil_profile_data(
+    project_id: str,
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Delete all soil-profile data for a project (keeping the project itself),
+    by project rather than by csv tag — so profiles orphaned from a deleted ETL
+    dataset are removed too. Used by the Soil profiles tab Delete button."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cc = _project_country_of(cur, project_id)
+            if not cc:
+                raise HTTPException(status_code=404, detail="Project not found")
+            deleted = _delete_all_project_profiles(cur, cc, project_id)
+            conn.commit()
+    log_audit(current_user["user_id"], None, "soil_profiles_deleted",
+              {"project_id": project_id, "country_id": cc, "deleted": deleted}, None)
+    return {"message": "Soil profiles deleted", "project_id": project_id, "deleted": deleted}
 
 
 @app.get("/api/stats/dashboard")
