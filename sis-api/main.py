@@ -1469,6 +1469,48 @@ def _reassign_project_profiles(cur, cc, src, tgt) -> dict:
     return moved
 
 
+def _dst_finalize_render(output_layer_id: str):
+    """Apply the DST-output rendering to a raster-calculator output: a green->red
+    mapped-property ramp, and a stats_minimum recomputed over NON-ZERO values so
+    0 (the DST nodata sentinel) falls below the colour ramp and renders
+    transparent. Re-fires the map trigger (via the stats update, which reads the
+    freshly-set property colours) and re-dumps the .map. The plain raster
+    re-registration doesn't reproduce this, so reassignment calls it explicitly.
+    """
+    import rasterio as _rio
+    tif = os.path.join("/srv/rasters", f"{output_layer_id}.tif")
+    if not os.path.isfile(tif):
+        return
+    with _rio.open(tif) as src:
+        band = src.read(1, masked=True)
+    nz = band.compressed()
+    nz = nz[nz != 0]
+    real_min = float(nz.min()) if nz.size else None
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            # Green (low) -> red (high) ramp on this output's mapped_property
+            # (DST-minted MAP#### properties are per-output, matching the DST
+            # editor's default). Set BEFORE the stats update so the map trigger
+            # picks up the new colours.
+            cur.execute("""
+                UPDATE soil_data.mapped_property SET start_color = '#1a9850', end_color = '#d7191c'
+                WHERE mapped_property_id = (
+                    SELECT m.mapped_property_id FROM soil_data.layer l
+                    JOIN soil_data.mapset m ON m.mapset_id = l.mapset_id
+                    WHERE l.layer_id = %s)
+            """, (output_layer_id,))
+            # Re-set stats_minimum (to the real non-zero min) — this re-fires the
+            # map trigger so DATARANGE spans the real data, leaving 0 transparent.
+            cur.execute(
+                "UPDATE soil_data.layer SET stats_minimum = COALESCE(%s, stats_minimum) "
+                "WHERE layer_id = %s", (real_min, output_layer_id))
+            cur.execute("SELECT map FROM soil_data.layer WHERE layer_id = %s", (output_layer_id,))
+            row = cur.fetchone()
+    if row and row[0]:
+        with open(os.path.join("/srv/rasters", f"{output_layer_id}.map"), "w", encoding="utf-8") as fh:
+            fh.write(row[0])
+
+
 def _retag_raster(old_layer_id: str, target_project_id: str, user_id: str) -> dict:
     """Reassign one raster to another project: rename its files to the new
     <CC>-<target>-<rest> id and re-register (regenerating .map/.sld/xml/urls and
@@ -1553,6 +1595,50 @@ def _retag_raster(old_layer_id: str, target_project_id: str, user_id: str) -> di
         warnings.append(f"re-register failed for {new_layer_id}: {e}")
         return {"ok": False, "old_layer_id": old_layer_id, "new_layer_id": new_layer_id,
                 "warnings": warnings}
+
+    # 6. Repoint any DST (Raster-calculator) recipe that references this raster,
+    # so is_dst and the pixel-breakdown popup keep working after the rename:
+    #   * as an OUTPUT → rename recipe_id + output_layer_id (kept equal; re-running
+    #     a recipe derives the output id from recipe_id; is_dst/popup key off
+    #     output_layer_id). Nothing FKs to recipe_id.
+    #   * as an INPUT  → repoint the matching step.layer_id inside recipe JSON, so
+    #     the popup can still sample the input and the recipe still re-runs.
+    try:
+        from psycopg2.extras import Json as _Json
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    "UPDATE api.dst_recipe SET recipe_id = %s, output_layer_id = %s "
+                    "WHERE output_layer_id = %s OR recipe_id = %s",
+                    (new_layer_id, new_layer_id, old_layer_id, old_layer_id),
+                )
+                cur.execute("SELECT recipe_id, recipe FROM api.dst_recipe")
+                for r in cur.fetchall():
+                    rec = r["recipe"] or {}
+                    changed = False
+                    for s in (rec.get("steps") or []):
+                        if s.get("layer_id") == old_layer_id:
+                            s["layer_id"] = new_layer_id
+                            changed = True
+                    if changed:
+                        cur.execute("UPDATE api.dst_recipe SET recipe = %s WHERE recipe_id = %s",
+                                    (_Json(rec), r["recipe_id"]))
+    except Exception as e:
+        warnings.append(f"dst_recipe repoint failed for {new_layer_id}: {e}")
+
+    # 7. If the raster is a DST output, restore its DST rendering (green->red
+    # ramp + 0 transparent) — the plain re-registration reset stats_minimum to 0
+    # and kept the default ramp.
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 FROM api.dst_recipe WHERE output_layer_id = %s", (new_layer_id,))
+                is_dst_output = cur.fetchone() is not None
+        if is_dst_output:
+            _dst_finalize_render(new_layer_id)
+    except Exception as e:
+        warnings.append(f"dst render finalize failed for {new_layer_id}: {e}")
+
     return {"ok": True, "old_layer_id": old_layer_id, "new_layer_id": new_layer_id,
             "warnings": warnings}
 
