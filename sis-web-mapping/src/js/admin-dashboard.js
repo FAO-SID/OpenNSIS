@@ -506,12 +506,13 @@ class AdminDashboard {
                         <th>Public limit</th>
                         <th title="Random coordinate offset in metres. Blank = precise coords.">Spatial blur (metres)</th>
                         <th title="Share only profile locations (points) on the map — no observational data is shared or shown.">Share locations only</th>
+                        <th title="Hide the per-project profile CSV download button on the map. Data still publishes; only the download button is hidden.">Hide download</th>
                         <th>Published</th>
                         <th>Delete</th>
                       </tr>
                     </thead>
                     <tbody id="soil-profile-layers-tbody">
-                      <tr><td colspan="8" class="loading">Loading soil profile layers...</td></tr>
+                      <tr><td colspan="9" class="loading">Loading soil profile layers...</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -3117,7 +3118,7 @@ class AdminDashboard {
 
     const rows = this.soilProfileLayers || [];
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No projects found</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No projects found</td></tr>';
       return;
     }
 
@@ -3131,6 +3132,11 @@ class AdminDashboard {
       const locOnlyBadge = r.locations_only
         ? `<span class="badge badge-danger sp-loc-only-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="Only locations are shared — no observational data. Click to share full data.">Yes</span>`
         : `<span class="badge badge-success sp-loc-only-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="Full data is shared. Click to share locations only.">No</span>`;
+      // Same inverted-colour convention: hiding the download is a restriction,
+      // so "Yes" is red (danger) and "No" is green (success).
+      const hideDlBadge = r.hide_download
+        ? `<span class="badge badge-danger sp-hide-dl-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="Download button is hidden on the map. Click to show it.">Yes</span>`
+        : `<span class="badge badge-success sp-hide-dl-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="Download button is shown on the map. Click to hide it.">No</span>`;
       const totalProfiles = Number(r.total_profile_count || 0);
       const pubProfiles = Number(r.published_profile_count || 0);
       const totalObs = Number(r.total_observation_count || 0);
@@ -3161,6 +3167,7 @@ class AdminDashboard {
           <span class="sp-blur-status" data-project-id="${pid}"></span>
         </td>
         <td>${locOnlyBadge}</td>
+        <td>${hideDlBadge}</td>
         <td>
           <button class="btn ${r.is_published ? 'btn-secondary' : 'btn-success'} sp-publish-btn"
                   data-project-id="${pid}" data-publish="${r.is_published ? '0' : '1'}">
@@ -3191,6 +3198,15 @@ class AdminDashboard {
         const value = e.currentTarget.dataset.value === '1';
         await this.flushPendingSoilProfileEdits();
         this.toggleSoilProfileLocationsOnly(projectId, value);
+      });
+    });
+
+    tbody.querySelectorAll('.sp-hide-dl-toggle').forEach(el => {
+      el.addEventListener('click', async (e) => {
+        const projectId = e.currentTarget.dataset.projectId;
+        const value = e.currentTarget.dataset.value === '1';
+        await this.flushPendingSoilProfileEdits();
+        this.toggleSoilProfileHideDownload(projectId, value);
       });
     });
 
@@ -3265,6 +3281,16 @@ class AdminDashboard {
       this.renderSoilProfileLayers();
     } catch (error) {
       alert('Error updating "locations only": ' + error.message);
+    }
+  }
+
+  async toggleSoilProfileHideDownload(projectId, hideDownload) {
+    try {
+      await api.setSoilProfileHideDownload(projectId, hideDownload);
+      await this.loadSoilProfileLayers();
+      this.renderSoilProfileLayers();
+    } catch (error) {
+      alert('Error updating "hide download": ' + error.message);
     }
   }
 

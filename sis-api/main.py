@@ -875,24 +875,29 @@ async def get_profiles(
 
 @app.get("/api/profile/blur")
 async def get_profile_blur_flags(api_client: dict = Depends(verify_api_key)):
-    """Per-layer privacy flags for soil-profile layers, so the map can warn:
-      * blurred_mapset_ids       — coordinates are blurred (radius never exposed)
+    """Per-layer privacy flags for soil-profile layers, so the map can warn /
+    adapt its UI:
+      * blurred_mapset_ids        — coordinates are blurred (radius never exposed)
       * locations_only_mapset_ids — only points are shared, no observational data
+      * hide_download_mapset_ids  — per-project CSV download button is hidden
     Booleans/ids only; no sensitive values are returned."""
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT mapset_id,
                        COALESCE(spatial_blur_m, 0) > 0 AS blurred,
-                       COALESCE(locations_only, FALSE) AS loc_only
+                       COALESCE(locations_only, FALSE) AS loc_only,
+                       COALESCE(hide_download, FALSE) AS hide_dl
                 FROM soil_data.mapset
                 WHERE (spatial_blur_m IS NOT NULL AND spatial_blur_m > 0)
                    OR locations_only IS TRUE
+                   OR hide_download IS TRUE
             """)
             rows = cur.fetchall()
             return {
                 "blurred_mapset_ids": [r[0] for r in rows if r[1]],
                 "locations_only_mapset_ids": [r[0] for r in rows if r[2]],
+                "hide_download_mapset_ids": [r[0] for r in rows if r[3]],
             }
 
 @app.get("/api/observation")
@@ -3014,6 +3019,7 @@ async def list_soil_profile_layers(current_user: dict = Depends(get_current_user
           pm.profile_limit,
           pm.spatial_blur_m,
           COALESCE(pm.locations_only, FALSE) AS locations_only,
+          COALESCE(pm.hide_download, FALSE) AS hide_download,
           COALESCE(pt.total_profiles, 0) AS total_profile_count,
           COALESCE(ppc.published_profiles, 0) AS published_profile_count,
           COALESCE(tobs.total_observations, 0) AS total_observation_count,
@@ -3157,6 +3163,38 @@ async def set_soil_profile_locations_only(
                 raise HTTPException(status_code=404, detail="Project or stub mapset not found")
             conn.commit()
     return {"project_id": project_id, "locations_only": body.locations_only}
+
+
+class SoilProfileHideDownloadUpdate(BaseModel):
+    hide_download: bool
+
+
+@app.patch("/api/layer/soil_profiles/{project_id}/hide-download")
+async def set_soil_profile_hide_download(
+    project_id: str,
+    body: SoilProfileHideDownloadUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Hide the per-project profile CSV download button on the map for this
+    project. UI affordance only — the profile points and observational data
+    still publish exactly as before (nothing is restricted). Surfaced to the
+    map via /api/profile/blur (hide_download_mapset_ids)."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE soil_data.mapset m
+                SET hide_download = %s
+                FROM soil_data.project p
+                WHERE m.mapset_id = p.country_id || '-' || p.project_id
+                  AND p.project_id = %s
+                """,
+                (body.hide_download, project_id),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Project or stub mapset not found")
+            conn.commit()
+    return {"project_id": project_id, "hide_download": body.hide_download}
 
 
 @app.get("/api/stats/dashboard")

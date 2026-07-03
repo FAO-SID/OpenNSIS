@@ -21,6 +21,7 @@ let profileColors = {};
 let profileMapsetIds = {};
 let blurredMapsetIds = new Set();        // mapset_ids whose profile coords are blurred
 let locationsOnlyMapsetIds = new Set();  // mapset_ids sharing points only, no attribute data
+let hideDownloadMapsetIds = new Set();   // mapset_ids whose per-project download button is hidden
 let activeLayer = null;
 let activePopup = null;   // the map info-popup overlay (set in setupPopup)
 
@@ -728,9 +729,11 @@ async function loadProfiles() {
       const flags = await api.getProfileBlurFlags();
       blurredMapsetIds = new Set((flags && flags.blurred_mapset_ids) || []);
       locationsOnlyMapsetIds = new Set((flags && flags.locations_only_mapset_ids) || []);
+      hideDownloadMapsetIds = new Set((flags && flags.hide_download_mapset_ids) || []);
     } catch (e) {
       blurredMapsetIds = new Set();
       locationsOnlyMapsetIds = new Set();
+      hideDownloadMapsetIds = new Set();
     }
 
     if (!profiles || profiles.length === 0) {
@@ -1044,21 +1047,24 @@ function addProfileLayerControl() {
     }
 
     // Per-project download — exports the profiles belonging to this project
-    // (in the same CSV columns the data panel uses).
-    const dlIcons = document.createElement('div');
-    dlIcons.className = 'layer-icons';
-    dlIcons.innerHTML = `<a href="#" title="Download CSV"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z'/%3E%3C/svg%3E" alt="Download"></a>`;
-    dlIcons.querySelector('a').addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      try {
-        await downloadProjectProfilesCsv(projectName);
-      } catch (err) {
-        console.error('Profile CSV download failed:', err);
-        alert('Profile CSV download failed: ' + (err && err.message ? err.message : err));
-      }
-    });
-    layerItem.appendChild(dlIcons);
+    // (in the same CSV columns the data panel uses). Suppressed for projects
+    // flagged "Hide download" in the admin Soil profiles tab.
+    if (!(mapsetId && hideDownloadMapsetIds.has(mapsetId))) {
+      const dlIcons = document.createElement('div');
+      dlIcons.className = 'layer-icons';
+      dlIcons.innerHTML = `<a href="#" title="Download CSV"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z'/%3E%3C/svg%3E" alt="Download"></a>`;
+      dlIcons.querySelector('a').addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await downloadProjectProfilesCsv(projectName);
+        } catch (err) {
+          console.error('Profile CSV download failed:', err);
+          alert('Profile CSV download failed: ' + (err && err.message ? err.message : err));
+        }
+      });
+      layerItem.appendChild(dlIcons);
+    }
 
     layerItem.appendChild(colorWrapper);
     content.appendChild(layerItem);
