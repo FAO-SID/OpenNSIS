@@ -252,25 +252,42 @@ def execute_recipe(
 
     os.makedirs(output_dir, exist_ok=True)
     out_path = os.path.join(output_dir, f"{output_layer_id}.tif")
-    # Write to a temp file then atomic-rename. Overwriting in place keeps
-    # the same inode; GDAL (running inside MapServer) keeps serving from
-    # its block cache, which leaves the rendered WMS tiles stale even when
-    # the file bytes on disk are new. A new inode forces a re-read.
-    tmp_path = out_path + ".tmp"
+    # Write to a temp file then atomic-rename. Overwriting in place keeps the
+    # same inode; GDAL (in MapServer) keeps serving from its block cache, which
+    # leaves rendered WMS tiles stale even when the bytes on disk are new. A new
+    # inode forces a re-read.
+    #
+    # Output is a Cloud-Optimised GeoTIFF (COG): DEFLATE + predictor 2, internal
+    # tiling and overviews — so MapServer renders faster when zoomed out and the
+    # file is a valid COG for direct download. GDAL's COG driver is CreateCopy-
+    # only, so write a plain tiled GeoTIFF first and copy it into a COG.
+    import rasterio.shutil as _rio_shutil
 
-    profile.update(
-        dtype="float32",
-        count=1,
-        nodata=nodata_value,
-        compress="deflate",
-        tiled=True,
-        blockxsize=256,
-        blockysize=256,
+    src_profile = profile.copy()
+    src_profile.update(
+        driver="GTiff", dtype="float32", count=1, nodata=nodata_value,
+        compress="deflate", tiled=True, blockxsize=512, blockysize=512,
     )
+    src_profile.pop("interleave", None)
 
-    with rasterio.open(tmp_path, "w", **profile) as dst:
-        dst.write(result, 1)
-    os.replace(tmp_path, out_path)
+    tmp_src = out_path + ".src.tif"
+    tmp_cog = out_path + ".cog.tif"
+    try:
+        with rasterio.open(tmp_src, "w", **src_profile) as dst:
+            dst.write(result, 1)
+        _rio_shutil.copy(
+            tmp_src, tmp_cog, driver="COG",
+            compress="DEFLATE", predictor=2, blocksize=512,
+            overview_resampling="average", num_threads="ALL_CPUS",
+        )
+        os.replace(tmp_cog, out_path)
+    finally:
+        for _p in (tmp_src, tmp_cog):
+            if os.path.exists(_p):
+                try:
+                    os.remove(_p)
+                except OSError:
+                    pass
 
     log.info("DST engine wrote %s (%d steps, agg=%s)", out_path, len(steps), agg)
     return out_path
