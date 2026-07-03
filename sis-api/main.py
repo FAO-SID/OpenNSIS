@@ -1503,7 +1503,20 @@ async def upload_csv(
     def sanitize_col(name):
         return name.replace('%', 'pct')
 
-    headers = [sanitize_col(h) for h in raw_headers]
+    # Build safe, NON-EMPTY, UNIQUE column names. A blank header (e.g. a trailing
+    # comma / unnamed column) would otherwise become a zero-length identifier
+    # (`"" TEXT`) and duplicate headers a duplicate column — both crash the
+    # CREATE TABLE. Blank → column_N (1-based); repeats get a numeric suffix.
+    headers = []
+    used = set()
+    for i, h in enumerate(raw_headers, start=1):
+        name = sanitize_col(h).strip() or f"column_{i}"
+        base, n = name, 2
+        while name.lower() in used:
+            name = f"{base}_{n}"
+            n += 1
+        used.add(name.lower())
+        headers.append(name)
 
     # Build a safe table name. Postgres truncates identifiers at 63 chars, so
     # if two long filenames sanitize to the same prefix the second upload's
