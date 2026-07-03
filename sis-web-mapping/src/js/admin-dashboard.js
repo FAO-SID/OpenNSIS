@@ -505,8 +505,8 @@ class AdminDashboard {
                         <th>Measurements</th>
                         <th>Public limit</th>
                         <th title="Random coordinate offset in metres. Blank = precise coords.">Spatial blur (metres)</th>
-                        <th title="Share only profile locations (points) on the map — no observational data is shared or shown.">Share locations only</th>
-                        <th title="Hide the per-project profile CSV download button on the map. Data still publishes; only the download button is hidden.">Hide download</th>
+                        <th title="Yes = full attribute data is shared. No = only profile locations (points) are shared on the map, no attribute data.">Share attributes</th>
+                        <th title="Yes = the per-project profile CSV download button is shown on the map. No = it is hidden (data still publishes).">Show download button</th>
                         <th>Published</th>
                         <th>Delete</th>
                       </tr>
@@ -3127,16 +3127,18 @@ class AdminDashboard {
       const name = this.escapeHtml(r.project_name || r.project_id);
       const limitVal = r.profile_limit == null ? '' : String(r.profile_limit);
       const blurVal = r.spatial_blur_m == null ? '' : String(r.spatial_blur_m);
-      // Same look as the Users → Active toggle, colours inverted: locations-only
-      // is a restriction, so "Yes" is red (danger) and "No" is green (success).
-      const locOnlyBadge = r.locations_only
-        ? `<span class="badge badge-danger sp-loc-only-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="Only locations are shared — no observational data. Click to share full data.">Yes</span>`
-        : `<span class="badge badge-success sp-loc-only-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="Full data is shared. Click to share locations only.">No</span>`;
-      // Same inverted-colour convention: hiding the download is a restriction,
-      // so "Yes" is red (danger) and "No" is green (success).
-      const hideDlBadge = r.hide_download
-        ? `<span class="badge badge-danger sp-hide-dl-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="Download button is hidden on the map. Click to show it.">Yes</span>`
-        : `<span class="badge badge-success sp-hide-dl-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="Download button is shown on the map. Click to hide it.">No</span>`;
+      // Same look as the Users → Active toggle. Framed positively so Yes = green
+      // (permissive), No = red (restriction). "Share attributes" is the inverse of
+      // the underlying locations_only flag; data-value is still the locations_only
+      // value written on click, so the backend/DB semantics are unchanged.
+      const shareAttrBadge = r.locations_only
+        ? `<span class="badge badge-danger sp-loc-only-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="Only locations are shared — no attribute data. Click to share attributes.">No</span>`
+        : `<span class="badge badge-success sp-loc-only-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="Full attribute data is shared. Click to share locations only.">Yes</span>`;
+      // "Show download button" is the inverse of the underlying hide_download flag;
+      // data-value is still the hide_download value written on click.
+      const showDlBadge = r.hide_download
+        ? `<span class="badge badge-danger sp-hide-dl-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="Download button is hidden on the map. Click to show it.">No</span>`
+        : `<span class="badge badge-success sp-hide-dl-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="Download button is shown on the map. Click to hide it.">Yes</span>`;
       const totalProfiles = Number(r.total_profile_count || 0);
       const pubProfiles = Number(r.published_profile_count || 0);
       const totalObs = Number(r.total_observation_count || 0);
@@ -3166,8 +3168,8 @@ class AdminDashboard {
                  placeholder="precise" inputmode="numeric">
           <span class="sp-blur-status" data-project-id="${pid}"></span>
         </td>
-        <td>${locOnlyBadge}</td>
-        <td>${hideDlBadge}</td>
+        <td>${shareAttrBadge}</td>
+        <td>${showDlBadge}</td>
         <td>
           <button class="btn ${r.is_published ? 'btn-secondary' : 'btn-success'} sp-publish-btn"
                   data-project-id="${pid}" data-publish="${r.is_published ? '0' : '1'}">
