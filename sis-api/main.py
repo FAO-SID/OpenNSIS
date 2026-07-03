@@ -3926,6 +3926,7 @@ def _execute_dst_run(recipe_id: str, triggered_by: str):
 
             _mark(conn,
                   run_status="succeeded",
+                  run_error=None,               # clear any error from a prior failed run
                   metadata_status=metadata_status,
                   metadata_error=metadata_error,
                   output_layer_id=output_layer_id,
