@@ -360,7 +360,7 @@ class AdminDashboard {
                     <tr>
                       <th>Name</th>
                       <th>ID</th>
-                      <th>Abstract</th>
+                      <th>Description</th>
                       <th title="Number of soil profiles under this project">Profiles</th>
                       <th title="Number of rasters under this project">Rasters</th>
                       <th>Edit</th>
@@ -428,7 +428,7 @@ class AdminDashboard {
                         </div>
 
                         <div class="etl-metadata-grid" style="margin-bottom:var(--sp-4);">
-                          <label for="etl-abstract">Abstract</label>
+                          <label for="etl-abstract">Description</label>
                           <div><textarea id="etl-abstract" rows="6" style="width:400px;max-width:none;font-family:inherit;font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--color-border-strong);border-radius:var(--radius-sm);" placeholder="Project description..."></textarea></div>
                           <label for="etl-license">Licence</label>
                           <div>
@@ -1219,8 +1219,8 @@ class AdminDashboard {
       ${idRow}
       <label style="display:block;font-weight:600;margin-bottom:4px;">Name</label>
       <input class="pm-name" style="width:100%;box-sizing:border-box;margin-bottom:12px;" value="${this.escapeHtml(isNew ? '' : (project.name || ''))}">
-      <label style="display:block;font-weight:600;margin-bottom:4px;">Abstract</label>
-      <textarea class="pm-abstract" rows="3" style="width:100%;box-sizing:border-box;margin-bottom:14px;">${this.escapeHtml(isNew ? '' : (project.description || ''))}</textarea>
+      <label style="display:block;font-weight:600;margin-bottom:4px;">Description</label>
+      <textarea class="pm-description" rows="3" style="width:100%;box-sizing:border-box;margin-bottom:14px;">${this.escapeHtml(isNew ? '' : (project.description || ''))}</textarea>
       <label style="display:block;font-weight:600;margin-bottom:4px;">Authors</label>
       <div style="display:flex;gap:6px;font-size:12px;color:#666;margin-bottom:4px;">
         <div style="flex:1;">Organisation</div><div style="flex:1;">Author</div><div style="width:120px;">Position</div><div style="width:150px;">Role</div><div style="width:26px;"></div>
@@ -1264,7 +1264,7 @@ class AdminDashboard {
       }
     }
     const name = overlay.querySelector('.pm-name').value.trim();
-    const abstract = overlay.querySelector('.pm-abstract').value.trim();
+    const description = overlay.querySelector('.pm-description').value.trim();
     if (!name) { status.textContent = 'Name is required'; status.style.color = '#dc3545'; return; }
     const authors = [];
     overlay.querySelectorAll('#project-author-rows .etl-author-row').forEach(r => {
@@ -1279,8 +1279,8 @@ class AdminDashboard {
     });
     status.textContent = isNew ? 'Creating...' : 'Saving...'; status.style.color = '#666';
     try {
-      if (isNew) await api.createProject({ project_id: projectId, name, description: abstract || null });
-      else await api.updateProject(projectId, { name, description: abstract || null });
+      if (isNew) await api.createProject({ project_id: projectId, name, description: description || null });
+      else await api.updateProject(projectId, { name, description: description || null });
       // On edit always save (to persist removals); on create only if any given.
       if (!isNew || authors.length) {
         await api.saveEtlMetadata({ project_id: projectId, country_id: cc || undefined, authors });
@@ -3797,7 +3797,7 @@ class AdminDashboard {
       return;
     }
     const proj = (this.etlCodelists.projects || []).find(p => p.project_id === projectId);
-    abstractEl.value = proj?.abstract || '';
+    abstractEl.value = proj?.description || '';
     licenseEl.value = proj?.license || '';
   }
 
@@ -3816,14 +3816,14 @@ class AdminDashboard {
         return;
       }
 
-      // Save project abstract and license
-      const abstract = document.getElementById('etl-abstract').value.trim();
+      // Save project description and license
+      const description = document.getElementById('etl-abstract').value.trim();
       const license = document.getElementById('etl-license').value;
-      await api.updateProject(projectId, { abstract: abstract || null, license: license || null });
+      await api.updateProject(projectId, { description: description || null, license: license || null });
 
       // Update local cache
       const proj = (this.etlCodelists.projects || []).find(p => p.project_id === projectId);
-      if (proj) { proj.abstract = abstract || null; proj.license = license || null; }
+      if (proj) { proj.description = description || null; proj.license = license || null; }
 
       // Save standardisation (column mapping)
       const section = document.getElementById('etl-mapping-section');
