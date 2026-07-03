@@ -187,6 +187,7 @@ class AdminDashboard {
           <ul class="dashboard-tabs">
             <li><button class="tab-btn" data-tab="account">My account</button></li>
             <li><button class="tab-btn active" data-tab="administration">Administration</button></li>
+            <li><button class="tab-btn" data-tab="projects">Projects</button></li>
             <li><button class="tab-btn" data-tab="layers">Soil profiles</button></li>
             <li><button class="tab-btn" data-tab="add-raster">Rasters</button></li>
             <li><button class="tab-btn" data-tab="dst">Raster calculator</button></li>
@@ -344,6 +345,37 @@ class AdminDashboard {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <!-- Projects Tab -->
+            <div id="projects-tab" class="tab-pane">
+              <section class="layers-section">
+                <h3 class="layers-section-title">Projects</h3>
+                <p style="color:#666;margin:0 0 12px;">Create, edit and delete projects. Deleting a project lets you delete or reassign its soil profiles and rasters.</p>
+                <div class="project-create-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+                  <input id="new-project-id" placeholder="Project ID (e.g. AFACI)" style="width:180px;">
+                  <input id="new-project-name" placeholder="Name" style="width:200px;">
+                  <input id="new-project-desc" placeholder="Abstract (optional)" style="width:260px;">
+                  <button type="button" class="btn btn-primary btn-sm" onclick="adminDashboard.createProjectFromTab()">Create project</button>
+                  <span id="project-create-status" style="font-size:12px;"></span>
+                </div>
+                <table class="admin-table" id="projects-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>ID</th>
+                      <th>Abstract</th>
+                      <th title="Number of soil profiles under this project">Profiles</th>
+                      <th title="Number of rasters under this project">Rasters</th>
+                      <th>Edit</th>
+                      <th>Delete</th>
+                    </tr>
+                  </thead>
+                  <tbody id="projects-tbody">
+                    <tr><td colspan="7" class="loading">Loading projects...</td></tr>
+                  </tbody>
+                </table>
+              </section>
             </div>
 
             <!-- Layers Tab -->
@@ -1131,6 +1163,10 @@ class AdminDashboard {
       this.loadSoilProfileLayers().then(() => this.renderSoilProfileLayers());
     }
 
+    if (tab === 'projects') {
+      this.loadProjects().then(() => this.renderProjects());
+    }
+
     if (tab === 'add-raster' && !this.rasterInited) {
       this.initAddRasterTab();
       this.rasterInited = true;
@@ -1139,6 +1175,267 @@ class AdminDashboard {
       this.initDstTab();
       this.dstInited = true;
     }
+  }
+
+  // ==================== Projects management ====================
+  async loadProjects() {
+    try {
+      this.projects = await api.getManagedProjects();
+    } catch (e) {
+      console.error('loadProjects:', e);
+      this.projects = [];
+    }
+  }
+
+  renderProjects() {
+    const tbody = document.getElementById('projects-tbody');
+    if (!tbody) return;
+    const rows = this.projects || [];
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No projects found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(p => {
+      const pid = this.escapeHtml(p.project_id);
+      const name = this.escapeHtml(p.name || p.project_id);
+      const desc = this.escapeHtml(p.description || '');
+      return `
+      <tr>
+        <td><strong>${name}</strong></td>
+        <td>${pid}</td>
+        <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${desc}">${desc}</td>
+        <td>${Number(p.profile_count || 0).toLocaleString()}</td>
+        <td>${Number(p.raster_count || 0).toLocaleString()}</td>
+        <td><button class="btn btn-secondary btn-sm proj-edit-btn" data-project-id="${pid}">Edit</button></td>
+        <td><button class="btn btn-sm proj-del-btn" style="background:#dc3545;color:#fff;" data-project-id="${pid}">Delete</button></td>
+      </tr>`;
+    }).join('');
+    tbody.querySelectorAll('.proj-edit-btn').forEach(b => b.addEventListener('click', (e) => {
+      const p = (this.projects || []).find(x => String(x.project_id) === e.currentTarget.dataset.projectId);
+      if (p) this.openEditProjectModal(p);
+    }));
+    tbody.querySelectorAll('.proj-del-btn').forEach(b => b.addEventListener('click', (e) => {
+      const p = (this.projects || []).find(x => String(x.project_id) === e.currentTarget.dataset.projectId);
+      if (p) this.openDeleteProjectModal(p);
+    }));
+  }
+
+  async createProjectFromTab() {
+    const idEl = document.getElementById('new-project-id');
+    const nameEl = document.getElementById('new-project-name');
+    const descEl = document.getElementById('new-project-desc');
+    const status = document.getElementById('project-create-status');
+    const id = idEl.value.trim(), name = nameEl.value.trim(), desc = descEl.value.trim();
+    if (!id || !name) { status.textContent = 'Project ID and Name are required'; status.style.color = '#dc3545'; return; }
+    try {
+      await api.createProject({ project_id: id, name, description: desc || null });
+      status.textContent = 'Created'; status.style.color = '#28a745';
+      idEl.value = ''; nameEl.value = ''; descEl.value = '';
+      await this.loadProjects(); this.renderProjects();
+      setTimeout(() => { status.textContent = ''; }, 2500);
+    } catch (e) { status.textContent = 'Error: ' + e.message; status.style.color = '#dc3545'; }
+  }
+
+  _openModal(title, bodyHtml, width) {
+    const existing = document.getElementById('project-modal-overlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'project-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:8px;max-width:${width || 560}px;width:92%;max-height:88vh;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #eee;">
+          <h3 style="margin:0;font-size:17px;">${this.escapeHtml(title)}</h3>
+          <button type="button" class="pm-close" style="border:none;background:none;font-size:22px;cursor:pointer;color:#888;">&times;</button>
+        </div>
+        <div style="padding:18px;" class="pm-body">${bodyHtml}</div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const close = () => overlay.remove();
+    overlay.querySelector('.pm-close').addEventListener('click', close);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    return { overlay, body: overlay.querySelector('.pm-body'), close };
+  }
+
+  _roleOptions(selected) {
+    const roles = ['author', 'custodian', 'distributor', 'originator', 'owner', 'pointOfContact',
+                   'principalInvestigator', 'processor', 'publisher', 'resourceProvider', 'user'];
+    return roles.map(r => `<option value="${r}"${r === selected ? ' selected' : ''}>${r}</option>`).join('');
+  }
+
+  _refreshProjectAuthorDropdowns() {
+    const orgOpts = '<option value="">-- Select --</option>'
+      + (this._projOrgs || []).map(o => `<option value="${this.escapeHtml(o.organisation_id)}">${this.escapeHtml(o.organisation_id + (o.country ? ' (' + o.country + ')' : ''))}</option>`).join('')
+      + '<option value="__new__">+ Add new...</option>';
+    const indOpts = '<option value="">-- Select --</option>'
+      + (this._projInds || []).map(i => `<option value="${this.escapeHtml(i.individual_id)}">${this.escapeHtml(i.individual_id + (i.email ? ' — ' + i.email : ''))}</option>`).join('')
+      + '<option value="__new__">+ Add new...</option>';
+    document.querySelectorAll('.proj-org-sel').forEach(sel => {
+      const prev = sel.dataset.value || sel.value; sel.innerHTML = orgOpts;
+      if (prev && prev !== '__new__') sel.value = prev;
+      sel.onchange = async () => {
+        if (sel.value !== '__new__') return;
+        const id = (prompt('New organisation ID:') || '').trim();
+        if (!id) { sel.value = ''; return; }
+        try { await api.createOrganisation({ organisation_id: id }); this._projOrgs.push({ organisation_id: id }); this._refreshProjectAuthorDropdowns(); sel.value = id; }
+        catch (e) { alert('Error: ' + e.message); sel.value = ''; }
+      };
+    });
+    document.querySelectorAll('.proj-ind-sel').forEach(sel => {
+      const prev = sel.dataset.value || sel.value; sel.innerHTML = indOpts;
+      if (prev && prev !== '__new__') sel.value = prev;
+      sel.onchange = async () => {
+        if (sel.value !== '__new__') return;
+        const id = (prompt('New author (individual) ID:') || '').trim();
+        if (!id) { sel.value = ''; return; }
+        try { await api.createIndividual({ individual_id: id }); this._projInds.push({ individual_id: id }); this._refreshProjectAuthorDropdowns(); sel.value = id; }
+        catch (e) { alert('Error: ' + e.message); sel.value = ''; }
+      };
+    });
+  }
+
+  addProjectAuthorRow(author) {
+    const container = document.getElementById('project-author-rows');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'etl-author-row';
+    row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+    row.innerHTML = `
+      <select class="proj-org-sel" data-value="${this.escapeHtml((author && author.organisation_id) || '')}" style="flex:1;"><option>Loading...</option></select>
+      <select class="proj-ind-sel" data-value="${this.escapeHtml((author && author.individual_id) || '')}" style="flex:1;"><option>Loading...</option></select>
+      <input type="text" class="proj-pos-input" placeholder="Position" value="${this.escapeHtml((author && author.position) || '')}" style="width:120px;">
+      <select class="proj-role-sel" style="width:150px;">${this._roleOptions((author && author.role) || 'author')}</select>
+      <button type="button" class="btn btn-danger btn-sm" title="Remove" onclick="this.closest('.etl-author-row').remove()" style="width:26px;">&times;</button>`;
+    container.appendChild(row);
+    this._refreshProjectAuthorDropdowns();
+  }
+
+  async openEditProjectModal(project) {
+    const pid = project.project_id;
+    const cc = project.country_id || '';
+    const { body } = this._openModal(`Edit project — ${project.name || pid}`, `
+      <label style="display:block;font-weight:600;margin-bottom:4px;">Name</label>
+      <input class="pm-name" style="width:100%;box-sizing:border-box;margin-bottom:12px;" value="${this.escapeHtml(project.name || '')}">
+      <label style="display:block;font-weight:600;margin-bottom:4px;">Abstract</label>
+      <textarea class="pm-abstract" rows="3" style="width:100%;box-sizing:border-box;margin-bottom:14px;">${this.escapeHtml(project.description || '')}</textarea>
+      <label style="display:block;font-weight:600;margin-bottom:4px;">Authors</label>
+      <div style="display:flex;gap:6px;font-size:12px;color:#666;margin-bottom:4px;">
+        <div style="flex:1;">Organisation</div><div style="flex:1;">Author</div><div style="width:120px;">Position</div><div style="width:150px;">Role</div><div style="width:26px;"></div>
+      </div>
+      <div id="project-author-rows"></div>
+      <button type="button" class="btn btn-secondary btn-sm pm-add-author" style="margin-top:6px;">+ Add author</button>
+      <div class="pm-status" style="margin-top:10px;font-size:12px;"></div>
+      <div style="margin-top:14px;text-align:right;">
+        <button type="button" class="btn btn-secondary btn-sm pm-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm pm-save">Save</button>
+      </div>`, 660);
+    body.querySelector('.pm-add-author').addEventListener('click', () => this.addProjectAuthorRow());
+    body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
+    body.querySelector('.pm-save').addEventListener('click', () => this.saveProjectEdit(pid, cc));
+    try {
+      const [orgs, inds, authors] = await Promise.all([
+        api.getOrganisations(), api.getIndividuals(), api.getProjectAuthors(pid, cc)
+      ]);
+      this._projOrgs = orgs || []; this._projInds = inds || [];
+      const list = Array.isArray(authors) ? authors : (authors && authors.authors) || [];
+      if (list.length === 0) this.addProjectAuthorRow();
+      else list.forEach(a => this.addProjectAuthorRow(a));
+    } catch (e) {
+      const s = body.querySelector('.pm-status'); if (s) { s.textContent = 'Could not load authors: ' + e.message; s.style.color = '#dc3545'; }
+      this.addProjectAuthorRow();
+    }
+  }
+
+  async saveProjectEdit(projectId, countryId) {
+    const overlay = document.getElementById('project-modal-overlay');
+    if (!overlay) return;
+    const status = overlay.querySelector('.pm-status');
+    const name = overlay.querySelector('.pm-name').value.trim();
+    const abstract = overlay.querySelector('.pm-abstract').value.trim();
+    if (!name) { status.textContent = 'Name is required'; status.style.color = '#dc3545'; return; }
+    const authors = [];
+    overlay.querySelectorAll('#project-author-rows .etl-author-row').forEach(r => {
+      const org = r.querySelector('.proj-org-sel').value;
+      const ind = r.querySelector('.proj-ind-sel').value;
+      if (!org || org === '__new__' || !ind || ind === '__new__') return;
+      authors.push({
+        organisation_id: org, individual_id: ind,
+        position: r.querySelector('.proj-pos-input').value.trim(),
+        tag: 'pointOfContact', role: r.querySelector('.proj-role-sel').value || 'author'
+      });
+    });
+    status.textContent = 'Saving...'; status.style.color = '#666';
+    try {
+      await api.updateProject(projectId, { name, description: abstract || null });
+      await api.saveEtlMetadata({ project_id: projectId, country_id: countryId, authors });
+      overlay.remove();
+      await this.loadProjects(); this.renderProjects();
+    } catch (e) { status.textContent = 'Error: ' + e.message; status.style.color = '#dc3545'; }
+  }
+
+  async openDeleteProjectModal(project) {
+    const pid = project.project_id;
+    let dep;
+    try { dep = await api.getProjectDependents(pid); }
+    catch (e) { alert('Could not load dependents: ' + e.message); return; }
+    const cc = dep.country_id || project.country_id || '';
+    const others = (this.projects || []).filter(p => String(p.project_id) !== String(pid));
+    const targetSelect = (kind) => `<select class="pm-${kind}-target" style="margin-left:8px;">`
+      + others.map(p => `<option value="${this.escapeHtml(p.project_id)}">${this.escapeHtml(p.name || p.project_id)} (${this.escapeHtml(p.project_id)})</option>`).join('')
+      + `</select>`;
+    const typeBlock = (kind, label, count) => {
+      if (!count) return `<p style="color:#888;margin:6px 0;">No ${label}.</p>`;
+      const hasTargets = others.length > 0;
+      return `
+      <div style="border:1px solid #eee;border-radius:6px;padding:10px;margin:8px 0;">
+        <strong>${count.toLocaleString()} ${label}</strong>
+        <div style="margin-top:6px;">
+          <label style="display:block;margin:3px 0;"><input type="radio" name="pm-${kind}-action" value="delete" checked> Delete them permanently</label>
+          <label style="display:block;margin:3px 0;${hasTargets ? '' : 'color:#aaa;'}">
+            <input type="radio" name="pm-${kind}-action" value="reassign" ${hasTargets ? '' : 'disabled'}> Reassign to ${hasTargets ? targetSelect(kind) : '(no other project available)'}
+          </label>
+        </div>
+      </div>`;
+    };
+    const { body } = this._openModal(`Delete project — ${project.name || pid}`, `
+      <p>This permanently deletes project <strong>${this.escapeHtml(project.name || pid)}</strong> (<code>${this.escapeHtml(pid)}</code>). Choose what happens to its dependents:</p>
+      ${typeBlock('profiles', 'soil profiles', dep.profiles.count)}
+      ${typeBlock('rasters', 'rasters', dep.rasters.count)}
+      <div class="pm-status" style="margin-top:8px;font-size:12px;color:#dc3545;"></div>
+      <div style="margin-top:14px;text-align:right;">
+        <button type="button" class="btn btn-secondary btn-sm pm-cancel">Cancel</button>
+        <button type="button" class="btn btn-sm pm-confirm" style="background:#dc3545;color:#fff;">Delete project</button>
+      </div>`, 560);
+    body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
+    body.querySelector('.pm-confirm').addEventListener('click', () => this.confirmDeleteProject(pid, dep));
+  }
+
+  async confirmDeleteProject(projectId, dep) {
+    const overlay = document.getElementById('project-modal-overlay');
+    if (!overlay) return;
+    const status = overlay.querySelector('.pm-status');
+    const actions = {};
+    const build = (kind) => {
+      const sel = overlay.querySelector(`input[name="pm-${kind}-action"]:checked`);
+      if (!sel) return null;
+      if (sel.value === 'reassign') {
+        const t = overlay.querySelector(`.pm-${kind}-target`);
+        return { action: 'reassign', target_project_id: t ? t.value : null };
+      }
+      return { action: 'delete' };
+    };
+    if (dep.profiles.count) actions.profiles = build('profiles');
+    if (dep.rasters.count) actions.rasters = build('rasters');
+    status.style.color = '#666'; status.textContent = 'Working...';
+    try {
+      const res = await api.deleteProject(projectId, actions);
+      overlay.remove();
+      await this.loadProjects(); this.renderProjects();
+      const warns = (res && res.warnings) || [];
+      if (!res.project_deleted || warns.length) {
+        alert((res.message || 'Done') + (warns.length ? '\n\n- ' + warns.join('\n- ') : ''));
+      }
+    } catch (e) { status.style.color = '#dc3545'; status.textContent = 'Error: ' + e.message; }
   }
 
   // ==================== Add Raster ====================

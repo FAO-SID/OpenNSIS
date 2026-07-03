@@ -381,6 +381,22 @@ class SISApiClient {
     });
   }
 
+  // Projects management tab
+  async getManagedProjects() {
+    return this.authenticatedRequest('/api/projects');
+  }
+
+  async getProjectDependents(projectId) {
+    return this.authenticatedRequest(`/api/projects/${encodeURIComponent(projectId)}/dependents`);
+  }
+
+  async deleteProject(projectId, actions) {
+    return this.authenticatedRequest(`/api/projects/${encodeURIComponent(projectId)}`, {
+      method: 'DELETE',
+      body: JSON.stringify(actions || {})
+    });
+  }
+
   async createOrganisation(data) {
     return this.authenticatedRequest('/api/codelist/organisations', {
       method: 'POST',

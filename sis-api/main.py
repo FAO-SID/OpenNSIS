@@ -3,7 +3,7 @@ SIS Admin API — JWT authentication (for humans)
 Manages users, API clients, layers, and settings.
 """
 
-from fastapi import FastAPI, Depends, HTTPException, status, Request, UploadFile, File, Form, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, status, Request, UploadFile, File, Form, BackgroundTasks, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
@@ -604,8 +604,12 @@ def _delete_layer_full(layer_id: str, user_id: str, *, missing_ok: bool = False)
     if file_path:
         candidates.append(os.path.join(file_path, f"{layer_id}.{file_ext}"))
     candidates.append(os.path.join("/srv/rasters", f"{layer_id}.{file_ext}"))
+    candidates.append(os.path.join("/srv/rasters", f"{layer_id}.{file_ext}.aux.xml"))
     candidates.append(os.path.join("/srv/rasters", f"{layer_id}.map"))
     candidates.append(os.path.join("/srv/pycsw-records", f"{layer_id}.xml"))
+    # DST versioned map-DATA hardlinks: <layer_id>.r<token>.<ext>
+    import glob as _glob
+    candidates.extend(_glob.glob(os.path.join("/srv/rasters", f"{layer_id}.r*.{file_ext}")))
     for p in candidates:
         try:
             if os.path.isfile(p):
@@ -1331,18 +1335,384 @@ async def create_project(payload: dict, current_user: dict = Depends(get_current
 
 @app.patch("/api/codelist/projects/{project_id}")
 async def update_project(project_id: str, payload: dict, current_user: dict = Depends(get_current_user)):
-    # Accept either `description` or the legacy ETL key `abstract` from
-    # callers that still POST the old shape.
-    description = payload.get("description") if "description" in payload else payload.get("abstract")
+    # Metadata-only edit (never the project_id). Accept `name`, and either
+    # `description` or the legacy ETL key `abstract`. Only the keys present in
+    # the payload are updated, so old callers that send just a description keep
+    # working.
+    sets, params = [], []
+    if "name" in payload:
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="name cannot be empty")
+        sets.append("name = %s")
+        params.append(name)
+    if "description" in payload or "abstract" in payload:
+        description = payload.get("description") if "description" in payload else payload.get("abstract")
+        sets.append("description = %s")
+        params.append((description or "").strip() or None)
+    if not sets:
+        return {"message": "Nothing to update"}
+    params.append(project_id)
     with get_db() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "UPDATE soil_data.project SET description = %s WHERE project_id = %s",
-                (description, project_id),
+                f"UPDATE soil_data.project SET {', '.join(sets)} WHERE project_id = %s",
+                tuple(params),
             )
             if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Project not found")
             return {"message": "Project updated"}
+
+
+# ==================== Projects management (admin) ====================
+# CRUD for the Projects tab. Editing is metadata-only (never the project_id).
+# Deleting lets the admin, PER dependent type, either delete the dependents or
+# reassign them to another project — updating ids / files / web-services / the
+# pyCSW catalogue accordingly.
+
+def _project_country_of(cur, project_id):
+    """The country_id that owns project_id, or None (404 caller-side)."""
+    cur.execute("SELECT country_id FROM soil_data.project WHERE project_id = %s "
+                "ORDER BY country_id LIMIT 1", (project_id,))
+    row = cur.fetchone()
+    return (row["country_id"] if isinstance(row, dict) else row[0]) if row else None
+
+
+def _project_raster_layer_ids(cur, cc, project_id):
+    """layer_ids of the project's rasters (its mapsets minus the profile stub)."""
+    cur.execute(
+        """
+        SELECT l.layer_id
+        FROM soil_data.layer l
+        JOIN soil_data.mapset m ON m.mapset_id = l.mapset_id
+        WHERE m.country_id = %s AND m.project_id = %s
+          AND m.mapset_id <> (m.country_id || '-' || m.project_id)
+        ORDER BY l.layer_id
+        """,
+        (cc, project_id),
+    )
+    return [r["layer_id"] for r in cur.fetchall()]
+
+
+def _delete_project_profiles(cur, cc, project_id) -> dict:
+    """Delete all of a project's soil-profile data: prune each ETL dataset, drop
+    residual project_site links (shared sites are kept), remove the profile
+    publish-stub layer/mapset '<CC>-<PROJ>', and the upload records."""
+    cur.execute("SELECT * FROM api.uploaded_dataset WHERE country_id = %s AND project_id = %s",
+                (cc, project_id))
+    datasets = cur.fetchall()
+    total = {}
+    for ds in datasets:
+        for k, v in _prune_dataset_rows(cur, ds).items():
+            total[k] = total.get(k, 0) + v
+    cur.execute("DELETE FROM soil_data.project_site WHERE country_id = %s AND project_id = %s",
+                (cc, project_id))
+    total["project_site_links"] = cur.rowcount
+    stub = f"{cc}-{project_id}"
+    cur.execute("DELETE FROM soil_data.layer WHERE layer_id = %s", (stub,))
+    cur.execute("DELETE FROM soil_data.mapset WHERE mapset_id = %s", (stub,))
+    cur.execute("DELETE FROM api.uploaded_dataset WHERE country_id = %s AND project_id = %s",
+                (cc, project_id))
+    return total
+
+
+def _reassign_project_profiles(cur, cc, src, tgt) -> dict:
+    """Move a project's profiles/uploads/authors onto an existing target project,
+    de-duplicating shared sites and author rows, and merge the profile stub."""
+    moved = {}
+    # project_site: drop links to sites the target already has, then move the rest
+    cur.execute("""DELETE FROM soil_data.project_site s
+                   WHERE s.country_id=%s AND s.project_id=%s AND EXISTS (
+                     SELECT 1 FROM soil_data.project_site t
+                     WHERE t.country_id=%s AND t.project_id=%s AND t.site_id=s.site_id)""",
+                (cc, src, cc, tgt))
+    cur.execute("UPDATE soil_data.project_site SET project_id=%s WHERE country_id=%s AND project_id=%s",
+                (tgt, cc, src))
+    moved["project_site"] = cur.rowcount
+    cur.execute("UPDATE api.uploaded_dataset SET project_id=%s WHERE country_id=%s AND project_id=%s",
+                (tgt, cc, src))
+    moved["uploaded_dataset"] = cur.rowcount
+    # authors (proj_x_org_x_ind): drop exact duplicates, move the rest
+    cur.execute("""DELETE FROM soil_data.proj_x_org_x_ind s
+                   WHERE s.country_id=%s AND s.project_id=%s AND EXISTS (
+                     SELECT 1 FROM soil_data.proj_x_org_x_ind t
+                     WHERE t.country_id=%s AND t.project_id=%s
+                       AND t.organisation_id=s.organisation_id AND t.individual_id=s.individual_id
+                       AND t.position=s.position AND t.tag=s.tag AND t.role=s.role)""",
+                (cc, src, cc, tgt))
+    cur.execute("UPDATE soil_data.proj_x_org_x_ind SET project_id=%s WHERE country_id=%s AND project_id=%s",
+                (tgt, cc, src))
+    moved["authors"] = cur.rowcount
+    # merge the profile publish-stub '<CC>-<src>' into '<CC>-<tgt>'
+    src_stub, tgt_stub = f"{cc}-{src}", f"{cc}-{tgt}"
+    cur.execute("SELECT 1 FROM soil_data.mapset WHERE mapset_id=%s", (tgt_stub,))
+    if cur.fetchone():
+        cur.execute("DELETE FROM soil_data.layer WHERE layer_id=%s", (src_stub,))
+        cur.execute("DELETE FROM soil_data.mapset WHERE mapset_id=%s", (src_stub,))
+    else:
+        cur.execute("UPDATE soil_data.mapset SET country_id=%s, project_id=%s, mapset_id=%s WHERE mapset_id=%s",
+                    (cc, tgt, tgt_stub, src_stub))
+        cur.execute("UPDATE soil_data.layer SET layer_id=%s WHERE layer_id=%s", (tgt_stub, src_stub))
+    return moved
+
+
+def _retag_raster(old_layer_id: str, target_project_id: str, user_id: str) -> dict:
+    """Reassign one raster to another project: rename its files to the new
+    <CC>-<target>-<rest> id and re-register (regenerating .map/.sld/xml/urls and
+    the pyCSW record), preserving title/abstract/licence/dates/unit/publish and
+    the colour classes. Returns {ok, old_layer_id, new_layer_id, warnings} or a
+    {ok:False, skipped, reason} when the file is missing or the target id exists."""
+    from raster_registry.register import register_raster
+    from raster_registry.populate import ClassDef
+
+    warnings: list = []
+    # 1. capture current metadata + colour classes, compute the new id
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT l.mapset_id, l.file_extension, l.is_published, l.file_orig_name,
+                       m.title, m.abstract, m.other_constraints, m.publication_date,
+                       m.unit_of_measure_id, m.time_period_begin, m.time_period_end
+                FROM soil_data.layer l JOIN soil_data.mapset m ON m.mapset_id = l.mapset_id
+                WHERE l.layer_id = %s
+            """, (old_layer_id,))
+            row = cur.fetchone()
+            if not row:
+                return {"ok": False, "skipped": True, "old_layer_id": old_layer_id,
+                        "reason": "layer not found"}
+            ext = (row["file_extension"] or "tif").lstrip(".")
+            parts = old_layer_id.split("-")
+            if len(parts) < 2:
+                return {"ok": False, "skipped": True, "old_layer_id": old_layer_id,
+                        "reason": "unexpected layer_id shape"}
+            parts[1] = target_project_id
+            new_layer_id = "-".join(parts)
+            cur.execute("SELECT value, code, label, color, opacity, publish "
+                        "FROM soil_data.class WHERE mapset_id=%s ORDER BY value", (row["mapset_id"],))
+            classes = [ClassDef(**c) for c in cur.fetchall()] or None
+            meta = dict(row)
+
+    if new_layer_id == old_layer_id:
+        return {"ok": False, "skipped": True, "old_layer_id": old_layer_id,
+                "reason": "already under target project"}
+
+    old_tif = os.path.join("/srv/rasters", f"{old_layer_id}.{ext}")
+    new_tif = os.path.join("/srv/rasters", f"{new_layer_id}.{ext}")
+    # 2. collision guard — never overwrite an existing raster
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM soil_data.layer WHERE layer_id=%s", (new_layer_id,))
+            if cur.fetchone() or os.path.exists(new_tif):
+                return {"ok": False, "skipped": True, "old_layer_id": old_layer_id,
+                        "new_layer_id": new_layer_id, "reason": "target id already exists"}
+    if not os.path.isfile(old_tif):
+        return {"ok": False, "skipped": True, "old_layer_id": old_layer_id,
+                "reason": f"raster file missing: {old_tif}"}
+
+    # 3. rename the raster + its stats sidecar to the new id
+    os.rename(old_tif, new_tif)
+    old_aux, new_aux = f"{old_tif}.aux.xml", f"{new_tif}.aux.xml"
+    if os.path.isfile(old_aux):
+        try:
+            os.rename(old_aux, new_aux)
+        except OSError as e:
+            warnings.append(f"rename {old_aux}: {e}")
+
+    # 4. remove the old DB/pyCSW/.map artifacts (old .tif already moved away)
+    warnings += _delete_layer_full(old_layer_id, user_id, missing_ok=True).get("warnings", [])
+
+    # 5. re-register under the new id, carrying the captured metadata
+    try:
+        with get_db() as conn:
+            register_raster(
+                conn, new_tif,
+                project_name=target_project_id,
+                title=meta.get("title"), abstract=meta.get("abstract"),
+                classes=classes, license=meta.get("other_constraints"),
+                publish=bool(meta.get("is_published")),
+                publication_date=meta.get("publication_date"),
+                unit_of_measure_id=meta.get("unit_of_measure_id"),
+                time_period_begin=meta.get("time_period_begin"),
+                time_period_end=meta.get("time_period_end"),
+                file_orig_name=meta.get("file_orig_name"),
+            )
+    except Exception as e:
+        warnings.append(f"re-register failed for {new_layer_id}: {e}")
+        return {"ok": False, "old_layer_id": old_layer_id, "new_layer_id": new_layer_id,
+                "warnings": warnings}
+    return {"ok": True, "old_layer_id": old_layer_id, "new_layer_id": new_layer_id,
+            "warnings": warnings}
+
+
+@app.get("/api/projects")
+async def list_projects_managed(current_user: dict = Depends(get_current_user)):
+    """Projects with dependent counts for the Projects tab."""
+    sql = """
+        SELECT p.country_id, p.project_id, p.name, p.description,
+               COALESCE(pc.profiles, 0) AS profile_count,
+               COALESCE(rc.rasters, 0)  AS raster_count
+        FROM soil_data.project p
+        LEFT JOIN (
+            SELECT ps.country_id, ps.project_id, count(DISTINCT pr.profile_id) AS profiles
+            FROM soil_data.project_site ps
+            JOIN soil_data.plot pl ON pl.site_id = ps.site_id
+            JOIN soil_data.profile pr ON pr.plot_id = pl.plot_id
+            GROUP BY 1, 2
+        ) pc ON pc.country_id = p.country_id AND pc.project_id = p.project_id
+        LEFT JOIN (
+            SELECT m.country_id, m.project_id, count(*) AS rasters
+            FROM soil_data.layer l JOIN soil_data.mapset m ON m.mapset_id = l.mapset_id
+            WHERE m.mapset_id <> (m.country_id || '-' || m.project_id)
+            GROUP BY 1, 2
+        ) rc ON rc.country_id = p.country_id AND rc.project_id = p.project_id
+        ORDER BY p.name;
+    """
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(sql)
+            return cur.fetchall()
+
+
+@app.get("/api/projects/{project_id}/dependents")
+async def get_project_dependents(project_id: str, current_user: dict = Depends(get_current_user)):
+    """Dependent objects of a project, to drive the delete dialog."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cc = _project_country_of(cur, project_id)
+            if not cc:
+                raise HTTPException(status_code=404, detail="Project not found")
+            cur.execute("""
+                SELECT count(DISTINCT pr.profile_id) AS profiles
+                FROM soil_data.project_site ps
+                JOIN soil_data.plot pl ON pl.site_id = ps.site_id
+                JOIN soil_data.profile pr ON pr.plot_id = pl.plot_id
+                WHERE ps.country_id = %s AND ps.project_id = %s
+            """, (cc, project_id))
+            profiles = cur.fetchone()["profiles"]
+            cur.execute("SELECT table_name FROM api.uploaded_dataset WHERE country_id=%s AND project_id=%s",
+                        (cc, project_id))
+            datasets = [r["table_name"] for r in cur.fetchall()]
+            raster_ids = _project_raster_layer_ids(cur, cc, project_id)
+    return {
+        "country_id": cc,
+        "profiles": {"count": profiles, "datasets": datasets},
+        "rasters": {"count": len(raster_ids), "layer_ids": raster_ids},
+    }
+
+
+@app.delete("/api/projects/{project_id}")
+async def delete_project_managed(
+    project_id: str,
+    payload: dict = Body(default={}),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Delete a project. For each dependent type present, the payload chooses to
+    `delete` those dependents or `reassign` them to another project:
+        {"profiles": {"action": "delete|reassign", "target_project_id": "…"},
+         "rasters":  {"action": "delete|reassign", "target_project_id": "…"}}
+    Rasters are retagged one-by-one (own transactions); a target-id collision
+    skips that raster and keeps the source project. Everything else runs in one
+    transaction, then the empty project row is removed.
+    """
+    uid = current_user["user_id"]
+    payload = payload or {}
+    prof_opt = payload.get("profiles") or {}
+    rast_opt = payload.get("rasters") or {}
+    summary = {"profiles": {}, "rasters": {"deleted": [], "reassigned": [], "skipped": []},
+               "warnings": []}
+
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cc = _project_country_of(cur, project_id)
+            if not cc:
+                raise HTTPException(status_code=404, detail="Project not found")
+            raster_ids = _project_raster_layer_ids(cur, cc, project_id)
+            cur.execute("""
+                SELECT count(DISTINCT pr.profile_id) AS n
+                FROM soil_data.project_site ps
+                JOIN soil_data.plot pl ON pl.site_id = ps.site_id
+                JOIN soil_data.profile pr ON pr.plot_id = pl.plot_id
+                WHERE ps.country_id = %s AND ps.project_id = %s
+            """, (cc, project_id))
+            profile_count = cur.fetchone()["n"]
+
+            # validate required actions + reassign targets up front
+            def _validate(kind, opt, has_dep):
+                if not has_dep:
+                    return None
+                action = (opt.get("action") or "").lower()
+                if action not in ("delete", "reassign"):
+                    raise HTTPException(status_code=400,
+                                        detail=f"{kind}: action must be 'delete' or 'reassign'")
+                if action == "reassign":
+                    tgt = (opt.get("target_project_id") or "").strip()
+                    if not tgt or tgt == project_id:
+                        raise HTTPException(status_code=400,
+                                            detail=f"{kind}: a different target project is required")
+                    cur.execute("SELECT 1 FROM soil_data.project WHERE country_id=%s AND project_id=%s",
+                                (cc, tgt))
+                    if not cur.fetchone():
+                        raise HTTPException(status_code=400,
+                                            detail=f"{kind}: target project '{tgt}' not found")
+                    return tgt
+                return None
+
+            prof_target = _validate("profiles", prof_opt, profile_count > 0)
+            rast_target = _validate("rasters", rast_opt, len(raster_ids) > 0)
+
+    # --- rasters (each in its own transaction via the helpers) ---
+    if raster_ids:
+        action = (rast_opt.get("action") or "").lower()
+        for lid in raster_ids:
+            if action == "delete":
+                res = _delete_layer_full(lid, uid, missing_ok=True)
+                summary["rasters"]["deleted"].append(lid)
+                summary["warnings"] += res.get("warnings", [])
+            else:  # reassign
+                res = _retag_raster(lid, rast_target, uid)
+                summary["warnings"] += res.get("warnings", [])
+                if res.get("ok"):
+                    summary["rasters"]["reassigned"].append(res["new_layer_id"])
+                else:
+                    summary["rasters"]["skipped"].append(
+                        {"layer_id": lid, "reason": res.get("reason", "failed")})
+
+    # --- profiles + final project removal (one transaction) ---
+    rasters_all_handled = not summary["rasters"]["skipped"]
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            if profile_count > 0:
+                if (prof_opt.get("action") or "").lower() == "delete":
+                    summary["profiles"] = _delete_project_profiles(cur, cc, project_id)
+                else:
+                    summary["profiles"] = _reassign_project_profiles(cur, cc, project_id, prof_target)
+            # remove the project row only if nothing is left behind
+            cur.execute("""SELECT
+                    (SELECT count(*) FROM soil_data.project_site WHERE country_id=%s AND project_id=%s) AS ps,
+                    (SELECT count(*) FROM soil_data.mapset WHERE country_id=%s AND project_id=%s) AS ms
+                """, (cc, project_id, cc, project_id))
+            left = cur.fetchone()
+            project_deleted = False
+            if rasters_all_handled and left["ps"] == 0 and left["ms"] == 0:
+                cur.execute("DELETE FROM api.uploaded_dataset WHERE country_id=%s AND project_id=%s",
+                            (cc, project_id))
+                cur.execute("DELETE FROM soil_data.proj_x_org_x_ind WHERE country_id=%s AND project_id=%s",
+                            (cc, project_id))
+                cur.execute("DELETE FROM soil_data.project WHERE country_id=%s AND project_id=%s",
+                            (cc, project_id))
+                project_deleted = cur.rowcount > 0
+            else:
+                summary["warnings"].append(
+                    "Project kept: some dependents could not be moved/removed "
+                    f"(project_site={left['ps']}, mapsets={left['ms']}, "
+                    f"skipped_rasters={len(summary['rasters']['skipped'])}).")
+
+    log_audit(uid, None, "project_deleted",
+              {"project_id": project_id, "country_id": cc, "summary": summary,
+               "project_deleted": project_deleted}, None)
+    return {"message": "Project deleted" if project_deleted else "Project retained (see warnings)",
+            "project_deleted": project_deleted, **summary}
+
 
 @app.post("/api/codelist/organisations", status_code=status.HTTP_201_CREATED)
 async def create_organisation(payload: dict, current_user: dict = Depends(get_current_user)):
@@ -2832,6 +3202,68 @@ async def validate_dataset(
             }
 
 
+def _prune_dataset_rows(cur, dataset: dict) -> dict:
+    """Delete every soil_data row tied to one ETL dataset — its csv-tagged plots
+    and their profiles/elements/specimens/results — plus the dataset's sites when
+    no other plots reference them. `cur` must be a RealDictCursor inside a caller
+    transaction. Returns a {table: rowcount} dict ({} when the dataset has no
+    plots). Shared by the dataset-prune endpoint and project deletion.
+    """
+    project_id = dataset.get("project_id")
+    table_name = dataset.get("table_name")
+    cur.execute("SELECT site_id FROM soil_data.project_site WHERE project_id = %s", (project_id,))
+    site_ids = [r["site_id"] for r in cur.fetchall()]
+
+    cur.execute("SELECT plot_id FROM soil_data.plot WHERE csv = %s", (table_name,))
+    plot_ids = [r["plot_id"] for r in cur.fetchall()]
+    if not plot_ids:
+        return {}
+
+    cur.execute("SELECT profile_id FROM soil_data.profile WHERE plot_id = ANY(%s)", (plot_ids,))
+    profile_ids = [r["profile_id"] for r in cur.fetchall()]
+
+    element_ids = []
+    if profile_ids:
+        cur.execute("SELECT element_id FROM soil_data.element WHERE profile_id = ANY(%s)", (profile_ids,))
+        element_ids = [r["element_id"] for r in cur.fetchall()]
+
+    specimen_ids = []
+    if element_ids:
+        cur.execute("SELECT specimen_id FROM soil_data.specimen WHERE element_id = ANY(%s)", (element_ids,))
+        specimen_ids = [r["specimen_id"] for r in cur.fetchall()]
+
+    deleted = {}
+    if specimen_ids:
+        cur.execute("DELETE FROM soil_data.result_num WHERE specimen_id = ANY(%s)", (specimen_ids,))
+        deleted["result_num"] = cur.rowcount
+        cur.execute("DELETE FROM soil_data.specimen WHERE specimen_id = ANY(%s)", (specimen_ids,))
+        deleted["specimen"] = cur.rowcount
+    if element_ids:
+        cur.execute("DELETE FROM soil_data.element WHERE element_id = ANY(%s)", (element_ids,))
+        deleted["element"] = cur.rowcount
+    if profile_ids:
+        cur.execute("DELETE FROM soil_data.profile WHERE profile_id = ANY(%s)", (profile_ids,))
+        deleted["profile"] = cur.rowcount
+    cur.execute("DELETE FROM soil_data.plot WHERE plot_id = ANY(%s)", (plot_ids,))
+    deleted["plot"] = cur.rowcount
+
+    # Delete sites only if no plots remain AND no other project references them.
+    deleted["project_site"] = 0
+    deleted["site"] = 0
+    for site_id in site_ids:
+        cur.execute("SELECT 1 FROM soil_data.plot WHERE site_id = %s LIMIT 1", (site_id,))
+        if cur.fetchone():
+            continue  # plots still exist (from other CSVs) — keep site
+        cur.execute("DELETE FROM soil_data.project_site WHERE project_id = %s AND site_id = %s",
+                    (project_id, site_id))
+        deleted["project_site"] += cur.rowcount
+        cur.execute("SELECT COUNT(*) AS cnt FROM soil_data.project_site WHERE site_id = %s", (site_id,))
+        if cur.fetchone()["cnt"] == 0:
+            cur.execute("DELETE FROM soil_data.site WHERE site_id = %s", (site_id,))
+            deleted["site"] += cur.rowcount
+    return deleted
+
+
 @app.post("/api/etl/datasets/{table_name}/prune")
 async def prune_dataset(
     table_name: str,
@@ -2851,65 +3283,9 @@ async def prune_dataset(
                 raise HTTPException(status_code=400, detail="No project associated with this dataset")
 
             # Collect IDs top-down: plots tagged with this CSV → profiles → elements → specimens
-            cur.execute("SELECT site_id FROM soil_data.project_site WHERE project_id = %s", (project_id,))
-            site_ids = [r["site_id"] for r in cur.fetchall()]
-
-            cur.execute("SELECT plot_id FROM soil_data.plot WHERE csv = %s", (table_name,))
-            plot_ids = [r["plot_id"] for r in cur.fetchall()]
-
-            if not plot_ids:
+            deleted = _prune_dataset_rows(cur, dataset)
+            if not deleted:
                 return {"message": "No data found for this dataset", "deleted": {}}
-
-            profile_ids = []
-            if plot_ids:
-                cur.execute("SELECT profile_id FROM soil_data.profile WHERE plot_id = ANY(%s)", (plot_ids,))
-                profile_ids = [r["profile_id"] for r in cur.fetchall()]
-
-            element_ids = []
-            if profile_ids:
-                cur.execute("SELECT element_id FROM soil_data.element WHERE profile_id = ANY(%s)", (profile_ids,))
-                element_ids = [r["element_id"] for r in cur.fetchall()]
-
-            specimen_ids = []
-            if element_ids:
-                cur.execute("SELECT specimen_id FROM soil_data.specimen WHERE element_id = ANY(%s)", (element_ids,))
-                specimen_ids = [r["specimen_id"] for r in cur.fetchall()]
-
-            # Delete bottom-up
-            deleted = {}
-
-            if specimen_ids:
-                cur.execute("DELETE FROM soil_data.result_num WHERE specimen_id = ANY(%s)", (specimen_ids,))
-                deleted["result_num"] = cur.rowcount
-                cur.execute("DELETE FROM soil_data.specimen WHERE specimen_id = ANY(%s)", (specimen_ids,))
-                deleted["specimen"] = cur.rowcount
-
-            if element_ids:
-                cur.execute("DELETE FROM soil_data.element WHERE element_id = ANY(%s)", (element_ids,))
-                deleted["element"] = cur.rowcount
-
-            if profile_ids:
-                cur.execute("DELETE FROM soil_data.profile WHERE profile_id = ANY(%s)", (profile_ids,))
-                deleted["profile"] = cur.rowcount
-
-            if plot_ids:
-                cur.execute("DELETE FROM soil_data.plot WHERE plot_id = ANY(%s)", (plot_ids,))
-                deleted["plot"] = cur.rowcount
-
-            # Delete sites only if no plots remain AND no other project references them
-            deleted["project_site"] = 0
-            deleted["site"] = 0
-            for site_id in site_ids:
-                cur.execute("SELECT 1 FROM soil_data.plot WHERE site_id = %s LIMIT 1", (site_id,))
-                if cur.fetchone():
-                    continue  # plots still exist (from other CSVs) — keep site
-                cur.execute("DELETE FROM soil_data.project_site WHERE project_id = %s AND site_id = %s",
-                            (project_id, site_id))
-                deleted["project_site"] += cur.rowcount
-                cur.execute("SELECT COUNT(*) AS cnt FROM soil_data.project_site WHERE site_id = %s", (site_id,))
-                if cur.fetchone()["cnt"] == 0:
-                    cur.execute("DELETE FROM soil_data.site WHERE site_id = %s", (site_id,))
-                    deleted["site"] += cur.rowcount
 
             # Reset dataset status and save note
             parts = [f"{k}: {v}" for k, v in deleted.items() if v > 0]
