@@ -353,7 +353,7 @@ class AdminDashboard {
                 <h3 class="layers-section-title">Projects</h3>
                 <p style="color:#666;margin:0 0 12px;">Create, edit and delete projects. Deleting a project lets you delete or reassign its soil profiles and rasters.</p>
                 <div class="project-create-row" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
-                  <input id="new-project-id" placeholder="Project ID (e.g. AFACI)" style="width:180px;">
+                  <input id="new-project-id" placeholder="Project ID (A-Z, 0-9)" title="Uppercase letters and digits only — no spaces, symbols or lower case." style="width:180px;" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">
                   <input id="new-project-name" placeholder="Name" style="width:200px;">
                   <input id="new-project-desc" placeholder="Abstract (optional)" style="width:260px;">
                   <button type="button" class="btn btn-primary btn-sm" onclick="adminDashboard.createProjectFromTab()">Create project</button>
@@ -1225,8 +1225,12 @@ class AdminDashboard {
     const nameEl = document.getElementById('new-project-name');
     const descEl = document.getElementById('new-project-desc');
     const status = document.getElementById('project-create-status');
-    const id = idEl.value.trim(), name = nameEl.value.trim(), desc = descEl.value.trim();
+    const id = idEl.value.trim().toUpperCase(), name = nameEl.value.trim(), desc = descEl.value.trim();
     if (!id || !name) { status.textContent = 'Project ID and Name are required'; status.style.color = '#dc3545'; return; }
+    if (!/^[A-Z0-9]+$/.test(id)) {
+      status.textContent = 'Project ID must be uppercase letters and digits only (no spaces, symbols or lower case).';
+      status.style.color = '#dc3545'; return;
+    }
     try {
       await api.createProject({ project_id: id, name, description: desc || null });
       status.textContent = 'Created'; status.style.color = '#28a745';

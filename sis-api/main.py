@@ -1313,6 +1313,18 @@ def _project_country_id(cur, project_id):
     return _row_get(cur.fetchone(), "country_id", 0)
 
 
+def _validate_project_id(pid: str):
+    """A project_id is embedded verbatim in the '-'-delimited raster ids
+    (<CC>-<PROJ>-<PROP>-<YEAR>) and in on-disk filenames, so it must be
+    uppercase letters and digits only — no spaces, symbols (incl. '-'/'_') or
+    lower case. Raises 400 otherwise."""
+    if not re.fullmatch(r"[A-Z0-9]+", pid or ""):
+        raise HTTPException(
+            status_code=400,
+            detail="Project ID must be uppercase letters and digits only "
+                   "(no spaces, symbols or lower case).")
+
+
 @app.post("/api/codelist/projects", status_code=status.HTTP_201_CREATED)
 async def create_project(payload: dict, current_user: dict = Depends(get_current_user)):
     pid = payload.get("project_id", "").strip()
@@ -1320,6 +1332,7 @@ async def create_project(payload: dict, current_user: dict = Depends(get_current
     description = (payload.get("description") or "").strip() or None
     if not pid or not name:
         raise HTTPException(status_code=400, detail="project_id and name are required")
+    _validate_project_id(pid)
     with get_db() as conn:
         with conn.cursor() as cur:
             # New projects always belong to THIS instance's country.
@@ -4676,6 +4689,7 @@ async def create_smd_project(payload: dict, current_user: dict = Depends(get_cur
     project_id = (payload.get("project_id") or "").strip()
     if not project_id:
         raise HTTPException(status_code=400, detail="project_id is required")
+    _validate_project_id(project_id)
     # soil_data.project.name is NOT NULL UNIQUE — fall back to project_id.
     name = (payload.get("project_name") or "").strip() or project_id
     description = (payload.get("description") or "").strip() or None
