@@ -1167,9 +1167,14 @@ class AdminDashboard {
       this.loadProjects().then(() => this.renderProjects());
     }
 
-    if (tab === 'add-raster' && !this.rasterInited) {
-      this.initAddRasterTab();
-      this.rasterInited = true;
+    if (tab === 'add-raster') {
+      if (!this.rasterInited) {
+        this.initAddRasterTab();
+        this.rasterInited = true;
+      }
+      // Always refresh the raster list on entry — it can change from DST runs,
+      // uploads, or a project delete/reassign in the Projects tab.
+      this.loadLayers().then(() => this.renderLayers());
     }
     if (tab === 'dst' && !this.dstInited) {
       this.initDstTab();
