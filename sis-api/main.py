@@ -2259,8 +2259,39 @@ async def ingest_dataset(
 
     Optional JSON body: { "license": "<CC BY-NC-SA-4.0|...>" } — copied to the
     stub mapset's other_constraints.
+
+    Validation runs silently first (same checks as the Validate button); ingest
+    proceeds only when it is fully clean, so no separate Validate click is
+    needed and a stale/reset validation stamp can't wrongly block ingest.
     """
     license_val = (payload or {}).get("license") if isinstance(payload, dict) else None
+
+    # Resolve the licence up front (falling back to the one already recorded on
+    # the project's stub mapset) so the silent validation sees it.
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT project_id, country_id FROM api.uploaded_dataset WHERE table_name = %s",
+                        (table_name,))
+            ds0 = cur.fetchone()
+            if not ds0:
+                raise HTTPException(status_code=404, detail="Dataset not found")
+            if not (license_val or "").strip():
+                cc0 = (_project_country_id(cur, ds0.get("project_id"))
+                       or ds0.get("country_id") or _instance_country_code(cur))
+                cur.execute("SELECT other_constraints FROM soil_data.mapset WHERE mapset_id = %s",
+                            (f"{cc0}-{ds0.get('project_id')}",))
+                _lr = cur.fetchone()
+                if _lr and (_lr.get("other_constraints") or "").strip():
+                    license_val = _lr["other_constraints"]
+
+    # Run the full validation silently (it also stamps the dataset note).
+    validation = await validate_dataset(table_name, {"license": license_val}, current_user)
+    if (validation.get("message") or "") != VALIDATION_OK_NOTE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot ingest — {validation.get('message') or 'validation failed'}. "
+                   "Resolve the reported issues and try again.")
+
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # Get dataset metadata
@@ -2268,17 +2299,6 @@ async def ingest_dataset(
             dataset = cur.fetchone()
             if not dataset:
                 raise HTTPException(status_code=404, detail="Dataset not found")
-
-            # Ingest only a dataset whose validation passed. validate_dataset
-            # stamps the note with VALIDATION_OK_NOTE only when every check is
-            # clean; anything else (never validated, column errors, missing
-            # required mappings, out-of-country coords) blocks ingest with a
-            # clear message instead of crashing mid-insert.
-            if (dataset.get("note") or "") != VALIDATION_OK_NOTE:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Validation must pass before ingesting. Run Validate "
-                           "and resolve all reported issues first.")
 
             project_id = dataset.get("project_id")
             # Resolve the country from the project itself so ingest writes rows
