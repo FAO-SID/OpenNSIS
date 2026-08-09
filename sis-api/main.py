@@ -1473,6 +1473,21 @@ def _delete_project_profiles(cur, cc, project_id) -> dict:
     return total
 
 
+def _delete_stub_catalogue_record(stub_id: str):
+    """Best-effort removal of a profile publish-stub's pyCSW record and its
+    on-disk XML, after the stub's layer/mapset rows are gone (or renamed) —
+    otherwise the catalogue keeps a ghost record forever. Call it outside the
+    DB transaction; catalogue failures must never block the deletion."""
+    try:
+        from raster_registry.pycsw_load import delete_record, PYCSW_RECORDS_DIR
+        delete_record(stub_id)
+        xml_path = os.path.join(PYCSW_RECORDS_DIR, f"{stub_id}.xml")
+        if os.path.exists(xml_path):
+            os.remove(xml_path)
+    except Exception as e:
+        log.warning("stub catalogue cleanup failed for %s: %s", stub_id, e)
+
+
 def _reassign_project_profiles(cur, cc, src, tgt) -> dict:
     """Move a project's profiles/uploads/authors onto an existing target project,
     de-duplicating shared sites and author rows, and merge the profile stub."""
@@ -1822,6 +1837,8 @@ async def delete_project_managed(
 
     # --- profiles + final project removal (one transaction) ---
     rasters_all_handled = not summary["rasters"]["skipped"]
+    stub_id = f"{cc}-{project_id}"
+    stub_gone = False
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             if profile_count > 0:
@@ -1829,6 +1846,21 @@ async def delete_project_managed(
                     summary["profiles"] = _delete_project_profiles(cur, cc, project_id)
                 else:
                     summary["profiles"] = _reassign_project_profiles(cur, cc, project_id, prof_target)
+                # either way the stub no longer exists under this project's id
+                # (deleted, merged into the target, or renamed to the target)
+                stub_gone = True
+            else:
+                # The publish stub ('<CC>-<PROJ>' layer+mapset created by the
+                # ETL ingest) survives an earlier profile deletion from the
+                # Soil profiles tab — deliberately, so its policy fields carry
+                # over to a re-ingest. But with no profiles left the branch
+                # above never runs, so nothing would ever remove the stub, and
+                # the leftover check below then counts its mapset and keeps
+                # the project forever. Remove the stub for the empty project.
+                cur.execute("DELETE FROM soil_data.layer WHERE layer_id = %s", (stub_id,))
+                n_layer = cur.rowcount
+                cur.execute("DELETE FROM soil_data.mapset WHERE mapset_id = %s", (stub_id,))
+                stub_gone = bool(n_layer or cur.rowcount)
             # remove the project row only if nothing is left behind
             cur.execute("""SELECT
                     (SELECT count(*) FROM soil_data.project_site WHERE country_id=%s AND project_id=%s) AS ps,
@@ -1849,6 +1881,9 @@ async def delete_project_managed(
                     "Project kept: some dependents could not be moved/removed "
                     f"(project_site={left['ps']}, mapsets={left['ms']}, "
                     f"skipped_rasters={len(summary['rasters']['skipped'])}).")
+
+    if stub_gone:
+        _delete_stub_catalogue_record(stub_id)
 
     log_audit(uid, None, "project_deleted",
               {"project_id": project_id, "country_id": cc, "summary": summary,
