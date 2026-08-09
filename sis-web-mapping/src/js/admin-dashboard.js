@@ -496,7 +496,7 @@ class AdminDashboard {
                         <th title="Yes = full attribute data is shared. No = only profile locations (points) are shared on the map, no attribute data.">Share attributes</th>
                         <th title="Yes = the per-project profile CSV download button is shown on the map. No = it is hidden (data still publishes).">Show download button</th>
                         <th>Published</th>
-                        <th>Delete</th>
+                        <th title="Remove the project's ingested soil profiles from the database. The project and its uploaded CSVs are kept.">Prune</th>
                       </tr>
                     </thead>
                     <tbody id="soil-profile-layers-tbody">
@@ -3139,8 +3139,9 @@ class AdminDashboard {
         </td>
         <td>
           <button class="btn btn-sm sp-delete-btn" style="background:#dc3545;color:#fff;"
-                  data-project-id="${pid}" data-project-name="${name}">
-            Delete
+                  data-project-id="${pid}" data-project-name="${name}"
+                  title="Remove this project's ingested soil profiles from the database. The project and its uploaded CSVs are kept.">
+            Prune
           </button>
         </td>
       </tr>`;
@@ -4348,6 +4349,7 @@ class AdminDashboard {
   }
 
   async deleteDataset(tableName) {
+    if (!confirm(`Delete the uploaded CSV "${tableName}" and its related data? This cannot be undone.`)) return;
     this.setRowResult(tableName, 'Deleting...', false);
     try {
       await api.deleteDataset(tableName);
@@ -4362,7 +4364,6 @@ class AdminDashboard {
   // so the soil_data rows for this project's profiles are removed without
   // touching the uploaded CSV table itself.
   async deleteProjectProfiles(projectId, projectName) {
-    if (!confirm(`Delete ALL soil profiles for "${projectName || projectId}"? This cannot be undone. The project itself is kept.`)) return;
     try {
       // Delete by project (not by csv tag), so profiles orphaned from a deleted
       // ETL dataset are removed too.
