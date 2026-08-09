@@ -1195,17 +1195,24 @@ class AdminDashboard {
     });
   }
 
+  // Shared by the modal's Authors header and each author row so the columns
+  // stay aligned.
+  get _projAuthorGridCols() { return '1.4fr 1.4fr 100px 130px 26px'; }
+
   addProjectAuthorRow(author) {
     const container = document.getElementById('project-author-rows');
     if (!container) return;
     const row = document.createElement('div');
     row.className = 'etl-author-row';
-    row.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;align-items:center;';
+    // Grid, not flex: a select's intrinsic min-width is its widest option
+    // (author names carry e-mail addresses), so flex items refuse to shrink
+    // and the row wraps. min-width:0 lets the grid clip them instead.
+    row.style.cssText = `display:grid;grid-template-columns:${this._projAuthorGridCols};column-gap:6px;margin-bottom:6px;align-items:center;flex-wrap:nowrap;padding-right:0;`;
     row.innerHTML = `
-      <select class="proj-org-sel" data-value="${this.escapeHtml((author && author.organisation_id) || '')}" style="flex:1;"><option>Loading...</option></select>
-      <select class="proj-ind-sel" data-value="${this.escapeHtml((author && author.individual_id) || '')}" style="flex:1;"><option>Loading...</option></select>
-      <input type="text" class="proj-pos-input" placeholder="Position" value="${this.escapeHtml((author && author.position) || '')}" style="width:120px;">
-      <select class="proj-role-sel" style="width:150px;">${this._roleOptions((author && author.role) || 'author')}</select>
+      <select class="proj-org-sel" data-value="${this.escapeHtml((author && author.organisation_id) || '')}" style="min-width:0;width:100%;"><option>Loading...</option></select>
+      <select class="proj-ind-sel" data-value="${this.escapeHtml((author && author.individual_id) || '')}" style="min-width:0;width:100%;"><option>Loading...</option></select>
+      <input type="text" class="proj-pos-input" placeholder="Position" value="${this.escapeHtml((author && author.position) || '')}" style="min-width:0;width:100%;box-sizing:border-box;">
+      <select class="proj-role-sel" style="min-width:0;width:100%;">${this._roleOptions((author && author.role) || 'author')}</select>
       <button type="button" class="btn btn-danger btn-sm" title="Remove" onclick="this.closest('.etl-author-row').remove()" style="width:26px;">&times;</button>`;
     container.appendChild(row);
     this._refreshProjectAuthorDropdowns();
@@ -1229,8 +1236,8 @@ class AdminDashboard {
       <label style="display:block;font-weight:600;margin-bottom:4px;">Description</label>
       <textarea class="pm-description" rows="3" style="width:100%;box-sizing:border-box;margin-bottom:14px;">${this.escapeHtml(isNew ? '' : (project.description || ''))}</textarea>
       <label style="display:block;font-weight:600;margin-bottom:4px;">Authors</label>
-      <div style="display:flex;gap:6px;font-size:12px;color:#666;margin-bottom:4px;">
-        <div style="flex:1;">Organisation</div><div style="flex:1;">Author</div><div style="width:120px;">Position</div><div style="width:150px;">Role</div><div style="width:26px;"></div>
+      <div style="display:grid;grid-template-columns:${this._projAuthorGridCols};column-gap:6px;font-size:12px;color:#666;margin-bottom:4px;">
+        <div>Organisation</div><div>Author</div><div>Position</div><div>Role</div><div></div>
       </div>
       <div id="project-author-rows"></div>
       <button type="button" class="btn btn-secondary btn-sm pm-add-author" style="margin-top:6px;">+ Add author</button>
@@ -1238,7 +1245,7 @@ class AdminDashboard {
       <div style="margin-top:14px;text-align:right;">
         <button type="button" class="btn btn-secondary btn-sm pm-cancel">Cancel</button>
         <button type="button" class="btn btn-primary btn-sm pm-save">${isNew ? 'Create project' : 'Save'}</button>
-      </div>`, 660);
+      </div>`, 760);
     body.querySelector('.pm-add-author').addEventListener('click', () => this.addProjectAuthorRow());
     body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
     body.querySelector('.pm-save').addEventListener('click', () => this.saveProject(isNew, pid, cc));
