@@ -2475,7 +2475,10 @@ async def ingest_dataset(
             unit_conv_cache = {}   # (source_unit, canonical_unit) → {operation, value} or None
 
             ingested = 0
-            result_num_count = 0
+            # Distinct (observation, specimen) pairs written — the result_num
+            # insert is an upsert, so counting attempts would double-count CSV
+            # rows that overwrite the same measurement.
+            result_keys = set()
             errors = []
 
             if not project_id:
@@ -2738,7 +2741,7 @@ async def ingest_dataset(
                                 ON CONFLICT (observation_num_id, specimen_id)
                                 DO UPDATE SET value = EXCLUDED.value
                             """, (obs_num_id, specimen_id, val))
-                            result_num_count += 1
+                            result_keys.add((obs_num_id, specimen_id))
 
                     ingested += 1
 
@@ -2828,6 +2831,7 @@ async def ingest_dataset(
 
             # Update dataset status and note
             status = "Ingested" if not errors else "Partial"
+            result_num_count = len(result_keys)
             profile_count = len(profiles_cache)
             property_count = len({prop for (prop, _proc) in obs_num_cache.keys()})
             note = (
