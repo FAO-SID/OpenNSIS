@@ -5682,20 +5682,18 @@ ALTER TABLE ONLY soil_data.translate
 
 --
 -- TOC entry 4891 (class 2606 OID 55715400)
--- Name: plot uk_plot_code; Type: CONSTRAINT; Schema: soil_data; Owner: sis
+-- Name: idx_plot_site_id_plot_code; Type: INDEX; Schema: soil_data; Owner: sis
 --
 
-ALTER TABLE ONLY soil_data.plot
-    ADD CONSTRAINT uk_plot_code UNIQUE (plot_code);
+CREATE INDEX idx_plot_site_id_plot_code ON soil_data.plot USING btree (site_id, plot_code);
 
 
 --
 -- TOC entry 4895 (class 2606 OID 55715402)
--- Name: profile uk_profile_code; Type: CONSTRAINT; Schema: soil_data; Owner: sis
+-- Name: idx_profile_plot_id; Type: INDEX; Schema: soil_data; Owner: sis
 --
 
-ALTER TABLE ONLY soil_data.profile
-    ADD CONSTRAINT uk_profile_code UNIQUE (profile_code);
+CREATE INDEX idx_profile_plot_id ON soil_data.profile USING btree (plot_id);
 
 
 --
@@ -5723,15 +5721,6 @@ ALTER TABLE ONLY soil_data.unit_of_measure
 
 ALTER TABLE ONLY soil_data.element
     ADD CONSTRAINT unq_element_profile_order_element UNIQUE (profile_id, order_element);
-
-
---
--- TOC entry 4897 (class 2606 OID 55715410)
--- Name: profile unq_profile_code; Type: CONSTRAINT; Schema: soil_data; Owner: sis
---
-
-ALTER TABLE ONLY soil_data.profile
-    ADD CONSTRAINT unq_profile_code UNIQUE (profile_code);
 
 
 --

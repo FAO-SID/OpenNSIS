@@ -17,3 +17,6 @@ docker-compose.override.yml
 !/sis-web-services/volume/.gitkeep
 /sis-metadata/volume/*
 !/sis-metadata/volume/.gitkeep
+
+__pycache__/
+*.pyc

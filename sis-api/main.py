@@ -2470,42 +2470,50 @@ async def ingest_dataset(
                                 geom_expr = "ST_Transform(ST_SetSRID(ST_MakePoint(%s, %s), %s), 4326)"
                                 geom_params = [float(lon), float(lat), int(epsg)]
 
-                            if geom_expr:
+                            # plot_code is a real-world label, not an identifier
+                            # (rows are identified by plot_id, and equal codes can
+                            # legitimately occur in different projects). Reuse an
+                            # existing plot only within this project's site —
+                            # never match by code across the whole table.
+                            existing_plot = None
+                            if plot_code:
+                                cur.execute("""
+                                    SELECT plot_id FROM soil_data.plot
+                                    WHERE site_id = %s AND plot_code = %s
+                                """, (site_id, plot_code))
+                                existing_plot = cur.fetchone()
+
+                            if existing_plot:
+                                plot_id = existing_plot["plot_id"]
+                                geom_set = f"geom = {geom_expr}," if geom_expr else ""
                                 cur.execute(f"""
-                                    INSERT INTO soil_data.plot
-                                        (site_id, plot_code, geom, type, altitude, sampling_date, positional_accuracy, csv)
-                                    VALUES (%s, %s, {geom_expr}, %s, %s, %s, %s, %s)
-                                    ON CONFLICT (plot_code) DO UPDATE SET
-                                        geom = EXCLUDED.geom,
-                                        type = COALESCE(EXCLUDED.type, soil_data.plot.type),
-                                        altitude = COALESCE(EXCLUDED.altitude, soil_data.plot.altitude),
-                                        sampling_date = COALESCE(EXCLUDED.sampling_date, soil_data.plot.sampling_date),
-                                        positional_accuracy = COALESCE(EXCLUDED.positional_accuracy, soil_data.plot.positional_accuracy),
-                                        csv = COALESCE(soil_data.plot.csv, EXCLUDED.csv)
-                                    RETURNING plot_id
-                                """, (site_id, plot_code, *geom_params, plot_type,
+                                    UPDATE soil_data.plot SET
+                                        {geom_set}
+                                        type = COALESCE(%s, type),
+                                        altitude = COALESCE(%s, altitude),
+                                        sampling_date = COALESCE(%s, sampling_date),
+                                        positional_accuracy = COALESCE(%s, positional_accuracy),
+                                        csv = COALESCE(csv, %s)
+                                    WHERE plot_id = %s
+                                """, (*geom_params, plot_type,
                                       int(altitude) if altitude else None,
                                       sampling_date or None,
                                       int(pos_accuracy) if pos_accuracy else None,
-                                      table_name))
+                                      table_name, plot_id))
                             else:
-                                cur.execute("""
+                                geom_col = ", geom" if geom_expr else ""
+                                geom_val = f", {geom_expr}" if geom_expr else ""
+                                cur.execute(f"""
                                     INSERT INTO soil_data.plot
-                                        (site_id, plot_code, type, altitude, sampling_date, positional_accuracy, csv)
-                                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                                    ON CONFLICT (plot_code) DO UPDATE SET
-                                        type = COALESCE(EXCLUDED.type, soil_data.plot.type),
-                                        altitude = COALESCE(EXCLUDED.altitude, soil_data.plot.altitude),
-                                        sampling_date = COALESCE(EXCLUDED.sampling_date, soil_data.plot.sampling_date),
-                                        positional_accuracy = COALESCE(EXCLUDED.positional_accuracy, soil_data.plot.positional_accuracy),
-                                        csv = COALESCE(soil_data.plot.csv, EXCLUDED.csv)
+                                        (site_id, plot_code, type, altitude, sampling_date, positional_accuracy, csv{geom_col})
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s{geom_val})
                                     RETURNING plot_id
                                 """, (site_id, plot_code, plot_type,
                                       int(altitude) if altitude else None,
                                       sampling_date or None,
                                       int(pos_accuracy) if pos_accuracy else None,
-                                      table_name))
-                            plot_id = cur.fetchone()["plot_id"]
+                                      table_name, *geom_params))
+                                plot_id = cur.fetchone()["plot_id"]
                             if plot_code:
                                 plots_cache[cache_key] = plot_id
 
@@ -2515,13 +2523,22 @@ async def ingest_dataset(
                         if plot_code in profiles_cache:
                             profile_id = profiles_cache[plot_code]
                         else:
+                            # profile_code is a label like plot_code — a profile
+                            # is only reused when it belongs to this very plot.
                             cur.execute("""
-                                INSERT INTO soil_data.profile (plot_id, profile_code)
-                                VALUES (%s, %s)
-                                ON CONFLICT (profile_code) DO UPDATE SET plot_id = EXCLUDED.plot_id
-                                RETURNING profile_id
+                                SELECT profile_id FROM soil_data.profile
+                                WHERE plot_id = %s AND profile_code = %s
                             """, (plot_id, plot_code))
-                            profile_id = cur.fetchone()["profile_id"]
+                            existing_profile = cur.fetchone()
+                            if existing_profile:
+                                profile_id = existing_profile["profile_id"]
+                            else:
+                                cur.execute("""
+                                    INSERT INTO soil_data.profile (plot_id, profile_code)
+                                    VALUES (%s, %s)
+                                    RETURNING profile_id
+                                """, (plot_id, plot_code))
+                                profile_id = cur.fetchone()["profile_id"]
                             profiles_cache[plot_code] = profile_id
 
                     # --- element ---
