@@ -2022,7 +2022,7 @@ CREATE TABLE soil_data.mapset (
     sld text,
     CONSTRAINT mapset_access_constraints_check CHECK ((access_constraints = ANY (ARRAY['copyright'::text, 'patent'::text, 'patentPending'::text, 'trademark'::text, 'license'::text, 'intellectualPropertyRights'::text, 'restricted'::text, 'otherRestrictions'::text]))),
     CONSTRAINT mapset_citation_md_identifier_code_space_check CHECK ((citation_md_identifier_code_space = ANY (ARRAY['doi'::text, 'uuid'::text]))),
-    CONSTRAINT mapset_period_dates_order_check CHECK (((time_period_begin IS NULL) OR (time_period_end IS NULL) OR (time_period_begin < time_period_end))),
+    CONSTRAINT mapset_period_dates_order_check CHECK (((time_period_begin IS NULL) OR (time_period_end IS NULL) OR (time_period_begin <= time_period_end))),
     CONSTRAINT mapset_presentation_form_check CHECK ((presentation_form = ANY (ARRAY['mapDigital'::text, 'tableDigital'::text, 'mapHardcopy'::text, 'atlasHardcopy'::text]))),
     CONSTRAINT mapset_publication_after_period_end_check CHECK (((publication_date IS NULL) OR (time_period_end IS NULL) OR (publication_date > time_period_end))),
     CONSTRAINT mapset_spatial_representation_type_code_check CHECK ((spatial_representation_type_code = ANY (ARRAY['grid'::text, 'vector'::text, 'textTable'::text, 'tin'::text, 'stereoModel'::text, 'video'::text]))),

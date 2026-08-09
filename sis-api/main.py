@@ -3321,32 +3321,6 @@ async def validate_dataset(
                                     r["error_rows"] = sorted(set(r["error_rows"]) | outside_set)
                                     r["status"] = "ERROR"
 
-            # Time-period sanity: the stub mapset's period is built from
-            # MIN..MAX(sampling_date) and the schema requires begin < end. A
-            # dataset whose profiles all carry one sampling date can't form a
-            # valid period — flag it here so ingest doesn't 500 on the
-            # constraint. (Surfaced on the date column.)
-            date_col = next((m["column_name"] for m in mappings
-                             if m["destination_table"] == "plot"
-                             and m["destination_column"] == "sampling_date"), None)
-            if date_col:
-                distinct_dates = set()
-                for row in rows:
-                    v = row.get(date_col)
-                    if v in (None, ""):
-                        continue
-                    dm = re.match(r"^\s*(\d{4})-(\d{1,2})-(\d{1,2})", str(v))
-                    if dm:
-                        distinct_dates.add(f"{dm.group(1)}-{int(dm.group(2)):02d}-{int(dm.group(3)):02d}")
-                if len(distinct_dates) == 1:
-                    only = next(iter(distinct_dates))
-                    r = col_results.setdefault(date_col, {"status": "OK", "errors": [], "error_rows": []})
-                    r["errors"].append(
-                        f"all profiles share a single sampling date ({only}); the dataset's "
-                        f"time period needs distinct start and end dates (begin < end) — provide "
-                        f"at least two different sampling dates")
-                    r["status"] = "ERROR"
-
             # Persist per-column validation. Wipe every column's result first
             # so a column that was un-mapped or set to skip doesn't keep a stale
             # error from a previous mapping — validate only writes results for
