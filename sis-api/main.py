@@ -1374,7 +1374,30 @@ async def update_project(project_id: str, payload: dict, current_user: dict = De
             )
             if cur.rowcount == 0:
                 raise HTTPException(status_code=404, detail="Project not found")
-            return {"message": "Project updated"}
+            # The profile publish stub carries copies of the project's name and
+            # description (stamped at ingest: mapset.title/abstract and
+            # layer.costum_name) — keep them in step so the map layer list and
+            # the re-rendered catalogue record show the edit.
+            cur.execute("""
+                UPDATE soil_data.mapset m
+                SET title    = p.name,
+                    abstract = COALESCE(p.description, m.abstract)
+                FROM soil_data.project p
+                WHERE p.project_id = %s
+                  AND m.country_id = p.country_id
+                  AND m.mapset_id = p.country_id || '-' || p.project_id
+            """, (project_id,))
+            cur.execute("""
+                UPDATE soil_data.layer l
+                SET costum_name = p.name
+                FROM soil_data.project p
+                WHERE p.project_id = %s
+                  AND l.layer_id = p.country_id || '-' || p.project_id
+            """, (project_id,))
+    # After commit: push the edit into the pyCSW records of the project's
+    # stub + rasters (authors/abstract/title are baked into the ISO XML).
+    _refresh_project_catalogue_records(project_id)
+    return {"message": "Project updated"}
 
 
 # ==================== Projects management (admin) ====================
@@ -1405,6 +1428,39 @@ def _project_raster_layer_ids(cur, cc, project_id):
         (cc, project_id),
     )
     return [r["layer_id"] for r in cur.fetchall()]
+
+
+def _refresh_project_catalogue_records(project_id: str, country_id: Optional[str] = None) -> dict:
+    """Re-render and reload the pyCSW records of every layer belonging to a
+    project (profile publish stub + raster layers), so edits to the project's
+    name, description or authors reach the catalogue — records are otherwise
+    only rendered at ingest / registration time. Best-effort: returns
+    {"refreshed": [...], "failed": [...]} and never raises; catalogue failures
+    must not block the edit that triggered the refresh."""
+    refreshed, failed = [], []
+    try:
+        from raster_registry.xml_render import render_xml
+        from raster_registry.pycsw_load import write_xml_and_load
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cc = country_id or _project_country_of(cur, project_id)
+                if not cc:
+                    return {"refreshed": refreshed, "failed": failed}
+                layer_ids = _project_raster_layer_ids(cur, cc, project_id)
+                stub = f"{cc}-{project_id}"
+                cur.execute("SELECT 1 FROM soil_data.layer WHERE layer_id = %s", (stub,))
+                if cur.fetchone():
+                    layer_ids.insert(0, stub)
+            for lid in layer_ids:
+                try:
+                    write_xml_and_load(lid, render_xml(conn, lid))
+                    refreshed.append(lid)
+                except Exception as e:
+                    log.warning("catalogue refresh failed for %s: %s", lid, e)
+                    failed.append(lid)
+    except Exception as e:
+        log.warning("catalogue refresh failed for project %s: %s", project_id, e)
+    return {"refreshed": refreshed, "failed": failed}
 
 
 def _delete_all_project_profiles(cur, cc, project_id) -> dict:
@@ -1980,7 +2036,10 @@ async def save_etl_metadata(
             log_audit(current_user['user_id'], None, "etl_metadata_saved",
                      {"country_id": country_id, "project_id": project_id,
                       "count": len(authors)}, None)
-            return {"message": f"{len(authors)} author(s) saved"}
+    # After commit: authors are baked into the ISO XML (contact /
+    # pointOfContact blocks), so re-render the project's catalogue records.
+    _refresh_project_catalogue_records(project_id, country_id)
+    return {"message": f"{len(authors)} author(s) saved"}
 
 @app.get("/api/etl/project/{project_id}/authors")
 async def get_project_authors(
