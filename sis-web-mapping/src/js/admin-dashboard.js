@@ -244,8 +244,7 @@ class AdminDashboard {
                   (e.g. Country, Provinces, Municipalities; levels and names differ
                   per country). Accepted formats: GeoJSON (.geojson/.json) or a
                   zipped Shapefile (.zip), both in WGS 84 (EPSG:4326). Layers appear
-                  on the map under an “Administrative divisions” group. No catalogue
-                  metadata is created for these layers.
+                  in the map's layer list under “Base layers”.
                 </p>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
                   <input type="text" id="admdiv-name" placeholder="Layer name (e.g. Provinces)" style="width:240px;">
