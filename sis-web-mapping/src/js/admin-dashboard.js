@@ -238,6 +238,47 @@ class AdminDashboard {
               <hr class="admin-divider">
 
               <div class="admin-section">
+                <h3 class="admin-section-title">Administrative divisions</h3>
+                <p style="font-size:var(--fs-sm);color:#555;max-width:760px;">
+                  Upload polygon boundary layers — one per administrative level
+                  (e.g. Country, Provinces, Municipalities; levels and names differ
+                  per country). Accepted formats: GeoJSON (.geojson/.json) or a
+                  zipped Shapefile (.zip), both in WGS 84 (EPSG:4326). Layers appear
+                  on the map under an “Administrative divisions” group. No catalogue
+                  metadata is created for these layers.
+                </p>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
+                  <input type="text" id="admdiv-name" placeholder="Layer name (e.g. Provinces)" style="width:240px;">
+                  <input type="file" id="admdiv-file" accept=".geojson,.json,.zip">
+                  <button type="button" id="admdiv-upload-btn" class="btn btn-primary btn-sm">Upload layer</button>
+                  <span id="admdiv-upload-status" style="font-size:var(--fs-sm);"></span>
+                </div>
+                <div style="overflow-x:auto;">
+                  <table class="admin-table" id="admdiv-table">
+                    <thead>
+                      <tr>
+                        <th title="Lower numbers appear first in the map's layer list">Order</th>
+                        <th>Name</th>
+                        <th>Features</th>
+                        <th>Stroke colour</th>
+                        <th>Stroke width</th>
+                        <th>Stroke type</th>
+                        <th>Fill colour</th>
+                        <th title="0 = transparent fill, 1 = opaque">Fill opacity</th>
+                        <th title="Yes = shown in the map's layer list">Published</th>
+                        <th>Delete</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admdiv-tbody">
+                      <tr><td colspan="10" class="loading">Loading layers...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <hr class="admin-divider">
+
+              <div class="admin-section">
                 <h3 class="admin-section-title">Users</h3>
                 <div id="users-table-container">
                 <table class="admin-table" id="users-table">
@@ -317,44 +358,6 @@ class AdminDashboard {
 
               </div>
 
-              <div class="admin-section">
-                <h3 class="admin-section-title">Administrative divisions</h3>
-                <p style="font-size:var(--fs-sm);color:#555;max-width:760px;">
-                  Upload polygon boundary layers — one per administrative level
-                  (e.g. Country, Provinces, Municipalities; levels and names differ
-                  per country). Accepted formats: GeoJSON (.geojson/.json) or a
-                  zipped Shapefile (.zip), both in WGS 84 (EPSG:4326). Layers appear
-                  on the map under an “Administrative divisions” group. No catalogue
-                  metadata is created for these layers.
-                </p>
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
-                  <input type="text" id="admdiv-name" placeholder="Layer name (e.g. Provinces)" style="width:240px;">
-                  <input type="file" id="admdiv-file" accept=".geojson,.json,.zip">
-                  <button type="button" id="admdiv-upload-btn" class="btn btn-primary btn-sm">Upload layer</button>
-                  <span id="admdiv-upload-status" style="font-size:var(--fs-sm);"></span>
-                </div>
-                <div style="overflow-x:auto;">
-                  <table class="admin-table" id="admdiv-table">
-                    <thead>
-                      <tr>
-                        <th title="Lower numbers appear first in the map's layer list">Order</th>
-                        <th>Name</th>
-                        <th>Features</th>
-                        <th>Stroke colour</th>
-                        <th>Stroke width</th>
-                        <th>Stroke type</th>
-                        <th>Fill colour</th>
-                        <th title="0 = transparent fill, 1 = opaque">Fill opacity</th>
-                        <th title="Yes = shown in the map's layer list">Published</th>
-                        <th>Delete</th>
-                      </tr>
-                    </thead>
-                    <tbody id="admdiv-tbody">
-                      <tr><td colspan="10" class="loading">Loading layers...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
             </div>
 
             <!-- Dashboard Tab -->
