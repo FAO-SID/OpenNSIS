@@ -456,6 +456,52 @@ class SISApiClient {
     return response.json();
   }
 
+  // ==================== Administrative divisions ====================
+
+  async getAdminDivisions() {
+    return this.request('/api/admin-divisions');
+  }
+
+  async getAdminDivisionGeoJson(divisionId) {
+    return this.request(`/api/admin-divisions/${divisionId}/geojson`);
+  }
+
+  async getAdminDivisionsManage() {
+    return this.authenticatedRequest('/api/admin-divisions/manage');
+  }
+
+  async uploadAdminDivision(file, name) {
+    if (!this.jwtToken) {
+      throw new Error('Not authenticated. Please login first.');
+    }
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('name', name);
+    const response = await fetch(`${this.baseURL}/api/admin-divisions/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${this.jwtToken}` },
+      body: fd
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(this._detailToMessage(error.detail) || `API Error: ${response.status}`);
+    }
+    return response.json();
+  }
+
+  async updateAdminDivision(divisionId, payload) {
+    return this.authenticatedRequest(`/api/admin-divisions/${divisionId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+  }
+
+  async deleteAdminDivision(divisionId) {
+    return this.authenticatedRequest(`/api/admin-divisions/${divisionId}`, {
+      method: 'DELETE'
+    });
+  }
+
   async getDatasets() {
     return this.authenticatedRequest('/api/etl/datasets');
   }

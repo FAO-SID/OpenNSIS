@@ -11446,3 +11446,35 @@ ALTER DEFAULT PRIVILEGES FOR ROLE sis IN SCHEMA soil_data_upload GRANT SELECT ON
 
 \unrestrict ozyXDWVDUnxCaAFenppz5jbsbIJkyIcZyhqlMQOTfTvkUkmPgiEqHW3Qvch2BNS
 
+
+-- ============================================================================
+-- Administrative division layers (kept in step with migration 008)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS api.admin_division (
+    division_id   integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name          text    NOT NULL,
+    display_order integer NOT NULL DEFAULT 0,
+    stroke_color  text    NOT NULL DEFAULT '#444444',
+    stroke_width  real    NOT NULL DEFAULT 1.5,
+    fill_color    text    NOT NULL DEFAULT '#cccccc',
+    fill_opacity  real    NOT NULL DEFAULT 0,
+    is_published  boolean NOT NULL DEFAULT true,
+    feature_count integer NOT NULL DEFAULT 0,
+    file_name     text,
+    uploaded_by   text,
+    uploaded_at   timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS api.admin_division_feature (
+    feature_id  bigint  GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    division_id integer NOT NULL
+                REFERENCES api.admin_division(division_id) ON DELETE CASCADE,
+    properties  jsonb,
+    geom        public.geometry(MultiPolygon, 4326) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_division_feature_division
+    ON api.admin_division_feature (division_id);
+CREATE INDEX IF NOT EXISTS idx_admin_division_feature_geom
+    ON api.admin_division_feature USING gist (geom);

@@ -190,6 +190,7 @@ class AdminDashboard {
             <li><button class="tab-btn" data-tab="projects">Projects</button></li>
             <li><button class="tab-btn" data-tab="layers">Soil profiles</button></li>
             <li><button class="tab-btn" data-tab="add-raster">Rasters</button></li>
+            <li><button class="tab-btn" data-tab="admin-divisions">Administrative divisions</button></li>
             <li><button class="tab-btn" data-tab="dst">Raster calculator</button></li>
             <li><button class="tab-btn" data-tab="dashboard">Dashboard</button></li>
           </ul>
@@ -666,6 +667,47 @@ class AdminDashboard {
               </section>
             </div>
 
+            <!-- Administrative divisions Tab -->
+            <div id="admin-divisions-tab" class="tab-pane">
+              <section>
+                <h2>Administrative divisions</h2>
+                <p style="font-size:var(--fs-sm);color:#555;max-width:760px;">
+                  Upload polygon boundary layers — one per administrative level
+                  (e.g. Country, Provinces, Municipalities; levels and names differ
+                  per country). Accepted formats: GeoJSON (.geojson/.json) or a
+                  zipped Shapefile (.zip), both in WGS 84 (EPSG:4326). Layers appear
+                  on the map under an “Administrative divisions” group. No catalogue
+                  metadata is created for these layers.
+                </p>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
+                  <input type="text" id="admdiv-name" placeholder="Layer name (e.g. Provinces)" style="width:240px;">
+                  <input type="file" id="admdiv-file" accept=".geojson,.json,.zip">
+                  <button type="button" id="admdiv-upload-btn" class="btn btn-primary btn-sm">Upload layer</button>
+                  <span id="admdiv-upload-status" style="font-size:var(--fs-sm);"></span>
+                </div>
+                <div style="overflow-x:auto;">
+                  <table class="admin-table" id="admdiv-table">
+                    <thead>
+                      <tr>
+                        <th title="Lower numbers appear first in the map's layer list">Order</th>
+                        <th>Name</th>
+                        <th>Features</th>
+                        <th>Stroke colour</th>
+                        <th>Stroke width</th>
+                        <th>Fill colour</th>
+                        <th title="0 = transparent fill, 1 = opaque">Fill opacity</th>
+                        <th title="Yes = shown in the map's layer list">Published</th>
+                        <th>Delete</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admdiv-tbody">
+                      <tr><td colspan="9" class="loading">Loading layers...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+
             <!-- DST Tab -->
             <div id="dst-tab" class="tab-pane">
               <section style="display:flex;flex-direction:column;gap:var(--sp-4);">
@@ -1091,6 +1133,14 @@ class AdminDashboard {
     if (tab === 'dst' && !this.dstInited) {
       this.initDstTab();
       this.dstInited = true;
+    }
+
+    if (tab === 'admin-divisions') {
+      if (!this.admDivInited) {
+        this.initAdminDivisionsTab();
+        this.admDivInited = true;
+      }
+      this.loadAdminDivisions().then(() => this.renderAdminDivisions());
     }
   }
 
@@ -4381,6 +4431,104 @@ class AdminDashboard {
     } catch (e) {
       alert('Delete failed: ' + (e && e.message ? e.message : e));
     }
+  }
+
+  // ==================== Administrative divisions ====================
+
+  initAdminDivisionsTab() {
+    document.getElementById('admdiv-upload-btn').addEventListener('click', () => this.uploadAdminDivision());
+  }
+
+  async loadAdminDivisions() {
+    try {
+      this.adminDivisions = await api.getAdminDivisionsManage();
+    } catch (e) {
+      console.error('Error loading administrative divisions:', e);
+      this.adminDivisions = [];
+    }
+  }
+
+  async uploadAdminDivision() {
+    const nameEl = document.getElementById('admdiv-name');
+    const fileEl = document.getElementById('admdiv-file');
+    const status = document.getElementById('admdiv-upload-status');
+    const name = (nameEl.value || '').trim();
+    const file = fileEl.files && fileEl.files[0];
+    if (!name) { status.textContent = 'A layer name is required.'; status.style.color = '#dc3545'; return; }
+    if (!file) { status.textContent = 'Choose a GeoJSON or zipped Shapefile.'; status.style.color = '#dc3545'; return; }
+    status.textContent = 'Uploading...'; status.style.color = '#666';
+    try {
+      const res = await api.uploadAdminDivision(file, name);
+      status.textContent = res.message; status.style.color = '#28a745';
+      nameEl.value = ''; fileEl.value = '';
+      await this.loadAdminDivisions();
+      this.renderAdminDivisions();
+    } catch (e) {
+      status.textContent = 'Error: ' + e.message; status.style.color = '#dc3545';
+    }
+  }
+
+  renderAdminDivisions() {
+    const tbody = document.getElementById('admdiv-tbody');
+    if (!tbody) return;
+    const rows = this.adminDivisions || [];
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No layers uploaded yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map(d => {
+      const id = d.division_id;
+      const pub = d.is_published
+        ? `<span class="badge badge-success admdiv-pub" data-id="${id}" data-value="0" style="cursor:pointer;" title="Shown in the map's layer list. Click to unpublish.">Yes</span>`
+        : `<span class="badge badge-danger admdiv-pub" data-id="${id}" data-value="1" style="cursor:pointer;" title="Hidden from the map. Click to publish.">No</span>`;
+      return `<tr data-id="${id}">
+        <td><input type="number" class="admdiv-order" data-id="${id}" value="${d.display_order ?? 0}" min="0" max="999" style="width:64px;"></td>
+        <td><input type="text" class="admdiv-name" data-id="${id}" value="${this.escapeHtml(d.name)}" style="min-width:160px;"></td>
+        <td>${d.feature_count ?? '-'}</td>
+        <td><input type="color" class="admdiv-stroke" data-id="${id}" value="${this.escapeHtml(d.stroke_color || '#444444')}"></td>
+        <td><input type="number" class="admdiv-width" data-id="${id}" value="${d.stroke_width ?? 1.5}" min="0" max="20" step="0.5" style="width:64px;"></td>
+        <td><input type="color" class="admdiv-fill" data-id="${id}" value="${this.escapeHtml(d.fill_color || '#cccccc')}"></td>
+        <td><input type="number" class="admdiv-opacity" data-id="${id}" value="${d.fill_opacity ?? 0}" min="0" max="1" step="0.05" style="width:64px;"></td>
+        <td>${pub}</td>
+        <td><button class="btn btn-sm admdiv-del" data-id="${id}" data-name="${this.escapeHtml(d.name)}" style="background:#dc3545;color:#fff;">Delete</button></td>
+      </tr>`;
+    }).join('');
+
+    const patch = async (id, payload) => {
+      try { await api.updateAdminDivision(id, payload); }
+      catch (e) { alert('Update failed: ' + e.message); }
+    };
+    tbody.querySelectorAll('.admdiv-order').forEach(el => el.addEventListener('change', e =>
+      patch(e.target.dataset.id, { display_order: parseInt(e.target.value || '0', 10) })));
+    tbody.querySelectorAll('.admdiv-name').forEach(el => el.addEventListener('change', e => {
+      const v = e.target.value.trim();
+      if (!v) { alert('Name cannot be empty'); return; }
+      patch(e.target.dataset.id, { name: v });
+    }));
+    tbody.querySelectorAll('.admdiv-stroke').forEach(el => el.addEventListener('change', e =>
+      patch(e.target.dataset.id, { stroke_color: e.target.value })));
+    tbody.querySelectorAll('.admdiv-width').forEach(el => el.addEventListener('change', e =>
+      patch(e.target.dataset.id, { stroke_width: parseFloat(e.target.value || '1.5') })));
+    tbody.querySelectorAll('.admdiv-fill').forEach(el => el.addEventListener('change', e =>
+      patch(e.target.dataset.id, { fill_color: e.target.value })));
+    tbody.querySelectorAll('.admdiv-opacity').forEach(el => el.addEventListener('change', e =>
+      patch(e.target.dataset.id, { fill_opacity: parseFloat(e.target.value || '0') })));
+    tbody.querySelectorAll('.admdiv-pub').forEach(el => el.addEventListener('click', async (e) => {
+      await patch(e.currentTarget.dataset.id, { is_published: e.currentTarget.dataset.value === '1' });
+      await this.loadAdminDivisions();
+      this.renderAdminDivisions();
+    }));
+    tbody.querySelectorAll('.admdiv-del').forEach(el => el.addEventListener('click', async (e) => {
+      const { id, name } = e.currentTarget.dataset;
+      if (!confirm(`Delete the layer "${name}" and all its polygons? This cannot be undone.`)) return;
+      try {
+        await api.deleteAdminDivision(id);
+        await this.loadAdminDivisions();
+        this.renderAdminDivisions();
+      } catch (err) {
+        alert('Delete failed: ' + err.message);
+      }
+    }));
   }
 
   showEtlPreview(columns, rows) {

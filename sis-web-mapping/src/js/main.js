@@ -59,6 +59,11 @@ async function initializeApp() {
     console.log('Loading profiles...');
     await loadProfiles();
 
+    // Administrative division boundaries — added last so the group sits at
+    // the top of the layer list.
+    console.log('Loading administrative divisions...');
+    await loadAdminDivisions();
+
     // Setup UI controls
     setupControls();
 
@@ -190,6 +195,100 @@ async function loadLayers() {
     console.error('Failed to load layers:', error);
     showError('Failed to load layers from API');
   }
+}
+
+// ==================== Administrative divisions ====================
+// Admin-uploaded polygon boundary layers, drawn as client-side vector layers
+// (no MapServer involvement) with the symbology configured in the admin
+// panel. Geometry loads lazily on the first tick of each layer's checkbox.
+
+let adminDivisionLayers = {};   // division_id -> { layer, loaded }
+
+function hexToRgba(hex, alpha) {
+  const m = /^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})$/.exec(hex || '');
+  if (!m) return `rgba(204, 204, 204, ${alpha})`;
+  return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})`;
+}
+
+function adminDivisionStyle(d) {
+  return new Style({
+    stroke: new Stroke({
+      color: d.stroke_color || '#444444',
+      width: Number(d.stroke_width) || 1.5
+    }),
+    fill: new Fill({
+      color: hexToRgba(d.fill_color || '#cccccc',
+                       d.fill_opacity == null ? 0 : Number(d.fill_opacity))
+    })
+  });
+}
+
+async function loadAdminDivisions() {
+  let divisions = [];
+  try {
+    divisions = await api.getAdminDivisions();
+  } catch (error) {
+    console.error('Failed to load administrative divisions:', error);
+    return;
+  }
+  if (!divisions.length) return;
+
+  const groupDiv = document.createElement('div');
+  groupDiv.className = 'layer-group';
+  const headerDiv = document.createElement('div');
+  headerDiv.className = 'layer-group-header';
+  headerDiv.textContent = 'Administrative divisions';
+  groupDiv.appendChild(headerDiv);
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'layer-group-content';
+
+  divisions.forEach(d => {
+    const item = document.createElement('div');
+    item.className = 'layer-item';
+    const cbId = `admdiv-${d.division_id}`;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = cbId;
+    const label = document.createElement('label');
+    label.htmlFor = cbId;
+    label.textContent = d.name;
+    item.appendChild(cb);
+    item.appendChild(label);
+    contentDiv.appendChild(item);
+
+    // Above rasters (ImageLayers, zIndex 0) but under profile clusters (1000).
+    const layer = new VectorLayer({
+      source: new VectorSource(),
+      style: adminDivisionStyle(d),
+      zIndex: 900,
+      visible: false
+    });
+    map.addLayer(layer);
+    adminDivisionLayers[d.division_id] = { layer, loaded: false };
+
+    cb.addEventListener('change', async (e) => {
+      const entry = adminDivisionLayers[d.division_id];
+      if (e.target.checked && !entry.loaded) {
+        try {
+          const fc = await api.getAdminDivisionGeoJson(d.division_id);
+          entry.layer.getSource().addFeatures(
+            new GeoJSON().readFeatures(fc, { featureProjection: 'EPSG:3857' }));
+          entry.loaded = true;
+        } catch (err) {
+          console.error('Failed to load division layer:', err);
+          e.target.checked = false;
+          return;
+        }
+      }
+      entry.layer.setVisible(e.target.checked);
+    });
+  });
+
+  groupDiv.appendChild(contentDiv);
+  headerDiv.addEventListener('click', () => groupDiv.classList.toggle('collapsed'));
+
+  const layerGroupsContainer = document.getElementById('layer-groups');
+  layerGroupsContainer.insertBefore(groupDiv, layerGroupsContainer.firstChild);
 }
 
 function addBaseMapsGroup(container) {

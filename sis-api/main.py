@@ -14,6 +14,8 @@ import os
 import re
 import csv
 import io
+import json
+import zipfile
 import glob
 import time
 import secrets
@@ -3596,6 +3598,270 @@ async def delete_dataset(
                      {"table_name": table_name}, None)
 
             return {"message": f"Deleted dataset {table_name}"}
+
+
+# ==================== Administrative divisions ====================
+# Admin-uploaded polygon boundary layers (country / provinces / districts …)
+# shown on the map under an "Administrative divisions" group. Levels and
+# names differ per country, so the layer name and the symbology are both
+# customisable. Deliberately metadata-free: no mapset/layer rows, no pyCSW,
+# nothing published to the federation.
+
+ADMIN_DIV_MAX_BYTES = 100 * 1024 * 1024   # boundary files can be chunky
+ADMIN_DIV_GEOM_TYPES = {"Polygon", "MultiPolygon"}
+HEX_COLOUR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _admin_div_features_from_geojson(data) -> list:
+    """[(properties_json, geometry_json), …] from a GeoJSON FeatureCollection,
+    bare Feature or bare geometry. Non-polygon features are skipped."""
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="Not a GeoJSON object")
+    t = data.get("type")
+    if t == "FeatureCollection":
+        feats = data.get("features") or []
+    elif t == "Feature":
+        feats = [data]
+    elif t in ADMIN_DIV_GEOM_TYPES:
+        feats = [{"type": "Feature", "properties": {}, "geometry": data}]
+    else:
+        raise HTTPException(status_code=400, detail=f"Unsupported GeoJSON type: {t}")
+    out = []
+    for f in feats:
+        geom = (f or {}).get("geometry") or {}
+        if geom.get("type") in ADMIN_DIV_GEOM_TYPES:
+            out.append((json.dumps(f.get("properties") or {}, default=str),
+                        json.dumps(geom)))
+    return out
+
+
+def _admin_div_features_from_zip(contents: bytes) -> list:
+    """Read a zipped ESRI Shapefile with pyshp (pure Python — no GDAL vector
+    stack in the image). The .prj, when present, must describe WGS 84;
+    projected data must be reprojected before upload."""
+    import shapefile as _shp   # pyshp
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(contents))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Not a valid zip archive")
+    names = {n.lower().rsplit(".", 1)[-1]: n for n in zf.namelist()
+             if "." in n and not n.endswith("/")}
+    if "shp" not in names or "dbf" not in names:
+        raise HTTPException(status_code=400,
+                            detail="The zip must contain .shp and .dbf files")
+    if "prj" in names:
+        prj = zf.read(names["prj"]).decode("utf-8", "ignore")
+        if "PROJCS" in prj or not any(m in prj for m in ("WGS_1984", "WGS 84", "WGS84", "4326")):
+            raise HTTPException(status_code=400, detail=(
+                "The shapefile is not in WGS 84 (EPSG:4326). Reproject it "
+                "first, or upload GeoJSON instead."))
+    try:
+        rdr = _shp.Reader(shp=io.BytesIO(zf.read(names["shp"])),
+                          dbf=io.BytesIO(zf.read(names["dbf"])),
+                          shx=io.BytesIO(zf.read(names["shx"])) if "shx" in names else None)
+        out = []
+        for sr in rdr.iterShapeRecords():
+            gi = sr.shape.__geo_interface__
+            if gi.get("type") in ADMIN_DIV_GEOM_TYPES:
+                out.append((json.dumps(sr.record.as_dict(), default=str),
+                            json.dumps(gi)))
+        return out
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Could not read the shapefile: {e}")
+
+
+@app.get("/api/admin-divisions")
+async def list_admin_divisions(api_client: dict = Depends(verify_api_key)):
+    """Published administrative division layers with symbology (map view)."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT division_id, name, display_order, stroke_color,
+                       stroke_width, fill_color, fill_opacity, feature_count
+                FROM api.admin_division
+                WHERE is_published
+                ORDER BY display_order, division_id
+            """)
+            return cur.fetchall()
+
+
+@app.get("/api/admin-divisions/manage")
+async def list_admin_divisions_manage(current_user: dict = Depends(get_current_admin_user)):
+    """All administrative division layers, for the admin panel."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT division_id, name, display_order, stroke_color,
+                       stroke_width, fill_color, fill_opacity, is_published,
+                       feature_count, file_name, uploaded_by, uploaded_at
+                FROM api.admin_division
+                ORDER BY display_order, division_id
+            """)
+            return cur.fetchall()
+
+
+@app.post("/api/admin-divisions/upload")
+async def upload_admin_division(
+    file: UploadFile = File(...),
+    name: str = Form(...),
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Upload a polygon layer: GeoJSON (.geojson/.json) or zipped Shapefile."""
+    name = (name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="A layer name is required")
+    fname = (file.filename or "").lower()
+    contents = await file.read(ADMIN_DIV_MAX_BYTES + 1)
+    if len(contents) > ADMIN_DIV_MAX_BYTES:
+        raise HTTPException(status_code=413,
+                            detail=f"File exceeds {ADMIN_DIV_MAX_BYTES // (1024 * 1024)} MB limit")
+    if fname.endswith((".geojson", ".json")):
+        try:
+            data = json.loads(contents.decode("utf-8-sig"))
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid JSON")
+        feats = _admin_div_features_from_geojson(data)
+    elif fname.endswith(".zip"):
+        feats = _admin_div_features_from_zip(contents)
+    else:
+        raise HTTPException(status_code=400,
+                            detail="Upload GeoJSON (.geojson/.json) or a zipped Shapefile (.zip)")
+    if not feats:
+        raise HTTPException(status_code=400,
+                            detail="No Polygon/MultiPolygon features found in the file")
+
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                INSERT INTO api.admin_division
+                    (name, display_order, feature_count, file_name, uploaded_by)
+                VALUES (%s,
+                        COALESCE((SELECT MAX(display_order) + 1 FROM api.admin_division), 0),
+                        %s, %s, %s)
+                RETURNING division_id
+            """, (name, len(feats), file.filename, current_user["user_id"]))
+            division_id = cur.fetchone()["division_id"]
+            for props, geom in feats:
+                cur.execute("""
+                    INSERT INTO api.admin_division_feature (division_id, properties, geom)
+                    VALUES (%s, %s::jsonb,
+                            ST_Multi(ST_CollectionExtract(ST_MakeValid(
+                                ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)), 3)))
+                """, (division_id, props, geom))
+            # GeoJSON is WGS 84 by definition, but projected files do turn up —
+            # catch them by extent rather than storing garbage coordinates.
+            cur.execute("""
+                SELECT ST_XMin(e) < -180.5 OR ST_XMax(e) > 180.5
+                    OR ST_YMin(e) < -90.5 OR ST_YMax(e) > 90.5 AS out_of_range
+                FROM (SELECT ST_Extent(geom) AS e
+                      FROM api.admin_division_feature WHERE division_id = %s) s
+            """, (division_id,))
+            if cur.fetchone()["out_of_range"]:
+                raise HTTPException(status_code=400, detail=(
+                    "Coordinates fall outside WGS 84 bounds — the file appears "
+                    "to be in a projected CRS. Reproject to EPSG:4326 and re-upload."))
+            log_audit(current_user["user_id"], None, "admin_division_uploaded",
+                      {"division_id": division_id, "name": name,
+                       "features": len(feats)}, None)
+            return {"message": f"Uploaded '{name}' with {len(feats)} features",
+                    "division_id": division_id, "feature_count": len(feats)}
+
+
+class AdminDivisionUpdate(BaseModel):
+    name: Optional[str] = None
+    display_order: Optional[int] = None
+    stroke_color: Optional[str] = None
+    stroke_width: Optional[float] = None
+    fill_color: Optional[str] = None
+    fill_opacity: Optional[float] = None
+    is_published: Optional[bool] = None
+
+
+@app.patch("/api/admin-divisions/{division_id}")
+async def update_admin_division(
+    division_id: int,
+    body: AdminDivisionUpdate,
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Rename / reorder / restyle / publish-toggle a division layer."""
+    sets, params = [], []
+    if body.name is not None:
+        v = body.name.strip()
+        if not v:
+            raise HTTPException(status_code=400, detail="name cannot be empty")
+        sets.append("name = %s"); params.append(v)
+    if body.display_order is not None:
+        sets.append("display_order = %s"); params.append(int(body.display_order))
+    for col, val in (("stroke_color", body.stroke_color), ("fill_color", body.fill_color)):
+        if val is not None:
+            if not HEX_COLOUR_RE.match(val):
+                raise HTTPException(status_code=400,
+                                    detail=f"{col} must be a #rrggbb colour")
+            sets.append(f"{col} = %s"); params.append(val)
+    if body.stroke_width is not None:
+        if not (0 <= body.stroke_width <= 20):
+            raise HTTPException(status_code=400, detail="stroke_width must be 0–20")
+        sets.append("stroke_width = %s"); params.append(body.stroke_width)
+    if body.fill_opacity is not None:
+        if not (0 <= body.fill_opacity <= 1):
+            raise HTTPException(status_code=400, detail="fill_opacity must be 0–1")
+        sets.append("fill_opacity = %s"); params.append(body.fill_opacity)
+    if body.is_published is not None:
+        sets.append("is_published = %s"); params.append(bool(body.is_published))
+    if not sets:
+        return {"message": "Nothing to update"}
+    params.append(division_id)
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE api.admin_division SET {', '.join(sets)} WHERE division_id = %s",
+                tuple(params))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Layer not found")
+            return {"message": "Layer updated"}
+
+
+@app.delete("/api/admin-divisions/{division_id}")
+async def delete_admin_division(
+    division_id: int,
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Delete a division layer and its features (ON DELETE CASCADE)."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("DELETE FROM api.admin_division WHERE division_id = %s RETURNING name",
+                        (division_id,))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Layer not found")
+            log_audit(current_user["user_id"], None, "admin_division_deleted",
+                      {"division_id": division_id, "name": row["name"]}, None)
+            return {"message": f"Deleted layer '{row['name']}'"}
+
+
+@app.get("/api/admin-divisions/{division_id}/geojson")
+async def get_admin_division_geojson(
+    division_id: int,
+    api_client: dict = Depends(verify_api_key),
+):
+    """FeatureCollection for one published division layer (map view)."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT 1 FROM api.admin_division WHERE division_id = %s AND is_published",
+                        (division_id,))
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="Layer not found")
+            cur.execute("""
+                SELECT json_build_object(
+                    'type', 'FeatureCollection',
+                    'features', COALESCE(json_agg(json_build_object(
+                        'type', 'Feature',
+                        'properties', COALESCE(properties, '{}'::jsonb),
+                        'geometry', ST_AsGeoJSON(geom, 6)::json)), '[]'::json)) AS fc
+                FROM api.admin_division_feature
+                WHERE division_id = %s
+            """, (division_id,))
+            return cur.fetchone()["fc"]
 
 
 # ==================== Health Check & Root ====================
