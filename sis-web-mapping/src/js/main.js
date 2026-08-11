@@ -59,8 +59,8 @@ async function initializeApp() {
     console.log('Loading profiles...');
     await loadProfiles();
 
-    // Administrative division boundaries — added last so the group sits at
-    // the top of the layer list.
+    // Administrative division boundaries — listed inside the "Base layers"
+    // group (which loadLayers has already built).
     console.log('Loading administrative divisions...');
     await loadAdminDivisions();
 
@@ -233,14 +233,15 @@ async function loadAdminDivisions() {
   }
   if (!divisions.length) return;
 
-  const groupDiv = document.createElement('div');
-  groupDiv.className = 'layer-group';
-  const headerDiv = document.createElement('div');
-  headerDiv.className = 'layer-group-header';
-  headerDiv.textContent = 'Administrative divisions';
-  groupDiv.appendChild(headerDiv);
-  const contentDiv = document.createElement('div');
-  contentDiv.className = 'layer-group-content';
+  // The division layers live inside the "Base layers" group, listed above
+  // the basemap radios.
+  const baseGroup = document.getElementById('base-layers-group');
+  const contentDiv = baseGroup && baseGroup.querySelector('.layer-group-content');
+  if (!contentDiv) {
+    console.error('Base layers group not found — cannot list administrative divisions');
+    return;
+  }
+  const frag = document.createDocumentFragment();
 
   divisions.forEach(d => {
     const item = document.createElement('div');
@@ -254,7 +255,7 @@ async function loadAdminDivisions() {
     label.textContent = d.name;
     item.appendChild(cb);
     item.appendChild(label);
-    contentDiv.appendChild(item);
+    frag.appendChild(item);
 
     // Above rasters (ImageLayers, zIndex 0) but under profile clusters (1000).
     const layer = new VectorLayer({
@@ -290,16 +291,13 @@ async function loadAdminDivisions() {
     applyVisibility(true);
   });
 
-  groupDiv.appendChild(contentDiv);
-  headerDiv.addEventListener('click', () => groupDiv.classList.toggle('collapsed'));
-
-  const layerGroupsContainer = document.getElementById('layer-groups');
-  layerGroupsContainer.insertBefore(groupDiv, layerGroupsContainer.firstChild);
+  contentDiv.insertBefore(frag, contentDiv.firstChild);
 }
 
 function addBaseMapsGroup(container) {
   const groupDiv = document.createElement('div');
   groupDiv.className = 'layer-group collapsed';
+  groupDiv.id = 'base-layers-group';
   groupDiv.innerHTML = `
     <div class="layer-group-header">Base layers</div>
     <div class="layer-group-content">
