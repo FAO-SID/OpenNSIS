@@ -295,7 +295,7 @@ function addBaseMapsGroup(container) {
   const groupDiv = document.createElement('div');
   groupDiv.className = 'layer-group collapsed';
   groupDiv.innerHTML = `
-    <div class="layer-group-header">Base maps</div>
+    <div class="layer-group-header">Base layers</div>
     <div class="layer-group-content">
       <div class="layer-item">
         <input type="radio" name="basemap" id="basemap-esri" value="esri-imagery" 
