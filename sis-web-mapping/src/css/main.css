@@ -87,7 +87,11 @@ h1, h2, h3, h4, h5 {
     position: absolute;
     top: var(--sp-5);
     left: var(--sp-5);
-    width: 430px;
+    /* Hug the title text — instance names vary in length. The max-width
+       stops it running under the layer switcher; only then does the h1's
+       ellipsis kick in. */
+    width: fit-content;
+    max-width: min(calc(100vw - 120px), 820px);
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: saturate(140%) blur(8px);
     -webkit-backdrop-filter: saturate(140%) blur(8px);
@@ -775,7 +779,8 @@ h1, h2, h3, h4, h5 {
 @media (max-width: 768px) {
     .header {
         padding: var(--sp-2) var(--sp-3);
-        width: calc(100% - 40px);
+        width: fit-content;
+        max-width: calc(100% - 40px);
     }
 
     .header .logo { height: 30px; }
