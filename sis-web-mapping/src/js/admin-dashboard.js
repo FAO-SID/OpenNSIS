@@ -89,6 +89,11 @@ class AdminDashboard {
       this.loadSoftwareVersion();
       this.initViewEditor();
       this.initGlosis();
+      if (!this.admDivInited) {
+        this.initAdminDivisionsTab();
+        this.admDivInited = true;
+      }
+      this.loadAdminDivisions().then(() => this.renderAdminDivisions());
     } else {
       if (adminTabBtn) adminTabBtn.style.display = 'none';
       if (adminPane) adminPane.style.display = 'none';
@@ -190,7 +195,6 @@ class AdminDashboard {
             <li><button class="tab-btn" data-tab="projects">Projects</button></li>
             <li><button class="tab-btn" data-tab="layers">Soil profiles</button></li>
             <li><button class="tab-btn" data-tab="add-raster">Rasters</button></li>
-            <li><button class="tab-btn" data-tab="admin-divisions">Administrative divisions</button></li>
             <li><button class="tab-btn" data-tab="dst">Raster calculator</button></li>
             <li><button class="tab-btn" data-tab="dashboard">Dashboard</button></li>
           </ul>
@@ -311,6 +315,44 @@ class AdminDashboard {
                   <ul id="glosis-endpoints" style="margin:4px 0 0 18px;font-size:var(--fs-sm);"></ul>
                 </div>
 
+              </div>
+
+              <div class="admin-section">
+                <h3 class="admin-section-title">Administrative divisions</h3>
+                <p style="font-size:var(--fs-sm);color:#555;max-width:760px;">
+                  Upload polygon boundary layers — one per administrative level
+                  (e.g. Country, Provinces, Municipalities; levels and names differ
+                  per country). Accepted formats: GeoJSON (.geojson/.json) or a
+                  zipped Shapefile (.zip), both in WGS 84 (EPSG:4326). Layers appear
+                  on the map under an “Administrative divisions” group. No catalogue
+                  metadata is created for these layers.
+                </p>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
+                  <input type="text" id="admdiv-name" placeholder="Layer name (e.g. Provinces)" style="width:240px;">
+                  <input type="file" id="admdiv-file" accept=".geojson,.json,.zip">
+                  <button type="button" id="admdiv-upload-btn" class="btn btn-primary btn-sm">Upload layer</button>
+                  <span id="admdiv-upload-status" style="font-size:var(--fs-sm);"></span>
+                </div>
+                <div style="overflow-x:auto;">
+                  <table class="admin-table" id="admdiv-table">
+                    <thead>
+                      <tr>
+                        <th title="Lower numbers appear first in the map's layer list">Order</th>
+                        <th>Name</th>
+                        <th>Features</th>
+                        <th>Stroke colour</th>
+                        <th>Stroke width</th>
+                        <th>Fill colour</th>
+                        <th title="0 = transparent fill, 1 = opaque">Fill opacity</th>
+                        <th title="Yes = shown in the map's layer list">Published</th>
+                        <th>Delete</th>
+                      </tr>
+                    </thead>
+                    <tbody id="admdiv-tbody">
+                      <tr><td colspan="9" class="loading">Loading layers...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
@@ -661,47 +703,6 @@ class AdminDashboard {
                     </thead>
                     <tbody id="layers-tbody">
                       <tr><td colspan="8" class="loading">Loading layers...</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </div>
-
-            <!-- Administrative divisions Tab -->
-            <div id="admin-divisions-tab" class="tab-pane">
-              <section>
-                <h2>Administrative divisions</h2>
-                <p style="font-size:var(--fs-sm);color:#555;max-width:760px;">
-                  Upload polygon boundary layers — one per administrative level
-                  (e.g. Country, Provinces, Municipalities; levels and names differ
-                  per country). Accepted formats: GeoJSON (.geojson/.json) or a
-                  zipped Shapefile (.zip), both in WGS 84 (EPSG:4326). Layers appear
-                  on the map under an “Administrative divisions” group. No catalogue
-                  metadata is created for these layers.
-                </p>
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
-                  <input type="text" id="admdiv-name" placeholder="Layer name (e.g. Provinces)" style="width:240px;">
-                  <input type="file" id="admdiv-file" accept=".geojson,.json,.zip">
-                  <button type="button" id="admdiv-upload-btn" class="btn btn-primary btn-sm">Upload layer</button>
-                  <span id="admdiv-upload-status" style="font-size:var(--fs-sm);"></span>
-                </div>
-                <div style="overflow-x:auto;">
-                  <table class="admin-table" id="admdiv-table">
-                    <thead>
-                      <tr>
-                        <th title="Lower numbers appear first in the map's layer list">Order</th>
-                        <th>Name</th>
-                        <th>Features</th>
-                        <th>Stroke colour</th>
-                        <th>Stroke width</th>
-                        <th>Fill colour</th>
-                        <th title="0 = transparent fill, 1 = opaque">Fill opacity</th>
-                        <th title="Yes = shown in the map's layer list">Published</th>
-                        <th>Delete</th>
-                      </tr>
-                    </thead>
-                    <tbody id="admdiv-tbody">
-                      <tr><td colspan="9" class="loading">Loading layers...</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -1135,11 +1136,8 @@ class AdminDashboard {
       this.dstInited = true;
     }
 
-    if (tab === 'admin-divisions') {
-      if (!this.admDivInited) {
-        this.initAdminDivisionsTab();
-        this.admDivInited = true;
-      }
+    // Administrative divisions live in the (admin-only) Administration tab.
+    if (tab === 'administration' && this.isAdmin && this.admDivInited) {
       this.loadAdminDivisions().then(() => this.renderAdminDivisions());
     }
   }
