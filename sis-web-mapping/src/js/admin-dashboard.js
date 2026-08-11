@@ -242,13 +242,13 @@ class AdminDashboard {
                 <p style="font-size:var(--fs-sm);color:#555;max-width:760px;">
                   Upload polygon boundary layers — one per administrative level
                   (e.g. Country, Provinces, Municipalities; levels and names differ
-                  per country). Accepted formats: GeoJSON (.geojson/.json) or a
-                  zipped Shapefile (.zip), both in WGS 84 (EPSG:4326). Layers appear
-                  in the map's layer list under “Base layers”.
+                  per country). Accepted formats: GeoJSON (.geojson/.json), zipped
+                  Shapefile (.zip) or GeoPackage (.gpkg), all in WGS 84 (EPSG:4326).
+                  Layers appear in the map's layer list under “Base layers”.
                 </p>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
                   <input type="text" id="admdiv-name" placeholder="Layer name (e.g. Provinces)" style="width:240px;">
-                  <input type="file" id="admdiv-file" accept=".geojson,.json,.zip">
+                  <input type="file" id="admdiv-file" accept=".geojson,.json,.zip,.gpkg">
                   <button type="button" id="admdiv-upload-btn" class="btn btn-primary btn-sm">Upload layer</button>
                   <span id="admdiv-upload-status" style="font-size:var(--fs-sm);"></span>
                 </div>
@@ -4456,7 +4456,7 @@ class AdminDashboard {
     const name = (nameEl.value || '').trim();
     const file = fileEl.files && fileEl.files[0];
     if (!name) { status.textContent = 'A layer name is required.'; status.style.color = '#dc3545'; return; }
-    if (!file) { status.textContent = 'Choose a GeoJSON or zipped Shapefile.'; status.style.color = '#dc3545'; return; }
+    if (!file) { status.textContent = 'Choose a GeoJSON, zipped Shapefile or GeoPackage.'; status.style.color = '#dc3545'; return; }
     status.textContent = 'Uploading...'; status.style.color = '#666';
     try {
       const res = await api.uploadAdminDivision(file, name);

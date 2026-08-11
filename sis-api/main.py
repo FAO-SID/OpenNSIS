@@ -3607,7 +3607,7 @@ async def delete_dataset(
 # customisable. Deliberately metadata-free: no mapset/layer rows, no pyCSW,
 # nothing published to the federation.
 
-ADMIN_DIV_MAX_BYTES = 100 * 1024 * 1024   # boundary files can be chunky
+ADMIN_DIV_MAX_BYTES = 1024 * 1024 * 1024   # 1 GB — boundary files can be chunky
 ADMIN_DIV_GEOM_TYPES = {"Polygon", "MultiPolygon"}
 ADMIN_DIV_STROKE_TYPES = {"solid", "dashed", "dotted", "dash-dot"}
 HEX_COLOUR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -3671,6 +3671,85 @@ def _admin_div_features_from_zip(contents: bytes) -> list:
         raise HTTPException(status_code=400, detail=f"Could not read the shapefile: {e}")
 
 
+def _admin_div_features_from_gpkg(contents: bytes) -> list:
+    """[(properties_json, wkb_Binary), …] from a GeoPackage. A GeoPackage is
+    SQLite, which the stdlib reads — no GDAL needed; PostGIS parses the WKB
+    after the GeoPackage binary header is stripped. Exactly one polygon layer
+    is expected, in EPSG:4326."""
+    import sqlite3
+    import struct
+    import tempfile
+
+    def wkb_of(blob):
+        # GPKG geometry blob: 'GP' magic, version, flags, srs_id (4 bytes),
+        # optional envelope, then standard WKB.
+        if not blob or len(blob) < 13 or bytes(blob[0:2]) != b"GP":
+            return None
+        flags = blob[3]
+        if flags & 0x10:   # empty-geometry flag
+            return None
+        env_len = {0: 0, 1: 32, 2: 48, 3: 48, 4: 64}.get((flags >> 1) & 0x07)
+        if env_len is None:
+            return None
+        return bytes(blob[8 + env_len:])
+
+    def is_polygon(wkb):
+        if not wkb or len(wkb) < 5:
+            return False
+        (code,) = struct.unpack("<I" if wkb[0] == 1 else ">I", wkb[1:5])
+        # base type 3/6 = Polygon/MultiPolygon in both ISO (1000s offsets for
+        # Z/M) and EWKB (flags in the high bits) encodings
+        return (code & 0xFFFF) % 1000 in (3, 6)
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".gpkg", delete=False)
+    try:
+        tmp.write(contents)
+        tmp.close()
+        con = sqlite3.connect(f"file:{tmp.name}?mode=ro", uri=True)
+        con.row_factory = sqlite3.Row
+        try:
+            try:
+                layers = con.execute("""
+                    SELECT table_name, column_name, geometry_type_name, srs_id
+                    FROM gpkg_geometry_columns
+                """).fetchall()
+            except sqlite3.Error:
+                raise HTTPException(status_code=400, detail="Not a valid GeoPackage")
+            candidates = [l for l in layers if (l["geometry_type_name"] or "").upper()
+                          in ("POLYGON", "MULTIPOLYGON", "GEOMETRY")]
+            if not candidates:
+                raise HTTPException(status_code=400,
+                                    detail="The GeoPackage has no polygon layer")
+            if len(candidates) > 1:
+                raise HTTPException(status_code=400, detail=(
+                    "The GeoPackage contains several layers ("
+                    + ", ".join(l["table_name"] for l in candidates)
+                    + ") — export a single polygon layer and re-upload."))
+            layer = candidates[0]
+            if int(layer["srs_id"]) != 4326:
+                raise HTTPException(status_code=400, detail=(
+                    f"Layer '{layer['table_name']}' is not in WGS 84 (EPSG:4326) — "
+                    f"its srs_id is {layer['srs_id']}. Reproject it first."))
+            tbl = layer["table_name"].replace('"', '""')
+            geom_col = layer["column_name"]
+            out = []
+            for row in con.execute(f'SELECT * FROM "{tbl}"'):
+                wkb = wkb_of(row[geom_col])
+                if not wkb or not is_polygon(wkb):
+                    continue
+                props = {k: (None if isinstance(row[k], (bytes, memoryview)) else row[k])
+                         for k in row.keys() if k != geom_col}
+                out.append((json.dumps(props, default=str), psycopg2.Binary(wkb)))
+            return out
+        finally:
+            con.close()
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
+
+
 @app.get("/api/admin-divisions")
 async def list_admin_divisions(api_client: dict = Depends(verify_api_key)):
     """Published administrative division layers with symbology (map view)."""
@@ -3718,6 +3797,7 @@ async def upload_admin_division(
     if len(contents) > ADMIN_DIV_MAX_BYTES:
         raise HTTPException(status_code=413,
                             detail=f"File exceeds {ADMIN_DIV_MAX_BYTES // (1024 * 1024)} MB limit")
+    geom_expr = "ST_GeomFromGeoJSON(%s)"
     if fname.endswith((".geojson", ".json")):
         try:
             data = json.loads(contents.decode("utf-8-sig"))
@@ -3726,9 +3806,13 @@ async def upload_admin_division(
         feats = _admin_div_features_from_geojson(data)
     elif fname.endswith(".zip"):
         feats = _admin_div_features_from_zip(contents)
+    elif fname.endswith(".gpkg"):
+        feats = _admin_div_features_from_gpkg(contents)
+        geom_expr = "ST_GeomFromWKB(%s)"
     else:
-        raise HTTPException(status_code=400,
-                            detail="Upload GeoJSON (.geojson/.json) or a zipped Shapefile (.zip)")
+        raise HTTPException(status_code=400, detail=(
+            "Upload GeoJSON (.geojson/.json), a zipped Shapefile (.zip) "
+            "or a GeoPackage (.gpkg)"))
     if not feats:
         raise HTTPException(status_code=400,
                             detail="No Polygon/MultiPolygon features found in the file")
@@ -3744,13 +3828,16 @@ async def upload_admin_division(
                 RETURNING division_id
             """, (name, len(feats), file.filename, current_user["user_id"]))
             division_id = cur.fetchone()["division_id"]
-            for props, geom in feats:
-                cur.execute("""
-                    INSERT INTO api.admin_division_feature (division_id, properties, geom)
-                    VALUES (%s, %s::jsonb,
-                            ST_Multi(ST_CollectionExtract(ST_MakeValid(
-                                ST_SetSRID(ST_GeomFromGeoJSON(%s), 4326)), 3)))
-                """, (division_id, props, geom))
+            # Batched insert — a 1 GB boundary file can carry hundreds of
+            # thousands of features. ST_Force2D: boundary exports often carry
+            # Z coordinates, which the 2D MultiPolygon column would reject.
+            psycopg2.extras.execute_values(
+                cur,
+                "INSERT INTO api.admin_division_feature (division_id, properties, geom) VALUES %s",
+                [(division_id, props, geom) for props, geom in feats],
+                template=("(%s, %s::jsonb, ST_Multi(ST_CollectionExtract(ST_MakeValid("
+                          f"ST_Force2D(ST_SetSRID({geom_expr}, 4326))), 3)))"),
+                page_size=500)
             # GeoJSON is WGS 84 by definition, but projected files do turn up —
             # catch them by extent rather than storing garbage coordinates.
             cur.execute("""
