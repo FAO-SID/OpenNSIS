@@ -3613,6 +3613,24 @@ ADMIN_DIV_STROKE_TYPES = {"solid", "dashed", "dotted", "dash-dot"}
 HEX_COLOUR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
+def _geojson_epsg(data) -> int:
+    """EPSG code of a GeoJSON document. RFC 7946 GeoJSON is always WGS 84 and
+    has no crs member; legacy files may carry one — honour it when it names an
+    EPSG code, refuse when it names something we cannot identify."""
+    crs = data.get("crs") if isinstance(data, dict) else None
+    if not crs:
+        return 4326
+    name = str(((crs or {}).get("properties") or {}).get("name") or "").strip()
+    if "CRS84" in name:
+        return 4326
+    m = re.search(r"EPSG:{1,2}(\d+)$", name, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+    raise HTTPException(status_code=400, detail=(
+        f"Could not determine the EPSG code from the GeoJSON crs member "
+        f"('{name}'). Reproject the file to EPSG:4326 and re-upload."))
+
+
 def _admin_div_features_from_geojson(data) -> list:
     """[(properties_json, geometry_json), …] from a GeoJSON FeatureCollection,
     bare Feature or bare geometry. Non-polygon features are skipped."""
@@ -3636,10 +3654,11 @@ def _admin_div_features_from_geojson(data) -> list:
     return out
 
 
-def _admin_div_features_from_zip(contents: bytes) -> list:
-    """Read a zipped ESRI Shapefile with pyshp (pure Python — no GDAL vector
-    stack in the image). The .prj, when present, must describe WGS 84;
-    projected data must be reprojected before upload."""
+def _admin_div_features_from_zip(contents: bytes) -> tuple:
+    """(features, epsg) from a zipped ESRI Shapefile, read with pyshp (pure
+    Python — no GDAL vector stack in the image). The EPSG code comes from the
+    .prj's AUTHORITY clause; a .prj that declares neither an EPSG code nor
+    plain WGS 84 is refused, since the CRS cannot be identified."""
     import shapefile as _shp   # pyshp
     try:
         zf = zipfile.ZipFile(io.BytesIO(contents))
@@ -3650,12 +3669,19 @@ def _admin_div_features_from_zip(contents: bytes) -> list:
     if "shp" not in names or "dbf" not in names:
         raise HTTPException(status_code=400,
                             detail="The zip must contain .shp and .dbf files")
+    epsg = 4326   # no .prj → assume WGS 84; the extent check is the backstop
     if "prj" in names:
         prj = zf.read(names["prj"]).decode("utf-8", "ignore")
-        if "PROJCS" in prj or not any(m in prj for m in ("WGS_1984", "WGS 84", "WGS84", "4326")):
+        # The whole-CRS authority is the last AUTHORITY entry in the WKT
+        # (earlier ones belong to the datum/spheroid/units).
+        codes = re.findall(r'AUTHORITY\[\s*"EPSG"\s*,\s*"?(\d+)"?\s*\]', prj, re.IGNORECASE)
+        if codes:
+            epsg = int(codes[-1])
+        elif "PROJCS" in prj or not any(m in prj for m in ("WGS_1984", "WGS 84", "WGS84", "4326")):
             raise HTTPException(status_code=400, detail=(
-                "The shapefile is not in WGS 84 (EPSG:4326). Reproject it "
-                "first, or upload GeoJSON instead."))
+                "Could not determine the shapefile's EPSG code — its .prj "
+                "declares no EPSG authority. Reproject the file to EPSG:4326 "
+                "and re-upload."))
     try:
         rdr = _shp.Reader(shp=io.BytesIO(zf.read(names["shp"])),
                           dbf=io.BytesIO(zf.read(names["dbf"])),
@@ -3666,16 +3692,17 @@ def _admin_div_features_from_zip(contents: bytes) -> list:
             if gi.get("type") in ADMIN_DIV_GEOM_TYPES:
                 out.append((json.dumps(sr.record.as_dict(), default=str),
                             json.dumps(gi)))
-        return out
+        return out, epsg
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Could not read the shapefile: {e}")
 
 
-def _admin_div_features_from_gpkg(contents: bytes) -> list:
-    """[(properties_json, wkb_Binary), …] from a GeoPackage. A GeoPackage is
-    SQLite, which the stdlib reads — no GDAL needed; PostGIS parses the WKB
-    after the GeoPackage binary header is stripped. Exactly one polygon layer
-    is expected, in EPSG:4326."""
+def _admin_div_features_from_gpkg(contents: bytes) -> tuple:
+    """(features, epsg) from a GeoPackage. A GeoPackage is SQLite, which the
+    stdlib reads — no GDAL needed; PostGIS parses the WKB after the GeoPackage
+    binary header is stripped. Exactly one polygon layer is expected; a
+    non-4326 EPSG is returned for the caller to reproject, an undefined or
+    non-EPSG CRS is refused."""
     import sqlite3
     import struct
     import tempfile
@@ -3726,10 +3753,27 @@ def _admin_div_features_from_gpkg(contents: bytes) -> list:
                     + ", ".join(l["table_name"] for l in candidates)
                     + ") — export a single polygon layer and re-upload."))
             layer = candidates[0]
-            if int(layer["srs_id"]) != 4326:
-                raise HTTPException(status_code=400, detail=(
-                    f"Layer '{layer['table_name']}' is not in WGS 84 (EPSG:4326) — "
-                    f"its srs_id is {layer['srs_id']}. Reproject it first."))
+            srs_id = int(layer["srs_id"])
+            epsg = 4326
+            if srs_id != 4326:
+                if srs_id in (0, -1):   # 0 = undefined geographic, -1 = undefined cartesian
+                    raise HTTPException(status_code=400, detail=(
+                        f"Layer '{layer['table_name']}' has an undefined CRS "
+                        f"(srs_id {srs_id}) — the EPSG code is unknown. "
+                        f"Reproject the file to EPSG:4326 and re-upload."))
+                try:
+                    srs = con.execute(
+                        "SELECT organization, organization_coordsys_id "
+                        "FROM gpkg_spatial_ref_sys WHERE srs_id = ?", (srs_id,)).fetchone()
+                except sqlite3.Error:
+                    srs = None
+                if srs is not None and str(srs["organization"] or "").upper() != "EPSG":
+                    raise HTTPException(status_code=400, detail=(
+                        f"Layer '{layer['table_name']}' uses a non-EPSG CRS "
+                        f"('{srs['organization']}:{srs['organization_coordsys_id']}') — "
+                        f"the EPSG code is unknown. Reproject the file to "
+                        f"EPSG:4326 and re-upload."))
+                epsg = int(srs["organization_coordsys_id"]) if srs is not None else srs_id
             tbl = layer["table_name"].replace('"', '""')
             geom_col = layer["column_name"]
             out = []
@@ -3740,7 +3784,7 @@ def _admin_div_features_from_gpkg(contents: bytes) -> list:
                 props = {k: (None if isinstance(row[k], (bytes, memoryview)) else row[k])
                          for k in row.keys() if k != geom_col}
                 out.append((json.dumps(props, default=str), psycopg2.Binary(wkb)))
-            return out
+            return out, epsg
         finally:
             con.close()
     finally:
@@ -3803,11 +3847,12 @@ async def upload_admin_division(
             data = json.loads(contents.decode("utf-8-sig"))
         except Exception:
             raise HTTPException(status_code=400, detail="Invalid JSON")
+        epsg = _geojson_epsg(data)
         feats = _admin_div_features_from_geojson(data)
     elif fname.endswith(".zip"):
-        feats = _admin_div_features_from_zip(contents)
+        feats, epsg = _admin_div_features_from_zip(contents)
     elif fname.endswith(".gpkg"):
-        feats = _admin_div_features_from_gpkg(contents)
+        feats, epsg = _admin_div_features_from_gpkg(contents)
         geom_expr = "ST_GeomFromWKB(%s)"
     else:
         raise HTTPException(status_code=400, detail=(
@@ -3819,6 +3864,18 @@ async def upload_admin_division(
 
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # A non-4326 file is reprojected on the fly by PostGIS — provided
+            # its EPSG code is one the database knows.
+            epsg = int(epsg)
+            if epsg != 4326:
+                cur.execute("SELECT 1 FROM spatial_ref_sys WHERE srid = %s", (epsg,))
+                if not cur.fetchone():
+                    raise HTTPException(status_code=400, detail=(
+                        f"The file declares EPSG:{epsg}, which this system does "
+                        f"not know — reproject to EPSG:4326 and re-upload."))
+            src_expr = f"ST_Force2D(ST_SetSRID({geom_expr}, {epsg}))"
+            if epsg != 4326:
+                src_expr = f"ST_Transform({src_expr}, 4326)"
             cur.execute("""
                 INSERT INTO api.admin_division
                     (name, display_order, feature_count, file_name, uploaded_by)
@@ -3836,7 +3893,7 @@ async def upload_admin_division(
                 "INSERT INTO api.admin_division_feature (division_id, properties, geom) VALUES %s",
                 [(division_id, props, geom) for props, geom in feats],
                 template=("(%s, %s::jsonb, ST_Multi(ST_CollectionExtract(ST_MakeValid("
-                          f"ST_Force2D(ST_SetSRID({geom_expr}, 4326))), 3)))"),
+                          f"{src_expr}), 3)))"),
                 page_size=500)
             # GeoJSON is WGS 84 by definition, but projected files do turn up —
             # catch them by extent rather than storing garbage coordinates.
@@ -3849,11 +3906,16 @@ async def upload_admin_division(
             if cur.fetchone()["out_of_range"]:
                 raise HTTPException(status_code=400, detail=(
                     "Coordinates fall outside WGS 84 bounds — the file appears "
-                    "to be in a projected CRS. Reproject to EPSG:4326 and re-upload."))
+                    "to be in a projected CRS but does not declare its EPSG "
+                    "code, so it cannot be reprojected automatically. "
+                    "Reproject to EPSG:4326 and re-upload."))
             log_audit(current_user["user_id"], None, "admin_division_uploaded",
                       {"division_id": division_id, "name": name,
-                       "features": len(feats)}, None)
-            return {"message": f"Uploaded '{name}' with {len(feats)} features",
+                       "features": len(feats), "epsg": epsg}, None)
+            msg = f"Uploaded '{name}' with {len(feats)} features"
+            if epsg != 4326:
+                msg += f" (reprojected from EPSG:{epsg})"
+            return {"message": msg,
                     "division_id": division_id, "feature_count": len(feats)}
 
 

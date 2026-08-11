@@ -243,8 +243,10 @@ class AdminDashboard {
                   Upload polygon boundary layers — one per administrative level
                   (e.g. Country, Provinces, Municipalities; levels and names differ
                   per country). Accepted formats: GeoJSON (.geojson/.json), zipped
-                  Shapefile (.zip) or GeoPackage (.gpkg), all in WGS 84 (EPSG:4326).
-                  Layers appear in the map's layer list under “Base layers”.
+                  Shapefile (.zip) or GeoPackage (.gpkg). Files in another
+                  coordinate system are reprojected to WGS 84 automatically when
+                  they declare their EPSG code. Layers appear in the map's layer
+                  list under “Base layers”.
                 </p>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
                   <input type="text" id="admdiv-name" placeholder="Layer name (e.g. Provinces)" style="width:240px;">
