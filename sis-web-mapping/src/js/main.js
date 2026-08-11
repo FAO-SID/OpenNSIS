@@ -210,11 +210,23 @@ function hexToRgba(hex, alpha) {
   return `rgba(${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}, ${alpha})`;
 }
 
+function adminDivisionLineDash(strokeType, width) {
+  const w = Math.max(Number(width) || 1.5, 1);
+  switch (strokeType) {
+    case 'dashed':   return [6 * w, 4 * w];
+    case 'dotted':   return [1, 3 * w];
+    case 'dash-dot': return [8 * w, 3 * w, 1, 3 * w];
+    default:         return undefined;   // solid / continuous
+  }
+}
+
 function adminDivisionStyle(d) {
   return new Style({
     stroke: new Stroke({
       color: d.stroke_color || '#444444',
-      width: Number(d.stroke_width) || 1.5
+      width: Number(d.stroke_width) || 1.5,
+      lineDash: adminDivisionLineDash(d.stroke_type, d.stroke_width),
+      lineCap: d.stroke_type === 'dotted' ? 'round' : 'butt'
     }),
     fill: new Fill({
       color: hexToRgba(d.fill_color || '#cccccc',

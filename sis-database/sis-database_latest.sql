@@ -7179,6 +7179,7 @@ CREATE TABLE IF NOT EXISTS api.admin_division (
     display_order integer NOT NULL DEFAULT 0,
     stroke_color  text    NOT NULL DEFAULT '#444444',
     stroke_width  real    NOT NULL DEFAULT 1.5,
+    stroke_type   text    NOT NULL DEFAULT 'solid',
     fill_color    text    NOT NULL DEFAULT '#cccccc',
     fill_opacity  real    NOT NULL DEFAULT 0,
     is_published  boolean NOT NULL DEFAULT true,

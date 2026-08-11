@@ -342,6 +342,7 @@ class AdminDashboard {
                         <th>Features</th>
                         <th>Stroke colour</th>
                         <th>Stroke width</th>
+                        <th>Stroke type</th>
                         <th>Fill colour</th>
                         <th title="0 = transparent fill, 1 = opaque">Fill opacity</th>
                         <th title="Yes = shown in the map's layer list">Published</th>
@@ -349,7 +350,7 @@ class AdminDashboard {
                       </tr>
                     </thead>
                     <tbody id="admdiv-tbody">
-                      <tr><td colspan="9" class="loading">Loading layers...</td></tr>
+                      <tr><td colspan="10" class="loading">Loading layers...</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -4471,7 +4472,7 @@ class AdminDashboard {
     if (!tbody) return;
     const rows = this.adminDivisions || [];
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No layers uploaded yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No layers uploaded yet.</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map(d => {
@@ -4485,6 +4486,10 @@ class AdminDashboard {
         <td>${d.feature_count ?? '-'}</td>
         <td><input type="color" class="admdiv-stroke" data-id="${id}" value="${this.escapeHtml(d.stroke_color || '#444444')}"></td>
         <td><input type="number" class="admdiv-width" data-id="${id}" value="${d.stroke_width ?? 1.5}" min="0" max="20" step="0.5" style="width:64px;"></td>
+        <td><select class="admdiv-stroke-type" data-id="${id}">
+          ${[['solid', 'Continuous'], ['dashed', 'Dashed'], ['dotted', 'Dotted'], ['dash-dot', 'Dash-dot']]
+            .map(([v, l]) => `<option value="${v}"${(d.stroke_type || 'solid') === v ? ' selected' : ''}>${l}</option>`).join('')}
+        </select></td>
         <td><input type="color" class="admdiv-fill" data-id="${id}" value="${this.escapeHtml(d.fill_color || '#cccccc')}"></td>
         <td><input type="number" class="admdiv-opacity" data-id="${id}" value="${d.fill_opacity ?? 0}" min="0" max="1" step="0.05" style="width:64px;"></td>
         <td>${pub}</td>
@@ -4507,6 +4512,8 @@ class AdminDashboard {
       patch(e.target.dataset.id, { stroke_color: e.target.value })));
     tbody.querySelectorAll('.admdiv-width').forEach(el => el.addEventListener('change', e =>
       patch(e.target.dataset.id, { stroke_width: parseFloat(e.target.value || '1.5') })));
+    tbody.querySelectorAll('.admdiv-stroke-type').forEach(el => el.addEventListener('change', e =>
+      patch(e.target.dataset.id, { stroke_type: e.target.value })));
     tbody.querySelectorAll('.admdiv-fill').forEach(el => el.addEventListener('change', e =>
       patch(e.target.dataset.id, { fill_color: e.target.value })));
     tbody.querySelectorAll('.admdiv-opacity').forEach(el => el.addEventListener('change', e =>

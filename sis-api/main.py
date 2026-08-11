@@ -3609,6 +3609,7 @@ async def delete_dataset(
 
 ADMIN_DIV_MAX_BYTES = 100 * 1024 * 1024   # boundary files can be chunky
 ADMIN_DIV_GEOM_TYPES = {"Polygon", "MultiPolygon"}
+ADMIN_DIV_STROKE_TYPES = {"solid", "dashed", "dotted", "dash-dot"}
 HEX_COLOUR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
@@ -3677,7 +3678,8 @@ async def list_admin_divisions(api_client: dict = Depends(verify_api_key)):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
                 SELECT division_id, name, display_order, stroke_color,
-                       stroke_width, fill_color, fill_opacity, feature_count
+                       stroke_width, stroke_type, fill_color, fill_opacity,
+                       feature_count
                 FROM api.admin_division
                 WHERE is_published
                 ORDER BY display_order, division_id
@@ -3692,8 +3694,9 @@ async def list_admin_divisions_manage(current_user: dict = Depends(get_current_a
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
                 SELECT division_id, name, display_order, stroke_color,
-                       stroke_width, fill_color, fill_opacity, is_published,
-                       feature_count, file_name, uploaded_by, uploaded_at
+                       stroke_width, stroke_type, fill_color, fill_opacity,
+                       is_published, feature_count, file_name, uploaded_by,
+                       uploaded_at
                 FROM api.admin_division
                 ORDER BY display_order, division_id
             """)
@@ -3772,6 +3775,7 @@ class AdminDivisionUpdate(BaseModel):
     display_order: Optional[int] = None
     stroke_color: Optional[str] = None
     stroke_width: Optional[float] = None
+    stroke_type: Optional[str] = None
     fill_color: Optional[str] = None
     fill_opacity: Optional[float] = None
     is_published: Optional[bool] = None
@@ -3802,6 +3806,11 @@ async def update_admin_division(
         if not (0 <= body.stroke_width <= 20):
             raise HTTPException(status_code=400, detail="stroke_width must be 0–20")
         sets.append("stroke_width = %s"); params.append(body.stroke_width)
+    if body.stroke_type is not None:
+        if body.stroke_type not in ADMIN_DIV_STROKE_TYPES:
+            raise HTTPException(status_code=400,
+                                detail=f"stroke_type must be one of: {', '.join(sorted(ADMIN_DIV_STROKE_TYPES))}")
+        sets.append("stroke_type = %s"); params.append(body.stroke_type)
     if body.fill_opacity is not None:
         if not (0 <= body.fill_opacity <= 1):
             raise HTTPException(status_code=400, detail="fill_opacity must be 0–1")
