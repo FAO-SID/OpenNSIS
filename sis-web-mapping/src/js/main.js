@@ -266,9 +266,9 @@ async function loadAdminDivisions() {
     map.addLayer(layer);
     adminDivisionLayers[d.division_id] = { layer, loaded: false };
 
-    cb.addEventListener('change', async (e) => {
+    const applyVisibility = async (checked) => {
       const entry = adminDivisionLayers[d.division_id];
-      if (e.target.checked && !entry.loaded) {
+      if (checked && !entry.loaded) {
         try {
           const fc = await api.getAdminDivisionGeoJson(d.division_id);
           entry.layer.getSource().addFeatures(
@@ -276,12 +276,18 @@ async function loadAdminDivisions() {
           entry.loaded = true;
         } catch (err) {
           console.error('Failed to load division layer:', err);
-          e.target.checked = false;
+          cb.checked = false;
           return;
         }
       }
-      entry.layer.setVisible(e.target.checked);
-    });
+      entry.layer.setVisible(checked);
+    };
+    cb.addEventListener('change', (e) => applyVisibility(e.target.checked));
+
+    // Published layers start active on the map. Deliberately not awaited —
+    // the geometry downloads must not delay app start-up.
+    cb.checked = true;
+    applyVisibility(true);
   });
 
   groupDiv.appendChild(contentDiv);
