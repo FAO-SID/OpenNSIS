@@ -6,6 +6,13 @@ Licensed under the Apache License, Version 2.0 (see LICENSE).
 Third-party content
 -------------------
 
+The soil data schema design ("soil_data") and the GloSIS / ISO 28258 SPARQL
+extraction queries and loader (sis-database/owl2sql/) are derived from
+ISRIC's iso-28258 project (https://github.com/ISRICWorldSoil/iso-28258),
+Copyright (C) 2022-2025 ISRIC - World Soil Information, licensed under the
+MIT Licence. The full notice, licence text and academic citation are in
+sis-database/NOTICE.
+
 Soil property and laboratory method codelists are derived from the GloSIS
 ontology (https://github.com/glosis-ld/glosis), licensed under the Creative
 Commons Attribution-NonCommercial-ShareAlike 3.0 IGO licence
