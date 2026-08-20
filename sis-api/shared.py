@@ -82,6 +82,8 @@ class Layer(BaseModel):
     publish: bool = True
     property_name: Optional[str] = None
     dimension: Optional[str] = None
+    dimension_stats: Optional[str] = None
+    year: Optional[int] = None          # EXTRACT(YEAR FROM mapset.creation_date)
     version: Optional[str] = None
     unit_of_measure_id: Optional[str] = None
     metadata_url: Optional[str] = None

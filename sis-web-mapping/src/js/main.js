@@ -435,9 +435,18 @@ function createLayerItem(layer) {
   const itemDiv = document.createElement('div');
   itemDiv.className = 'layer-item';
   
-  const layerName = layer.dimension 
-    ? `${layer.property_name} (${layer.dimension})`
-    : layer.property_name;
+  // e.g. "Bulk Density of the fine earth fraction (2024, 0-30, MEAN, kg/dm³)"
+  // — year (from mapset.creation_date), depth, statistical dimension and
+  // unit in one parenthesis. A trailing "(YYYY)" in the title is stripped so
+  // the year isn't shown twice (and serves as fallback when creation_date is
+  // not set). "X" means "no statistical dimension" and is not shown.
+  const ym = /^(.*)\s+\((\d{4})\)\s*$/.exec(layer.property_name || '');
+  const baseName = ym ? ym[1] : layer.property_name;
+  const year = layer.year || (ym && ym[2]);
+  const stats = layer.dimension_stats === 'X' ? null : layer.dimension_stats;
+  const dims = [year, layer.dimension, stats, layer.unit_of_measure_id]
+    .filter(Boolean).join(', ');
+  const layerName = dims ? `${baseName} (${dims})` : layer.property_name;
 
   itemDiv.innerHTML = `
     <input type="radio" name="data-layer" id="layer-${layer.layer_id}" value="${layer.layer_id}">

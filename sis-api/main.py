@@ -784,6 +784,8 @@ async def get_published_layers(
                       l.dimension_depth, l.dimension_stats), '')
                   ) AS property_name,
                   l.dimension_depth    AS dimension,
+                  l.dimension_stats,
+                  EXTRACT(YEAR FROM m.creation_date)::int AS year,
                   l.is_default,
                   m.unit_of_measure_id,
                   m.keyword_theme      AS keywords,
