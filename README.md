@@ -18,8 +18,7 @@ organisation and exposes:
 - an opt-in **Federation API** (sis-api-glosis) that lets the GloSIS
   Discovery Hub query this node for soil-profile data.
 
-The data model is based on
-[ISO 28258](https://www.iso.org/standard/44595.html).
+The data model is based on [ISO 28258](https://www.iso.org/standard/44595.html) and is derived from ISRIC's open-source implementation, [iso-28258](https://github.com/ISRICWorldSoil/iso-28258) (MIT licence). See [`sis-database/NOTICE`](./sis-database/NOTICE) for attribution and citation.
 
 ---
 
