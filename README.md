@@ -259,6 +259,13 @@ block + the HSTS header in `sis-nginx/nginx.conf`, and uncomment the
 
 ---
 
-## License
+## Licensing
 
-See [LICENSE](./LICENSE).
+- **Code** — [Apache License 2.0](./LICENSE). Attribution details in [NOTICE](./NOTICE).
+- **Soil property & lab method codelists** — derived from the
+  [GloSIS ontology](https://github.com/glosis-ld/glosis) and remain under its
+  [CC BY-NC-SA 3.0 IGO](https://creativecommons.org/licenses/by-nc-sa/3.0/igo/)
+  licence (attribution, non-commercial, share-alike). They are **not**
+  relicensed by this repository. This covers `sis-database/owl2sql/` and the
+  codelist rows in the seed dumps.
+- **Documentation and diagrams** — [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).

@@ -1,0 +1,17 @@
+SIS — Soil Information System
+Copyright 2025-2026 FAO-SID
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party content
+-------------------
+
+Soil property and laboratory method codelists are derived from the GloSIS
+ontology (https://github.com/glosis-ld/glosis), licensed under the Creative
+Commons Attribution-NonCommercial-ShareAlike 3.0 IGO licence
+(CC BY-NC-SA 3.0 IGO). This applies to the ontology files under
+sis-database/owl2sql/ and to the codelist rows they generate in the seed
+dumps (sis-database/sis-database_latest_with_codelist.sql). These remain
+under CC BY-NC-SA 3.0 IGO and are NOT covered by the Apache-2.0 licence of
+this repository's code; in particular, the NonCommercial clause applies to
+uses of that data.
