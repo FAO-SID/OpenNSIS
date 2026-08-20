@@ -824,6 +824,8 @@ async def get_published_layers(
             "project_name": r.get("project_name"),
             "property_name": r.get("property_name"),
             "dimension": r.get("dimension"),
+            "dimension_stats": r.get("dimension_stats"),
+            "year": r.get("year"),
             "version": None,
             "unit_of_measure_id": r.get("unit_of_measure_id"),
             "keywords": r.get("keywords"),
