@@ -1141,9 +1141,15 @@ class AdminDashboard {
       this.dstInited = true;
     }
 
-    // Administrative divisions live in the (admin-only) Administration tab.
-    if (tab === 'administration' && this.isAdmin && this.admDivInited) {
-      this.loadAdminDivisions().then(() => this.renderAdminDivisions());
+    if (tab === 'administration' && this.isAdmin) {
+      // Refresh on every entry — the lists are otherwise only loaded at
+      // login and go stale (e.g. a user renaming their own account still
+      // showed under the old name).
+      this.loadUsers().then(() => this.renderUsers());
+      this.loadSettings().then(() => this.renderSettings());
+      if (this.admDivInited) {
+        this.loadAdminDivisions().then(() => this.renderAdminDivisions());
+      }
     }
   }
 
