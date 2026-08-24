@@ -194,6 +194,16 @@ async def update_own_account(
             renaming = bool(payload.new_user_id
                             and payload.new_user_id != current_user['user_id'])
 
+            # The default admin account's guardrails are keyed to its name —
+            # renaming it would silently shed its protections, and an instance
+            # could then lose its last untouchable administrator.
+            if renaming and current_user['user_id'] == DEFAULT_ADMIN_ID:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail=f"The default '{DEFAULT_ADMIN_ID}' account cannot be renamed.")
+            if renaming and payload.new_user_id == DEFAULT_ADMIN_ID:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail=f"'{DEFAULT_ADMIN_ID}' is reserved for the default administrator account.")
+
             if renaming:
                 cur.execute("SELECT 1 FROM api.user WHERE user_id = %s",
                             (payload.new_user_id,))
