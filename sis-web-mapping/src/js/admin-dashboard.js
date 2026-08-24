@@ -4,6 +4,7 @@
  */
 
 import api from './api-client.js';
+import { AVAILABLE as LANGUAGES } from './i18n.js';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import { Tile as TileLayer } from 'ol/layer';
@@ -2769,7 +2770,7 @@ class AdminDashboard {
   renderSettings() {
     const tbody = document.getElementById('settings-tbody');
     const mapKeys = ['LATITUDE', 'LONGITUDE', 'ZOOM'];
-    const keyOrder = ['APP_TITLE', 'ORG_LOGO_URL', 'BASE_MAP_DEFAULT', 'LATITUDE', 'LONGITUDE', 'ZOOM'];
+    const keyOrder = ['APP_TITLE', 'LANGUAGE', 'ORG_LOGO_URL', 'BASE_MAP_DEFAULT', 'LATITUDE', 'LONGITUDE', 'ZOOM'];
     // Infrastructure settings — kept in DB but hidden from the UI to avoid accidental edits
     const hiddenKeys = new Set(['DOWNLOAD_BASE_URL', 'GLOSIS_FEDERATION_ENABLED']);
 
@@ -2795,7 +2796,15 @@ class AdminDashboard {
       const isMapKey = mapKeys.includes(setting.key);
       const isBaseMap = setting.key === 'BASE_MAP_DEFAULT';
       let valueCell;
-      if (isBaseMap) {
+      if (setting.key === 'LANGUAGE') {
+        // Default UI language for this instance — offer only the languages
+        // the application actually ships (visitors can still override via
+        // the map's language selector).
+        const opts = LANGUAGES.map(([code, label]) =>
+          `<option value="${code}"${setting.value === code ? ' selected' : ''}>${label} (${code})</option>`
+        ).join('');
+        valueCell = `<select class="inline-edit" data-key="${key}" style="padding:2px 6px;font-size:var(--fs-sm);">${opts}</select>`;
+      } else if (isBaseMap) {
         const opts = Object.entries(BASE_MAP_OPTIONS).map(([k, v]) =>
           `<option value="${k}"${setting.value === k ? ' selected' : ''}>${v.label}</option>`
         ).join('');
