@@ -13,13 +13,15 @@
  */
 import en from '../locales/en.json';
 import es from '../locales/es.json';
+import fr from '../locales/fr.json';
 import pt from '../locales/pt.json';
 import ru from '../locales/ru.json';
 
-const LOCALES = { en, es, pt, ru };
+const LOCALES = { en, es, fr, pt, ru };
 export const AVAILABLE = [
   ['en', 'English'],
   ['es', 'Español'],
+  ['fr', 'Français'],
   ['pt', 'Português'],
   ['ru', 'Русский'],
 ];
