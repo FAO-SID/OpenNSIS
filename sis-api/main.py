@@ -229,21 +229,25 @@ async def update_own_account(
             if renaming:
                 cur.execute("ALTER TABLE api.audit ENABLE TRIGGER audit_no_update")
 
-            # After a rename the old id no longer exists — the audit row must
-            # carry the new id or its user FK fails.
-            log_audit(new_user_id, None, "user_self_updated",
-                     {"renamed_from": current_user['user_id'] if renaming else None,
-                      "new_user_id": payload.new_user_id,
-                      "password_changed": payload.new_password is not None}, None)
+    # OUTSIDE the transaction: the rename holds an ACCESS EXCLUSIVE lock on
+    # api.audit until commit, and log_audit writes on its OWN connection — an
+    # audit insert before this point deadlocks against our own lock (each side
+    # waiting on the other, invisible to Postgres' deadlock detector). The
+    # audit row also carries the NEW id: after the rename the old id no longer
+    # exists and would fail the user FK.
+    log_audit(new_user_id, None, "user_self_updated",
+             {"renamed_from": current_user['user_id'] if renaming else None,
+              "new_user_id": payload.new_user_id,
+              "password_changed": payload.new_password is not None}, None)
 
-            result = {"message": "Account updated successfully"}
-            if payload.new_user_id and payload.new_user_id != current_user['user_id']:
-                new_token = create_access_token(
-                    data={"sub": new_user_id},
-                    expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-                result["access_token"] = new_token
-                result["token_type"] = "bearer"
-            return result
+    result = {"message": "Account updated successfully"}
+    if renaming:
+        new_token = create_access_token(
+            data={"sub": new_user_id},
+            expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+        result["access_token"] = new_token
+        result["token_type"] = "bearer"
+    return result
 
 @app.get("/api/auth/verify")
 async def verify_token(current_user: dict = Depends(get_current_user)):
