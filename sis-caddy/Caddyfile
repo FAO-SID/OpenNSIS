@@ -1,0 +1,8 @@
+# Automatic-HTTPS front for a SIS node (used only with the compose `tls`
+# profile). Caddy obtains and renews Let's Encrypt certificates for {$DOMAIN}
+# and proxies everything to sis-nginx, which keeps all routing, rate limiting,
+# security headers and body-size limits exactly as without TLS.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy sis-nginx:80
+}

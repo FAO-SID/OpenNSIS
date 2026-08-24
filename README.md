@@ -175,6 +175,42 @@ only one or two services without touching the data, prefer:
 docker compose up -d --build --no-deps sis-api sis-web-mapping
 ```
 
+### Enabling HTTPS (automatic certificates)
+
+An optional Caddy front (`sis-caddy`, compose profile `tls`) terminates TLS
+with automatic Let's Encrypt certificates and proxies everything to
+`sis-nginx` unchanged. It is dormant by default — instances without a domain
+run plain HTTP exactly as before.
+
+**Prerequisites — check all three first:**
+
+1. A DNS A record for your domain points at this server's public IP (no CDN
+   or institutional proxy intercepting `/.well-known/acme-challenge`).
+2. Host ports **80 and 443 are free** (`ss -tlnp | grep -E ':80|:443'` shows
+   only the SIS's own nginx, or nothing) **and open in the firewall**.
+3. No other ACME client (certbot, Traefik, another Caddy) runs on this host.
+   If another web server or ACME stack already owns 80/443, do **not** enable
+   this — register the SIS as a virtual host in that existing proxy instead.
+
+Never enable this on a shared multi-instance host (e.g. the workshop layout).
+
+**New install:** `export DOMAIN=soil.example.org` before running `deploy.sh` —
+that is all; the settings are persisted into `.env`.
+
+**Existing install:** after `./update.sh`, add four lines to `.env`:
+
+```
+DOMAIN=soil.example.org
+COMPOSE_PROFILES=tls
+NGINX_HTTP_BIND=127.0.0.1:8080
+NGINX_HTTPS_BIND=127.0.0.1:8443
+```
+
+then `docker compose up -d`. Caddy takes ports 80/443 (nginx retreats to
+loopback), obtains the certificate on first request and renews it
+automatically; certificates persist in the `caddy-data` volume. To disable,
+remove the four lines and run `docker compose up -d --remove-orphans`.
+
 ### Updating to the latest release
 
 To pull the latest code and apply it **without touching your data**, run from
@@ -285,9 +321,11 @@ The deployment pattern enforces:
 - public metadata popup escapes every interpolation (no XSS via pyCSW
   records)
 
-To add TLS, drop a cert into `sis-nginx/ssl/`, uncomment the HTTPS server
-block + the HSTS header in `sis-nginx/nginx.conf`, and uncomment the
-`./sis-nginx/ssl:/etc/nginx/ssl:ro` mount in `docker-compose.yml`.
+For TLS, the recommended path is the automatic-HTTPS front (see
+**Enabling HTTPS** above). Manual certificates remain possible: drop a cert
+into `sis-nginx/ssl/`, uncomment the HTTPS server block + the HSTS header in
+`sis-nginx/nginx.conf`, and uncomment the `./sis-nginx/ssl:/etc/nginx/ssl:ro`
+mount in `docker-compose.yml`.
 
 ---
 

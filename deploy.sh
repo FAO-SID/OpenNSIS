@@ -44,6 +44,22 @@ if [[ ! -f "$PROJECT_DIR/.env" ]]; then
   echo ".env generated with random secrets (chmod 600)."
 fi
 
+# Optional automatic HTTPS: `export DOMAIN=soil.example.org` before running
+# deploy.sh and the Caddy TLS front is enabled — certificates are obtained
+# and renewed automatically. Persisted into .env so later `docker compose`
+# invocations and update.sh keep the same topology.
+if [[ -n "${DOMAIN:-}" ]] && ! grep -q "^COMPOSE_PROFILES=tls" "$PROJECT_DIR/.env"; then
+  {
+    echo ""
+    echo "# Automatic HTTPS (added by deploy.sh — see 'Enabling HTTPS' in the README)"
+    echo "DOMAIN=$DOMAIN"
+    echo "COMPOSE_PROFILES=tls"
+    echo "NGINX_HTTP_BIND=127.0.0.1:8080"
+    echo "NGINX_HTTPS_BIND=127.0.0.1:8443"
+  } >> "$PROJECT_DIR/.env"
+  echo "HTTPS enabled for $DOMAIN (Caddy TLS front, certificates via Let's Encrypt)."
+fi
+
 # Load .env so shell can use the same vars docker compose sees
 set -a
 source "$PROJECT_DIR/.env"
@@ -269,6 +285,11 @@ docker exec sis-metadata sed -i "s/https:\/\/pycsw.org/http:\/\/$HOST_SIS_METADA
 # Build and start container
 docker compose up --build sis-web-mapping -d
 
+# Automatic-HTTPS front, only when enabled (COMPOSE_PROFILES=tls in .env).
+if [[ "${COMPOSE_PROFILES:-}" == *tls* ]]; then
+  docker compose up -d sis-caddy
+fi
+
 
 ##########################
 #  Final credentials     #
@@ -282,4 +303,8 @@ echo " Admin password: $ADMIN_PASSWORD"
 echo
 echo " Save this password now — it will not be shown again."
 echo " Change it via the Administration tab after first login."
+if [[ -n "${DOMAIN:-}" ]]; then
+  echo " URL: https://$DOMAIN/  (certificate is issued on first request —"
+  echo "      allow a few seconds; DNS must already point here)"
+fi
 echo "============================================================"
