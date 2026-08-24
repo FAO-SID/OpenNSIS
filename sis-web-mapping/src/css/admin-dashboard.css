@@ -260,6 +260,21 @@ input.no-spinner {
 
 .close-dashboard:hover { background: rgba(255, 255, 255, 0.28); }
 
+/* Globe language button — icon-only, matches the map view's selector. */
+.admin-lang-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #ffffff;
+    padding: var(--sp-2);
+    line-height: 0;
+    display: flex;
+    align-items: center;
+    transition: opacity var(--transition);
+}
+
+.admin-lang-btn:hover { opacity: 0.75; }
+
 .logout-btn {
     background: rgba(220, 53, 69, 0.85);
     border-color: rgba(220, 53, 69, 0.9);

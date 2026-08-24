@@ -4,7 +4,7 @@
  */
 
 import api from './api-client.js';
-import { AVAILABLE as LANGUAGES, t } from './i18n.js';
+import { AVAILABLE as LANGUAGES, currentLang, switchLanguage, t } from './i18n.js';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import { Tile as TileLayer } from 'ol/layer';
@@ -187,6 +187,12 @@ class AdminDashboard {
           <div class="dashboard-header">
             <h2>${t('a.adminPanel')}</h2>
             <div class="dashboard-header-actions">
+              <div style="position:relative;display:flex;align-items:center;">
+                <button type="button" class="admin-lang-btn" id="admin-lang-btn" title="${t('lang.label')}" aria-label="${t('lang.label')}">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3.6 8.5h16.8M3.6 15.5h16.8"/></svg>
+                </button>
+                <div id="admin-lang-menu" style="position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid #ddd;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:none;min-width:130px;overflow:hidden;z-index:10001;"></div>
+              </div>
               <button class="close-dashboard" id="close-dashboard">${t('a.backToMap')}</button>
               <button class="logout-btn" id="logout-dashboard">${t('a.logout')}</button>
             </div>
@@ -837,6 +843,31 @@ class AdminDashboard {
    * Attach all event listeners
    */
   attachEventListeners() {
+    // Language switcher — same globe/dropdown as the map view. Switching
+    // reloads the page; a sessionStorage flag makes main.js reopen the panel.
+    const langBtn = document.getElementById('admin-lang-btn');
+    const langMenu = document.getElementById('admin-lang-menu');
+    if (langBtn && langMenu) {
+      for (const [code, label] of LANGUAGES) {
+        const item = document.createElement('div');
+        item.textContent = label;
+        item.style.cssText = 'padding:8px 14px;cursor:pointer;font-size:13px;color:#333;'
+          + (code === currentLang() ? 'font-weight:700;background:#f2f7f2;' : '');
+        item.addEventListener('mouseenter', () => { item.style.background = '#eef3ee'; });
+        item.addEventListener('mouseleave', () => { item.style.background = code === currentLang() ? '#f2f7f2' : ''; });
+        item.addEventListener('click', () => {
+          try { sessionStorage.setItem('sis_reopen_admin', '1'); } catch (e) { /* private mode */ }
+          switchLanguage(code);
+        });
+        langMenu.appendChild(item);
+      }
+      langBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        langMenu.style.display = langMenu.style.display === 'none' ? 'block' : 'none';
+      });
+      document.addEventListener('click', () => { langMenu.style.display = 'none'; });
+    }
+
     // Close dashboard
     document.getElementById('close-dashboard').addEventListener('click', () => {
       this.hide();

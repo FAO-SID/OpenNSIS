@@ -1545,6 +1545,15 @@ function addLoginButton() {
   document.body.appendChild(langBtn);
   document.body.appendChild(langMenu);
 
+  // A language switch made from inside the admin panel reloads the page;
+  // reopen the panel so the user lands back where they were.
+  try {
+    if (sessionStorage.getItem('sis_reopen_admin') === '1') {
+      sessionStorage.removeItem('sis_reopen_admin');
+      if (api.isAuthenticated()) showAdminPanel();
+    }
+  } catch (e) { /* private mode */ }
+
   window.addEventListener('auth:expired', () => {
     if (adminDashboard && typeof adminDashboard.hide === 'function') adminDashboard.hide();
     setAuthButtonIcon(loginBtn, 'user', t('auth.login'));
