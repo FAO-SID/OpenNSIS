@@ -1504,9 +1504,13 @@ function addLoginButton() {
   const langBtn = document.createElement('button');
   langBtn.id = 'lang-btn';
   langBtn.type = 'button';
-  langBtn.textContent = '\uD83C\uDF10';
+  // Stroke-drawn globe (no background) — same icon as grimoire.at's selector.
+  langBtn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">'
+    + '<circle cx="12" cy="12" r="9"/>'
+    + '<ellipse cx="12" cy="12" rx="4" ry="9"/>'
+    + '<path d="M3.6 8.5h16.8M3.6 15.5h16.8"/></svg>';
   langBtn.title = t('lang.label');
-  langBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; padding: 8px 10px; background: rgba(255,255,255,0.9); border: none; border-radius: 4px; cursor: pointer; z-index: 1001; font-size: 15px; line-height: 1;';
+  langBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; padding: 6px; background: none; border: none; cursor: pointer; z-index: 1001; color: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); line-height: 0;';
 
   const langMenu = document.createElement('div');
   langMenu.id = 'lang-menu';
