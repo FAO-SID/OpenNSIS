@@ -1482,17 +1482,29 @@ function setupControls() {
   addLoginButton();
 }
 
+// Icon states for the floating auth button — same stroke style as the globe.
+function setAuthButtonIcon(btn, kind, label) {
+  const icons = {
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5.5 8-5.5s6.5 2 8 5.5"/>',
+    back: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  };
+  btn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">'
+    + icons[kind] + '</svg>';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+}
+
 function addLoginButton() {
   const loginBtn = document.createElement('button');
   loginBtn.id = 'login-btn';
-  loginBtn.style.cssText = 'position: absolute; top: 20px; right: 66px; padding: 8px 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 4px; cursor: pointer; z-index: 1001; font-weight: 500;';
+  loginBtn.style.cssText = 'position: absolute; top: 20px; right: 58px; padding: 6px; background: none; border: none; cursor: pointer; z-index: 1001; color: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); line-height: 0;';
   
   // Check if user is already logged in (restore session)
   if (api.restoreSession()) {
-    loginBtn.textContent = t('auth.adminPanel');
+    setAuthButtonIcon(loginBtn, 'user', t('auth.adminPanel'));
     loginBtn.onclick = showAdminPanel;  // CHANGED: Use .onclick instead of addEventListener
   } else {
-    loginBtn.textContent = t('auth.login');
+    setAuthButtonIcon(loginBtn, 'user', t('auth.login'));
     loginBtn.onclick = showLoginModal;  // CHANGED: Use .onclick instead of addEventListener
   }
 
@@ -1535,7 +1547,7 @@ function addLoginButton() {
 
   window.addEventListener('auth:expired', () => {
     if (adminDashboard && typeof adminDashboard.hide === 'function') adminDashboard.hide();
-    loginBtn.textContent = t('auth.login');
+    setAuthButtonIcon(loginBtn, 'user', t('auth.login'));
     loginBtn.onclick = showLoginModal;
   });
 }
@@ -1607,7 +1619,7 @@ function showAdminPanel() {
   const loginBtn = document.getElementById('login-btn');
   if (!loginBtn) return;
   
-  loginBtn.textContent = t('auth.backToMap');
+  setAuthButtonIcon(loginBtn, 'back', t('auth.backToMap'));
   
   // Set click handler for closing dashboard
   loginBtn.onclick = () => {
@@ -1615,7 +1627,7 @@ function showAdminPanel() {
     adminDashboard.hide();
     
     // Reset button to reopen dashboard
-    loginBtn.textContent = t('auth.adminPanel');
+    setAuthButtonIcon(loginBtn, 'user', t('auth.adminPanel'));
     loginBtn.onclick = showAdminPanel; // This line is critical!
   };
 }

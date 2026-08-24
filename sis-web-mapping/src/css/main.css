@@ -614,24 +614,19 @@ h1, h2, h3, h4, h5 {
    Login button (floating top-right before dashboard opens)
    ===================================================================== */
 #login-btn {
-    font-family: var(--font-sans);
-    font-size: var(--fs-sm) !important;
-    font-weight: 600 !important;
-    color: var(--color-primary) !important;
-    background: rgba(255, 255, 255, 0.95) !important;
-    border: 1px solid var(--color-border) !important;
-    border-radius: var(--radius-sm) !important;
-    padding: var(--sp-2) var(--sp-4) !important;
-    box-shadow: var(--shadow-sm);
+    background: none !important;
+    border: none !important;
+    padding: 6px !important;
+    color: #fff !important;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
     cursor: pointer;
-    transition: all var(--transition);
+    line-height: 0;
+    transition: transform var(--transition);
 }
 
-#login-btn:hover {
-    background: var(--color-primary) !important;
-    color: #ffffff !important;
-    border-color: var(--color-primary) !important;
-    box-shadow: var(--shadow-md);
+#login-btn:hover,
+#lang-btn:hover {
+    transform: scale(1.15);
 }
 
 #login-btn:focus-visible {
