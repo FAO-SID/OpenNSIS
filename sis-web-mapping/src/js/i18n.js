@@ -13,11 +13,15 @@
  */
 import en from '../locales/en.json';
 import es from '../locales/es.json';
+import pt from '../locales/pt.json';
+import ru from '../locales/ru.json';
 
-const LOCALES = { en, es };
+const LOCALES = { en, es, pt, ru };
 export const AVAILABLE = [
   ['en', 'English'],
   ['es', 'Español'],
+  ['pt', 'Português'],
+  ['ru', 'Русский'],
 ];
 
 let instanceDefault = 'en';
