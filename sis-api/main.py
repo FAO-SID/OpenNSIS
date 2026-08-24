@@ -352,25 +352,83 @@ async def list_users(current_user: dict = Depends(get_current_admin_user)):
             )
             return [dict(u) for u in cur.fetchall()]
 
+# The account created at deployment. It can manage every other account, and
+# no other account can modify or remove it — so no sequence of admin mistakes
+# can leave an instance without a working administrator.
+DEFAULT_ADMIN_ID = "admin"
+
+
+def _active_admins_besides(cur, user_id: str) -> int:
+    cur.execute("SELECT count(*) FROM api.\"user\" "
+                "WHERE is_admin AND is_active AND user_id <> %s", (user_id,))
+    return cur.fetchone()[0]
+
+
 @app.patch("/api/users/{user_id}/active")
 async def toggle_user_active(user_id: str, is_active: bool, current_user: dict = Depends(get_current_admin_user)):
-    """Activate or deactivate a user (admin only)."""
+    """Activate or deactivate a user (admin only). Guardrails: never yourself
+    (ask another administrator), never the default admin account (unless you
+    are it — and then the self rule applies), never the last active admin."""
+    if user_id == current_user['user_id']:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="You cannot change your own active status — ask another administrator.")
+    if user_id == DEFAULT_ADMIN_ID:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"The default '{DEFAULT_ADMIN_ID}' account cannot be deactivated.")
     with get_db() as conn:
         with conn.cursor() as cur:
-            cur.execute("UPDATE api.\"user\" SET is_active = %s WHERE user_id = %s", (is_active, user_id))
-            if cur.rowcount == 0:
+            cur.execute("SELECT is_admin FROM api.\"user\" WHERE user_id = %s", (user_id,))
+            row = cur.fetchone()
+            if not row:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            if not is_active and row[0] and _active_admins_besides(cur, user_id) == 0:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail="Cannot deactivate the last active administrator.")
+            cur.execute("UPDATE api.\"user\" SET is_active = %s WHERE user_id = %s", (is_active, user_id))
             log_audit(current_user['user_id'], None, "user_active_toggled",
                      {"user": user_id, "is_active": is_active}, None)
             return {"message": f"User {'activated' if is_active else 'deactivated'} successfully"}
+
+
+@app.patch("/api/users/{user_id}/admin")
+async def toggle_user_admin(user_id: str, is_admin: bool, current_user: dict = Depends(get_current_admin_user)):
+    """Grant or revoke administrator rights (admin only). Guardrails: never
+    your own rights, never the default admin account, never the last one."""
+    if user_id == current_user['user_id']:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="You cannot change your own administrator rights — ask another administrator.")
+    if user_id == DEFAULT_ADMIN_ID:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"The default '{DEFAULT_ADMIN_ID}' account's administrator rights cannot be changed.")
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT is_admin FROM api.\"user\" WHERE user_id = %s", (user_id,))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+            if row[0] and not is_admin and _active_admins_besides(cur, user_id) == 0:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                    detail="Cannot revoke the last active administrator.")
+            cur.execute("UPDATE api.\"user\" SET is_admin = %s WHERE user_id = %s", (is_admin, user_id))
+            log_audit(current_user['user_id'], None, "user_admin_toggled",
+                     {"user": user_id, "is_admin": is_admin}, None)
+            return {"message": f"Administrator rights {'granted' if is_admin else 'revoked'} successfully"}
 
 @app.delete("/api/users/{user_id}")
 async def delete_user(user_id: str, current_user: dict = Depends(get_current_admin_user)):
     """Delete a user (admin only)."""
     if user_id == current_user['user_id']:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete your own account")
+    if user_id == DEFAULT_ADMIN_ID:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail=f"The default '{DEFAULT_ADMIN_ID}' account cannot be deleted.")
     with get_db() as conn:
         with conn.cursor() as cur:
+            # The audit FK has no ON DELETE action, so a user with audited
+            # actions (anyone who ever logged in) could not be deleted at all.
+            # Clearing user_id is the one audit mutation the append-only
+            # trigger permits — entries stay, attribution is anonymised.
+            cur.execute("UPDATE api.audit SET user_id = NULL WHERE user_id = %s", (user_id,))
             cur.execute("DELETE FROM api.user WHERE user_id = %s", (user_id,))
             if cur.rowcount == 0:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")

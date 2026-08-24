@@ -2931,27 +2931,63 @@ class AdminDashboard {
 
     tbody.innerHTML = this.users.map(u => {
       const isOnlyAdmin = u.is_admin && adminCount <= 1;
-      const deleteBtn = isOnlyAdmin
+      const isSelf = u.user_id === this.currentUserId;
+      const isDefaultAdmin = u.user_id === 'admin';
+      // Guardrails (also enforced server-side): you never manage your own
+      // row, nobody manages the default admin account, and the last admin
+      // cannot be removed.
+      const locked = isSelf || isDefaultAdmin || isOnlyAdmin;
+      const lockTitle = isSelf ? 'Your own account — ask another administrator'
+        : isDefaultAdmin ? "The default 'admin' account cannot be modified"
+        : 'Only admin — cannot be removed';
+      const deleteBtn = locked
         ? ''
         : `<button class="btn btn-danger btn-sm" onclick="adminDashboard.deleteUser('${this.escapeJsAttr(u.user_id)}')">Delete</button>`;
       let activeLabel;
-      if (isOnlyAdmin) {
-        activeLabel = '<span class="badge badge-success" title="Only admin — cannot deactivate">Yes</span>';
+      if (locked) {
+        activeLabel = `<span class="badge badge-${u.is_active ? 'success' : 'danger'}" title="${lockTitle}">${u.is_active ? 'Yes' : 'No'}</span>`;
       } else if (u.is_active) {
         activeLabel = '<span class="badge badge-success toggle-active" style="cursor:pointer;" title="Click to deactivate">Yes</span>';
       } else {
         activeLabel = '<span class="badge badge-danger toggle-active" style="cursor:pointer;" title="Click to activate">No</span>';
       }
+      let adminLabel;
+      if (locked) {
+        adminLabel = u.is_admin
+          ? `<span class="badge badge-success" title="${lockTitle}">Admin</span>` : '-';
+      } else if (u.is_admin) {
+        adminLabel = '<span class="badge badge-success toggle-admin" style="cursor:pointer;" title="Click to revoke administrator rights">Admin</span>';
+      } else {
+        adminLabel = '<span class="badge toggle-admin" style="cursor:pointer;background:#e0e0e0;color:#555;" title="Click to grant administrator rights">User</span>';
+      }
       return `
         <tr>
           <td><strong>${this.escapeHtml(u.user_id)}</strong></td>
-          <td>${u.is_admin ? '<span class="badge badge-success">Admin</span>' : '-'}</td>
+          <td data-user-id="${this.escapeHtml(u.user_id)}" data-admin="${u.is_admin}">${adminLabel}</td>
           <td data-user-id="${this.escapeHtml(u.user_id)}" data-active="${u.is_active}">${activeLabel}</td>
           <td>${fmt(u.created_at)}</td>
           <td>${fmt(u.last_login)}</td>
           <td class="actions">${deleteBtn}</td>
         </tr>`;
     }).join('');
+
+    // Admin-rights toggle
+    tbody.querySelectorAll('.toggle-admin').forEach(el => {
+      el.addEventListener('click', async () => {
+        const td = el.closest('td');
+        const userId = td.dataset.userId;
+        const currentlyAdmin = td.dataset.admin === 'true';
+        const verb = currentlyAdmin ? 'Revoke administrator rights from' : 'Grant administrator rights to';
+        if (!confirm(`${verb} "${userId}"?`)) return;
+        try {
+          await api.toggleUserAdmin(userId, !currentlyAdmin);
+          await this.loadUsers();
+          this.renderUsers();
+        } catch (e) {
+          alert('Error: ' + e.message);
+        }
+      });
+    });
 
     // Attach click handlers for active toggle
     tbody.querySelectorAll('.toggle-active').forEach(el => {

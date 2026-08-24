@@ -307,6 +307,12 @@ class SISApiClient {
     });
   }
 
+  async toggleUserAdmin(userId, isAdmin) {
+    return this.authenticatedRequest(`/api/users/${encodeURIComponent(userId)}/admin?is_admin=${isAdmin}`, {
+      method: 'PATCH'
+    });
+  }
+
   async toggleUserActive(userId, isActive) {
     return this.authenticatedRequest(`/api/users/${encodeURIComponent(userId)}/active?is_active=${isActive}`, {
       method: 'PATCH'
