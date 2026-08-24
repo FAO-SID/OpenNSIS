@@ -1349,8 +1349,25 @@ async def create_project(payload: dict, current_user: dict = Depends(get_current
                     (country_id, pid, name, description),
                 )
                 return {"country_id": country_id, "project_id": pid, "name": name, "description": description}
-            except psycopg2.IntegrityError:
-                raise HTTPException(status_code=400, detail="Project already exists")
+            except psycopg2.errors.ForeignKeyViolation:
+                # Not a duplicate: the instance's configured country is not a
+                # row in soil_data.country, so every insert fails its FK.
+                raise HTTPException(status_code=400, detail=(
+                    f"Cannot create the project: this instance's country code "
+                    f"('{country_id}', from the COUNTRY_CODE setting) is not a "
+                    f"known ISO 3166-1 alpha-2 code. Correct it under "
+                    f"Administration → Settings and try again."))
+            except psycopg2.errors.UniqueViolation as e:
+                cname = getattr(getattr(e, "diag", None), "constraint_name", "") or ""
+                if "name" in cname:
+                    raise HTTPException(status_code=400,
+                                        detail=f"A project named '{name}' already exists")
+                raise HTTPException(status_code=400,
+                                    detail=f"Project ID '{pid}' already exists")
+            except psycopg2.IntegrityError as e:
+                raise HTTPException(status_code=400, detail=(
+                    "Could not create the project: "
+                    + (getattr(e, "pgerror", None) or str(e)).splitlines()[0]))
 
 @app.patch("/api/codelist/projects/{project_id}")
 async def update_project(project_id: str, payload: dict, current_user: dict = Depends(get_current_user)):
