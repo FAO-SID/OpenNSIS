@@ -717,6 +717,19 @@ async def update_setting(
     """Update a setting value."""
     with get_db() as conn:
         with conn.cursor() as cur:
+            # COUNTRY_CODE anchors project ownership (soil_data.project FK) and
+            # the ETL country-bounds check — an invalid value breaks project
+            # creation with confusing errors, so refuse it at the door.
+            if key == "COUNTRY_CODE":
+                cc = (setting_update.value or "").strip().upper()
+                cur.execute("SELECT en FROM soil_data.country WHERE country_id = %s", (cc,))
+                row = cur.fetchone()
+                if not row:
+                    raise HTTPException(status_code=400, detail=(
+                        f"'{setting_update.value}' is not a known ISO 3166-1 "
+                        f"alpha-2 country code (for example 'ID' for Indonesia, "
+                        f"not 'IDN'). The value must match soil_data.country."))
+                setting_update.value = cc
             cur.execute("UPDATE api.setting SET value = %s WHERE key = %s", (setting_update.value, key))
             if cur.rowcount == 0:
                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Setting not found")
