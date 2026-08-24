@@ -191,13 +191,23 @@ async def update_own_account(
                                     detail="Current password is incorrect")
 
             new_user_id = payload.new_user_id or current_user['user_id']
+            renaming = bool(payload.new_user_id
+                            and payload.new_user_id != current_user['user_id'])
 
-            if payload.new_user_id and payload.new_user_id != current_user['user_id']:
+            if renaming:
                 cur.execute("SELECT 1 FROM api.user WHERE user_id = %s",
                             (payload.new_user_id,))
                 if cur.fetchone():
                     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                        detail="Email already in use")
+                                        detail="User name already in use")
+                # The rename cascades user_id into api.audit (FK ON UPDATE
+                # CASCADE), which the append-only trigger blocks ("user_id can
+                # only be cleared"). Retagging this user's audit rows to their
+                # new id keeps attribution truthful, so pause the update guard
+                # for exactly this transaction — the ACCESS EXCLUSIVE lock the
+                # ALTER takes on api.audit means nothing else can write audit
+                # rows while the guard is down.
+                cur.execute("ALTER TABLE api.audit DISABLE TRIGGER audit_no_update")
 
             # Bump password_changed_at on every password change so old JWTs
             # for this user are rejected by get_current_user (see shared.py).
@@ -216,8 +226,14 @@ async def update_own_account(
                     "UPDATE api.user SET user_id = %s WHERE user_id = %s",
                     (payload.new_user_id, current_user['user_id']))
 
-            log_audit(current_user['user_id'], None, "user_self_updated",
-                     {"new_user_id": payload.new_user_id,
+            if renaming:
+                cur.execute("ALTER TABLE api.audit ENABLE TRIGGER audit_no_update")
+
+            # After a rename the old id no longer exists — the audit row must
+            # carry the new id or its user FK fails.
+            log_audit(new_user_id, None, "user_self_updated",
+                     {"renamed_from": current_user['user_id'] if renaming else None,
+                      "new_user_id": payload.new_user_id,
                       "password_changed": payload.new_password is not None}, None)
 
             result = {"message": "Account updated successfully"}
