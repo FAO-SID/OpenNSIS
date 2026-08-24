@@ -187,14 +187,14 @@ class AdminDashboard {
           <div class="dashboard-header">
             <h2>${t('a.adminPanel')}</h2>
             <div class="dashboard-header-actions">
+              <button class="close-dashboard" id="close-dashboard">${t('a.backToMap')}</button>
+              <button class="logout-btn" id="logout-dashboard">${t('a.logout')}</button>
               <div style="position:relative;display:flex;align-items:center;">
                 <button type="button" class="admin-lang-btn" id="admin-lang-btn" title="${t('lang.label')}" aria-label="${t('lang.label')}">
                   <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3.6 8.5h16.8M3.6 15.5h16.8"/></svg>
                 </button>
                 <div id="admin-lang-menu" style="position:absolute;top:calc(100% + 8px);right:0;background:#fff;border:1px solid #ddd;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:none;min-width:130px;overflow:hidden;z-index:10001;"></div>
               </div>
-              <button class="close-dashboard" id="close-dashboard">${t('a.backToMap')}</button>
-              <button class="logout-btn" id="logout-dashboard">${t('a.logout')}</button>
             </div>
           </div>
           
