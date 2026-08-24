@@ -11,6 +11,7 @@ import { GeoJSON } from 'ol/format';
 import { getCenter } from 'ol/extent';
 import api, { MAPSERVER_URL } from './api-client.js';
 import adminDashboard from './admin-dashboard.js';
+import { t, AVAILABLE, currentLang, setInstanceDefault, switchLanguage } from './i18n.js';
 
 // Global variables
 let map;
@@ -43,6 +44,8 @@ async function initializeApp() {
     const settings = await api.getSettings();
     console.log('Settings loaded:', settings);
     appConfig = settingsArrayToObject(settings);
+    setInstanceDefault((appConfig.LANGUAGE || '').trim().toLowerCase());
+    applyStaticTranslations();
 
     // Apply settings to UI
     applySettings();
@@ -78,7 +81,7 @@ async function initializeApp() {
   } catch (error) {
     console.error('Failed to initialize app:', error);
     console.error('Error details:', error.message, error.stack);
-    showError(`Failed to load application: ${error.message}`);
+    showError(t('err.loadApp') + error.message);
     showLoading(false);
   }
 }
@@ -193,7 +196,7 @@ async function loadLayers() {
 
   } catch (error) {
     console.error('Failed to load layers:', error);
-    showError('Failed to load layers from API');
+    showError(t('err.loadLayers'));
   }
 }
 
@@ -311,25 +314,44 @@ function addBaseMapsGroup(container) {
   groupDiv.className = 'layer-group collapsed';
   groupDiv.id = 'base-layers-group';
   groupDiv.innerHTML = `
-    <div class="layer-group-header">Base layers</div>
+    <div class="layer-group-header">${t('groups.baseLayers')}</div>
     <div class="layer-group-content">
       <div class="layer-item">
         <input type="radio" name="basemap" id="basemap-esri" value="esri-imagery" 
                ${appConfig.BASE_MAP_DEFAULT === 'esri-imagery' ? 'checked' : ''}>
-        <label for="basemap-esri">Satellite</label>
+        <label for="basemap-esri">${t('basemap.satellite')}</label>
       </div>
       <div class="layer-item">
         <input type="radio" name="basemap" id="basemap-osm" value="osm"
                ${appConfig.BASE_MAP_DEFAULT === 'osm' ? 'checked' : ''}>
-        <label for="basemap-osm">OpenStreetMap</label>
+        <label for="basemap-osm">${t('basemap.osm')}</label>
       </div>
       <div class="layer-item">
         <input type="radio" name="basemap" id="basemap-terrain" value="terrain"
                ${appConfig.BASE_MAP_DEFAULT === 'terrain' ? 'checked' : ''}>
-        <label for="basemap-terrain">Terrain</label>
+        <label for="basemap-terrain">${t('basemap.terrain')}</label>
       </div>
     </div>
   `;
+
+  // Language selector — the visitor's choice persists in localStorage and
+  // overrides the instance default (the LANGUAGE setting).
+  const langItem = document.createElement('div');
+  langItem.className = 'layer-item';
+  langItem.style.cssText = 'border-top:1px solid #eee;margin-top:6px;padding-top:8px;display:flex;align-items:center;gap:6px;';
+  const langLabel = document.createElement('label');
+  langLabel.textContent = '\uD83C\uDF10 ' + t('lang.label');
+  const langSel = document.createElement('select');
+  for (const [code, label] of AVAILABLE) {
+    const o = document.createElement('option');
+    o.value = code; o.textContent = label;
+    if (code === currentLang()) o.selected = true;
+    langSel.appendChild(o);
+  }
+  langSel.addEventListener('change', () => switchLanguage(langSel.value));
+  langItem.appendChild(langLabel);
+  langItem.appendChild(langSel);
+  groupDiv.querySelector('.layer-group-content').appendChild(langItem);
 
   container.appendChild(groupDiv);
 
@@ -346,14 +368,16 @@ function addBaseMapsGroup(container) {
   });
 }
 
-const GROUP_NAME_OVERRIDES = {
-  'Soil Nutrients': 'Maps'
-};
+function groupDisplayName(name) {
+  // Historic project-name override, now also the translation hook.
+  if (name === 'Soil Nutrients') return t('groups.maps');
+  return name;
+}
 
 function addLayerGroup(container, groupName, layers) {
   const groupDiv = document.createElement('div');
   groupDiv.className = 'layer-group';
-  const displayName = GROUP_NAME_OVERRIDES[groupName] || groupName;
+  const displayName = groupDisplayName(groupName);
 
   const headerDiv = document.createElement('div');
   headerDiv.className = 'layer-group-header';
@@ -374,7 +398,7 @@ function addLayerGroup(container, groupName, layers) {
 
       const filterToggle = document.createElement('div');
       filterToggle.className = 'layer-tag-filter-toggle';
-      filterToggle.textContent = 'Filter by keywords';
+      filterToggle.textContent = t('layers.filterByKeywords');
       filterWrapper.appendChild(filterToggle);
 
       const filterDiv = document.createElement('div');
@@ -452,8 +476,8 @@ function createLayerItem(layer) {
     <input type="radio" name="data-layer" id="layer-${layer.layer_id}" value="${layer.layer_id}">
     <label for="layer-${layer.layer_id}" title="${layerName}">${layerName}</label>
     <div class="layer-icons">
-      ${layer.metadata_url ? `<a href="#" class="metadata-link" data-url="${layer.metadata_url}" title="Metadata"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M13 9h-2V7h2m0 10h-2v-6h2m-1-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2z'/%3E%3C/svg%3E" alt="Info"></a>` : ''}
-      ${layer.download_url ? `<a href="${layer.download_url}" download title="Download GeoTIFF"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z'/%3E%3C/svg%3E" alt="Download"></a>` : ''}
+      ${layer.metadata_url ? `<a href="#" class="metadata-link" data-url="${layer.metadata_url}" title="${t('icons.metadata')}"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M13 9h-2V7h2m0 10h-2v-6h2m-1-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2z'/%3E%3C/svg%3E" alt="${t('icons.info')}"></a>` : ''}
+      ${layer.download_url ? `<a href="${layer.download_url}" download title="${t('icons.downloadGeotiff')}"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z'/%3E%3C/svg%3E" alt="${t('icons.download')}"></a>` : ''}
     </div>
   `;
 
@@ -618,7 +642,7 @@ function formatMetadata(m) {
     const xmlBtn = xmlHref
       ? `<a href="${e(xmlHref)}" download="${e((m.layer_id || 'metadata') + '.xml')}"
             style="font-size:13px;font-weight:normal;padding:4px 10px;background:var(--color-primary,#2c5f2d);color:#fff;border-radius:4px;text-decoration:none;margin-left:12px;white-space:nowrap;"
-            title="Download ISO 19139 XML">⬇ XML</a>`
+            title="${t('meta.downloadXml')}">⬇ XML</a>`
       : '';
     html += `<h3 style="margin-top:0;color:#2c3e50;border-bottom:2px solid #3498db;padding-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
       <span style="flex:1;">${e(title)}</span>${xmlBtn}
@@ -628,7 +652,7 @@ function formatMetadata(m) {
   if (m.abstract || m.project_description) {
     const text = m.abstract || m.project_description;
     html += `<div style="margin:15px 0;padding:10px;background:#f8f9fa;border-left:3px solid #3498db;border-radius:3px;">
-      <strong>Abstract</strong>
+      <strong>${t('meta.abstract')}</strong>
       <p style="margin:8px 0 0 0;line-height:1.6;white-space:pre-line;">${e(text)}</p>
     </div>`;
   }
@@ -637,8 +661,8 @@ function formatMetadata(m) {
   if (m.md_browse_graphic) {
     const safe = safeUrl(relMapserverUrl(m.md_browse_graphic));
     html += `<div style="margin:15px 0;text-align:center;">
-      <a href="${e(safe)}" target="_blank" rel="noopener noreferrer" title="Open preview">
-        <img src="${e(safe)}" alt="Preview"
+      <a href="${e(safe)}" target="_blank" rel="noopener noreferrer" title="${t('meta.openPreview')}">
+        <img src="${e(safe)}" alt="${t('meta.preview')}"
              style="max-width:100%;max-height:320px;border:1px solid #ddd;border-radius:4px;background:#fff;">
       </a>
     </div>`;
@@ -646,31 +670,31 @@ function formatMetadata(m) {
 
   // ---------- Identification ----------
   const idRows = [
-    ['Country',         m.country_name ? `${m.country_name} (${m.country_id || ''})` : m.country_id],
-    ['Mapset id',       m.mapset_id],
-    ['Layer id',        m.layer_id],
-    ['Project',         m.project_name ? `${m.project_name} (${m.project_id || ''})` : m.project_id],
-    ['Soil property',   m.property_name ? `${m.property_name} (${m.property_num_id || ''})` : m.property_num_id],
-    ['Unit',            m.unit_of_measure_id],
-    ['Depth',           m.dimension_depth ? `${m.dimension_depth} cm` : ''],
-    ['Statistic',       m.dimension_stats],
-    ['Status',          m.status],
-    ['Update frequency', m.update_frequency],
-    ['Spatial type',    m.spatial_representation_type_code],
-    ['Presentation',    m.presentation_form],
-    ['Scope',           m.scope_code],
-    ['Topic categories', Array.isArray(m.topic_category) ? m.topic_category.join(', ') : m.topic_category],
+    [t('meta.f.country'),         m.country_name ? `${m.country_name} (${m.country_id || ''})` : m.country_id],
+    [t('meta.f.mapsetId'),       m.mapset_id],
+    [t('meta.f.layerId'),        m.layer_id],
+    [t('meta.f.project'),         m.project_name ? `${m.project_name} (${m.project_id || ''})` : m.project_id],
+    [t('meta.f.soilProperty'),   m.property_name ? `${m.property_name} (${m.property_num_id || ''})` : m.property_num_id],
+    [t('meta.f.unit'),            m.unit_of_measure_id],
+    [t('meta.f.depth'),           m.dimension_depth ? `${m.dimension_depth} cm` : ''],
+    [t('meta.f.statistic'),       m.dimension_stats],
+    [t('meta.f.status'),          m.status],
+    [t('meta.f.updateFrequency'), m.update_frequency],
+    [t('meta.f.spatialType'),    m.spatial_representation_type_code],
+    [t('meta.f.presentation'),    m.presentation_form],
+    [t('meta.f.scope'),           m.scope_code],
+    [t('meta.f.topicCategories'), Array.isArray(m.topic_category) ? m.topic_category.join(', ') : m.topic_category],
   ].filter(r => r[1] != null && r[1] !== '');
-  html += sectionTable('Identification', idRows, e);
+  html += sectionTable(t('meta.sec.identification'), idRows, e);
 
   // ---------- Dates ----------
   const dateRows = [
-    ['Created on',     m.publication_date || m.creation_date],
-    ['Period start',   m.time_period_begin],
-    ['Period end',     m.time_period_end],
-    ['Revision date',  m.revision_date],
+    [t('meta.f.createdOn'),     m.publication_date || m.creation_date],
+    [t('meta.f.periodStart'),   m.time_period_begin],
+    [t('meta.f.periodEnd'),     m.time_period_end],
+    [t('meta.f.revisionDate'),  m.revision_date],
   ].filter(r => r[1]);
-  if (dateRows.length) html += sectionTable('Dates', dateRows, e);
+  if (dateRows.length) html += sectionTable(t('meta.sec.dates'), dateRows, e);
 
   // ---------- Spatial ----------
   const bbox = (m.west_bound_longitude != null) ? `
@@ -679,24 +703,24 @@ function formatMetadata(m) {
       S ${e(String(m.south_bound_latitude))}° / N ${e(String(m.north_bound_latitude))}°
     </div>` : '';
   const spatialRows = [
-    ['CRS',        m.epsg ? `EPSG:${m.epsg}` : m.spatial_reference],
-    ['Resolution', (m.distance != null) ? `${m.distance} ${m.distance_uom || ''}` : ''],
-    ['Bounding box', bbox],
-    ['Raster size', (m.raster_size_x && m.raster_size_y) ? `${m.raster_size_x} × ${m.raster_size_y} px` : ''],
-    ['Data type',  m.data_type],
-    ['NoData',     m.no_data_value != null ? String(m.no_data_value) : ''],
+    [t('meta.f.crs'),        m.epsg ? `EPSG:${m.epsg}` : m.spatial_reference],
+    [t('meta.f.resolution'), (m.distance != null) ? `${m.distance} ${m.distance_uom || ''}` : ''],
+    [t('meta.f.bbox'), bbox],
+    [t('meta.f.rasterSize'), (m.raster_size_x && m.raster_size_y) ? `${m.raster_size_x} × ${m.raster_size_y} px` : ''],
+    [t('meta.f.dataType'),  m.data_type],
+    [t('meta.f.nodata'),     m.no_data_value != null ? String(m.no_data_value) : ''],
   ].filter(r => r[1]);
-  if (spatialRows.length) html += sectionTable('Spatial', spatialRows, e, /*raw=*/true);
+  if (spatialRows.length) html += sectionTable(t('meta.sec.spatial'), spatialRows, e, /*raw=*/true);
 
   // ---------- Statistics ----------
   if (m.stats_minimum != null || m.stats_maximum != null) {
     const statsRows = [
-      ['Min',  m.stats_minimum],
-      ['Max',  m.stats_maximum],
-      ['Mean', m.stats_mean],
-      ['Std',  m.stats_std_dev],
+      [t('meta.f.min'),  m.stats_minimum],
+      [t('meta.f.max'),  m.stats_maximum],
+      [t('meta.f.mean'), m.stats_mean],
+      [t('meta.f.std'),  m.stats_std_dev],
     ].filter(r => r[1] != null);
-    html += sectionTable('Statistics', statsRows, e);
+    html += sectionTable(t('meta.sec.statistics'), statsRows, e);
   }
 
   // ---------- Keywords ----------
@@ -717,11 +741,11 @@ function formatMetadata(m) {
 
   // ---------- Constraints / license ----------
   const constrRows = [
-    ['Licence (other constraints)', m.other_constraints],
-    ['Access constraints',          m.access_constraints],
-    ['Use constraints',             m.use_constraints],
+    [t('meta.f.licence'), m.other_constraints],
+    [t('meta.f.accessConstraints'),          m.access_constraints],
+    [t('meta.f.useConstraints'),             m.use_constraints],
   ].filter(r => r[1]);
-  if (constrRows.length) html += sectionTable('Constraints', constrRows, e);
+  if (constrRows.length) html += sectionTable(t('meta.sec.constraints'), constrRows, e);
 
   // ---------- Lineage ----------
   if (m.lineage_statement) {
@@ -746,7 +770,7 @@ function formatMetadata(m) {
 
   // ---------- Online resources ----------
   if (Array.isArray(m.online_resources) && m.online_resources.length) {
-    html += `<div style="margin:18px 0;"><h4 style="color:#2c3e50;margin-bottom:8px;">Online resources</h4>
+    html += `<div style="margin:18px 0;"><h4 style="color:#2c3e50;margin-bottom:8px;">${t('meta.onlineResources')}</h4>
       <div style="display:flex;flex-direction:column;gap:6px;">`
       + m.online_resources.map(u => {
           const icon = u.protocol?.startsWith('WWW:LINK') || u.protocol?.startsWith('WWW:DOWNLOAD') ? '📥' : '🔗';
@@ -800,8 +824,8 @@ async function showMetadataPopup(metadataUrl) {
   modal.innerHTML = `
     <div style="background: white; padding: 20px; border-radius: 8px; max-width: 880px; max-height: 90vh; overflow-y: auto; position: relative; width: 100%;">
       <button id="metadata-close" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">&times;</button>
-      <h2 style="margin-top: 0;">Metadata</h2>
-      <div id="metadata-content" style="margin-top: 20px;">Loading…</div>
+      <h2 style="margin-top: 0;">${t('meta.title')}</h2>
+      <div id="metadata-content" style="margin-top: 20px;">${t('meta.loading')}</div>
     </div>
   `;
   document.body.appendChild(modal);
@@ -862,7 +886,7 @@ async function loadProfiles() {
     }
 
     if (!profiles || profiles.length === 0) {
-      console.log('No profiles found in database');
+      console.log(t('profiles.noneInDb'));
       return;
     }
 
@@ -870,7 +894,7 @@ async function loadProfiles() {
     console.log('First profile sample:', profiles[0]);
     
     // Get unique project names
-    const projectNames = [...new Set(profiles.map(p => p.project_name || 'Unknown Project'))];
+    const projectNames = [...new Set(profiles.map(p => p.project_name || t('profiles.unknownProject')))];
     console.log('Projects found:', projectNames);
 
     // Generate colors for each project
@@ -880,7 +904,7 @@ async function loadProfiles() {
     // ISO 19139 metadata popup (the stub mapset_id is also the catalogue id).
     profileMapsetIds = {};
     profiles.forEach(p => {
-      const name = p.project_name || 'Unknown Project';
+      const name = p.project_name || t('profiles.unknownProject');
       if (p.mapset_id && !profileMapsetIds[name]) {
         profileMapsetIds[name] = p.mapset_id;
       }
@@ -907,7 +931,7 @@ async function loadProfiles() {
         feature.setProperties({
           profile_id: profile.gid,
           profile_code: profile.profile_code,
-          project_name: profile.project_name || 'Unknown Project',
+          project_name: profile.project_name || t('profiles.unknownProject'),
           altitude: profile.altitude,
           date: profile.date,
           sampling_date: profile.date,
@@ -923,7 +947,7 @@ async function loadProfiles() {
     }).filter(f => f !== null);
 
     if (allFeatures.length === 0) {
-      console.warn('No valid profile features could be created');
+      console.warn(t('profiles.noValidFeatures'));
       return;
     }
 
@@ -1046,12 +1070,12 @@ function addProfileLayerControl() {
   header.style.gap = '8px';
 
   const headerLabel = document.createElement('span');
-  headerLabel.textContent = 'Soil profiles';
+  headerLabel.textContent = t('groups.soilProfiles');
   header.appendChild(headerLabel);
 
   const showDataBtn = document.createElement('button');
   showDataBtn.type = 'button';
-  showDataBtn.textContent = 'Data';
+  showDataBtn.textContent = t('profiles.data');
   showDataBtn.className = 'btn btn-primary';
   showDataBtn.style.padding = '2px 8px';
   showDataBtn.style.fontSize = '0.8em';
@@ -1063,10 +1087,10 @@ function addProfileLayerControl() {
       panel.style.display = 'none';
       selectedProfileCodes.clear();
       refreshHighlight();
-      showDataBtn.textContent = 'Data';
+      showDataBtn.textContent = t('profiles.data');
     } else {
       showVisibleProfilesData();
-      showDataBtn.textContent = 'Hide';
+      showDataBtn.textContent = t('profiles.hide');
     }
   });
   header.appendChild(showDataBtn);
@@ -1107,7 +1131,7 @@ function addProfileLayerControl() {
     colorWrapper.style.border = '2px solid #fff';
     colorWrapper.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
     colorWrapper.style.cursor = 'pointer';
-    colorWrapper.title = 'Change colour';
+    colorWrapper.title = t('profiles.changeColour');
     
     const colorPicker = document.createElement('input');
     colorPicker.type = 'color';
@@ -1162,7 +1186,7 @@ function addProfileLayerControl() {
     if (mapsetId) {
       const infoIcons = document.createElement('div');
       infoIcons.className = 'layer-icons';
-      infoIcons.innerHTML = `<a href="#" class="metadata-link" title="Metadata"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M13 9h-2V7h2m0 10h-2v-6h2m-1-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2z'/%3E%3C/svg%3E" alt="Info"></a>`;
+      infoIcons.innerHTML = `<a href="#" class="metadata-link" title="${t('icons.metadata')}"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M13 9h-2V7h2m0 10h-2v-6h2m-1-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10 10 10 0 0 0 10-10A10 10 0 0 0 12 2z'/%3E%3C/svg%3E" alt="${t('icons.info')}"></a>`;
       infoIcons.querySelector('a').addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1177,7 +1201,7 @@ function addProfileLayerControl() {
     if (!(mapsetId && hideDownloadMapsetIds.has(mapsetId))) {
       const dlIcons = document.createElement('div');
       dlIcons.className = 'layer-icons';
-      dlIcons.innerHTML = `<a href="#" title="Download CSV"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z'/%3E%3C/svg%3E" alt="Download"></a>`;
+      dlIcons.innerHTML = `<a href="#" title="${t('icons.downloadCsv')}"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666'%3E%3Cpath d='M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z'/%3E%3C/svg%3E" alt="${t('icons.download')}"></a>`;
       dlIcons.querySelector('a').addEventListener('click', async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1185,7 +1209,7 @@ function addProfileLayerControl() {
           await downloadProjectProfilesCsv(projectName);
         } catch (err) {
           console.error('Profile CSV download failed:', err);
-          alert('Profile CSV download failed: ' + (err && err.message ? err.message : err));
+          alert(t('err.csvDownload') + (err && err.message ? err.message : err));
         }
       });
       layerItem.appendChild(dlIcons);
@@ -1322,16 +1346,16 @@ async function showDstPixelInfo(evt, popup, layerId, layerConfig) {
         <table style="border-collapse:collapse;font-size:12px;width:100%;min-width:510px;">
           <thead>
             <tr style="border-bottom:1px solid #ccc;color:#555;">
-              <th style="padding:2px 6px;text-align:left;width:54%;">Raster</th>
-              <th style="padding:2px 6px;text-align:right;width:25%;">Value</th>
-              <th style="padding:2px 6px;text-align:center;">Threshold</th>
-              <th style="padding:2px 6px;text-align:right;">Reclass</th>
+              <th style="padding:2px 6px;text-align:left;width:54%;">${t('dst.raster')}</th>
+              <th style="padding:2px 6px;text-align:right;width:25%;">${t('dst.value')}</th>
+              <th style="padding:2px 6px;text-align:center;">${t('dst.threshold')}</th>
+              <th style="padding:2px 6px;text-align:right;">${t('dst.reclass')}</th>
             </tr>
           </thead>
-          <tbody>${rows || '<tr><td colspan="4" style="padding:4px 6px;color:#888;">No inputs</td></tr>'}</tbody>
+          <tbody>${rows || `<tr><td colspan="4" style="padding:4px 6px;color:#888;">${t('dst.noInputs')}</td></tr>`}</tbody>
           <tfoot>
             <tr style="border-top:2px solid #999;font-weight:700;">
-              <td style="padding:4px 6px;" colspan="3">Output (${agg})</td>
+              <td style="padding:4px 6px;" colspan="3">${t('dst.output')} (${agg})</td>
               <td style="padding:4px 6px;text-align:right;">${fmt(data.output_value)}</td>
             </tr>
           </tfoot>
@@ -1438,7 +1462,7 @@ function showLegend(legendUrl) {
   const legendContent = legendContainer.querySelector('.legend-content');
   // get_legend_url is emitted as http://localhost/mapserver/… — relativize it
   // so the legend image loads from the SIS host, not the visitor's machine.
-  legendContent.innerHTML = `<img src="${relMapserverUrl(legendUrl)}" alt="Legend">`;
+  legendContent.innerHTML = `<img src="${relMapserverUrl(legendUrl)}" alt="${t('legend.alt')}">`;
   legendContainer.style.display = 'block';
 }
 
@@ -1484,10 +1508,10 @@ function addLoginButton() {
   
   // Check if user is already logged in (restore session)
   if (api.restoreSession()) {
-    loginBtn.textContent = 'Admin Panel';
+    loginBtn.textContent = t('auth.adminPanel');
     loginBtn.onclick = showAdminPanel;  // CHANGED: Use .onclick instead of addEventListener
   } else {
-    loginBtn.textContent = 'Login';
+    loginBtn.textContent = t('auth.login');
     loginBtn.onclick = showLoginModal;  // CHANGED: Use .onclick instead of addEventListener
   }
 
@@ -1495,7 +1519,7 @@ function addLoginButton() {
 
   window.addEventListener('auth:expired', () => {
     if (adminDashboard && typeof adminDashboard.hide === 'function') adminDashboard.hide();
-    loginBtn.textContent = 'Login';
+    loginBtn.textContent = t('auth.login');
     loginBtn.onclick = showLoginModal;
   });
 }
@@ -1514,20 +1538,20 @@ function showLoginModal() {
   modal.className = 'login-modal active';
   modal.innerHTML = `
     <div class="login-content">
-      <h2>Admin Login</h2>
+      <h2>${t('auth.adminLogin')}</h2>
       <div id="login-error" class="login-error"></div>
       <form class="login-form" id="login-form">
         <div class="form-group">
-          <label for="login-email">Username</label>
+          <label for="login-email">${t('auth.username')}</label>
           <input type="text" id="login-email" required>
         </div>
         <div class="form-group">
-          <label for="login-password">Password</label>
+          <label for="login-password">${t('auth.password')}</label>
           <input type="password" id="login-password" required>
         </div>
         <div class="login-actions">
-          <button type="submit" class="btn btn-primary">Login</button>
-          <button type="button" id="login-cancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" class="btn btn-primary">${t('auth.login')}</button>
+          <button type="button" id="login-cancel" class="btn btn-secondary">${t('auth.cancel')}</button>
         </div>
       </form>
     </div>
@@ -1567,7 +1591,7 @@ function showAdminPanel() {
   const loginBtn = document.getElementById('login-btn');
   if (!loginBtn) return;
   
-  loginBtn.textContent = 'Back to Map';
+  loginBtn.textContent = t('auth.backToMap');
   
   // Set click handler for closing dashboard
   loginBtn.onclick = () => {
@@ -1575,7 +1599,7 @@ function showAdminPanel() {
     adminDashboard.hide();
     
     // Reset button to reopen dashboard
-    loginBtn.textContent = 'Admin Panel';
+    loginBtn.textContent = t('auth.adminPanel');
     loginBtn.onclick = showAdminPanel; // This line is critical!
   };
 }
@@ -1589,6 +1613,14 @@ function showLoading(show) {
   if (loader) {
     loader.style.display = show ? 'flex' : 'none';
   }
+}
+
+function applyStaticTranslations() {
+  // The few strings that live in index.html rather than JS templates.
+  const loading = document.querySelector('#loading-overlay div');
+  if (loading) loading.textContent = t('app.loading');
+  const opacity = document.querySelector('label[for="opacity"]');
+  if (opacity) opacity.textContent = t('layers.opacity');
 }
 
 function showError(message) {
@@ -1695,7 +1727,7 @@ function scrollProfileRowIntoView() {
 
 async function showVisibleProfilesData() {
   if (!profileLayers['all']) {
-    alert('Profile layer not loaded yet.');
+    alert(t('profiles.notLoadedYet'));
     return;
   }
   ensureProfilesDataModal();
@@ -1849,7 +1881,7 @@ function ensureProfilesDataModal() {
   modal.style.cssText = 'position:fixed;left:0;right:0;bottom:0;height:33vh;z-index:10000;display:flex;box-shadow:0 -4px 12px rgba(0,0,0,0.2);';
   modal.innerHTML = `
     <div style="background:#fff;width:100%;height:100%;display:flex;flex-direction:column;border-top:1px solid #ccc;position:relative;">
-      <div id="profiles-data-resizer" title="Drag to resize" style="position:absolute;top:0;left:0;right:0;height:6px;cursor:ns-resize;background:#eee;"></div>
+      <div id="profiles-data-resizer" title="${t('profiles.dragResize')}" style="position:absolute;top:0;left:0;right:0;height:6px;cursor:ns-resize;background:#eee;"></div>
       <style>
         #profiles-data-table { border-collapse: separate; border-spacing: 0; }
         #profiles-data-table th, #profiles-data-table td {
@@ -1882,7 +1914,7 @@ function ensureProfilesDataModal() {
       <div style="padding:4px 16px;border-top:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:0.85em;">
         <div style="display:flex;align-items:center;gap:8px;position:relative;">
           <span id="profiles-data-count" style="color:#555;"></span>
-          <button type="button" id="profiles-data-columns-btn" class="btn btn-primary" style="padding:2px 8px;font-size:0.9em;">Columns</button>
+          <button type="button" id="profiles-data-columns-btn" class="btn btn-primary" style="padding:2px 8px;font-size:0.9em;">${t('profiles.columns')}</button>
           <div id="profiles-data-columns-popover" style="display:none;position:absolute;bottom:100%;left:0;margin-bottom:4px;background:#fff;border:1px solid #ccc;box-shadow:0 2px 8px rgba(0,0,0,0.15);padding:6px 8px;max-height:300px;overflow:auto;z-index:10;min-width:220px;"></div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
@@ -1974,8 +2006,8 @@ function renderProfilesColumnsPopover() {
   }).join('');
   pop.innerHTML = `
     <div style="display:flex;gap:6px;margin-bottom:4px;border-bottom:1px solid #eee;padding-bottom:4px;">
-      <button type="button" id="profiles-cols-all" style="padding:1px 6px;font-size:0.9em;">All</button>
-      <button type="button" id="profiles-cols-none" style="padding:1px 6px;font-size:0.9em;">None</button>
+      <button type="button" id="profiles-cols-all" style="padding:1px 6px;font-size:0.9em;">${t('profiles.all')}</button>
+      <button type="button" id="profiles-cols-none" style="padding:1px 6px;font-size:0.9em;">${t('profiles.none')}</button>
     </div>
     ${rows}
   `;
@@ -2009,7 +2041,7 @@ async function downloadProjectProfilesCsv(projectName) {
     f => (f.get('project_name') || '') === projectName
   );
   if (!projectFeatures.length) {
-    alert(`No profiles loaded for "${projectName}".`);
+    alert(t('profiles.noneForProject', {name: projectName}));
     return;
   }
 
@@ -2017,7 +2049,7 @@ async function downloadProjectProfilesCsv(projectName) {
     try {
       _allObservationsCache = await api.getObservations();
     } catch (e) {
-      alert('Failed to load observations: ' + (e && e.message ? e.message : e));
+      alert(t('profiles.loadObsFailed') + (e && e.message ? e.message : e));
       return;
     }
   }
@@ -2119,7 +2151,7 @@ async function downloadProjectProfilesCsv(projectName) {
 function downloadProfilesCsv() {
   const modal = document.getElementById('profiles-data-modal');
   if (!modal || !modal._state) {
-    alert('Open the data panel first to load observations.');
+    alert(t('profiles.openPanelFirst'));
     return;
   }
   const { filtered, columns } = modal._state;
@@ -2279,7 +2311,7 @@ function renderProfilesDataTable() {
           }).join('') +
           '</tr>';
       }).join('')
-    : `<tr><td colspan="${visibleColumns.length || 1}" class="empty-state">No observations for visible profiles</td></tr>`;
+    : `<tr><td colspan="${visibleColumns.length || 1}" class="empty-state">${t('profiles.noObservations')}</td></tr>`;
 
   document.getElementById('profiles-data-count').textContent = `${total} observation${total === 1 ? '' : 's'}`;
   document.getElementById('profiles-data-pageinfo').textContent =

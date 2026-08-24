@@ -7,6 +7,7 @@ set -euo pipefail
 # deploy without editing it; the defaults preserve local-dev behaviour.
 PROJECT_DIR="${PROJECT_DIR:-/home/carva014/Work/Code/FAO/SIS-dev}"   # << or export PROJECT_DIR=…
 COUNTRY="${COUNTRY:-BT}"                                # ISO 3166-1 alpha-2; full name and centroid are looked up from soil_data.country
+LANGUAGE="${LANGUAGE:-en}"                              # default UI language for this instance (en, es)
 ORG_LOGO_URL="${ORG_LOGO_URL:-https://tse4.mm.bing.net/th/id/OIP.hV37F63PxOkqMwTAlCNnvQAAAA?r=0&pid=Api}"
 
 cd "$PROJECT_DIR"
@@ -166,6 +167,7 @@ docker exec -i sis-database psql -d sis -U sis \
 INSERT INTO api.setting(key, value) VALUES
  ('COUNTRY_CODE', '$COUNTRY'),
  ('ORG_LOGO_URL','$ORG_LOGO_URL'),
+ ('LANGUAGE','$LANGUAGE'),
  ('APP_TITLE', :'title'),
  ('LATITUDE', :'lat'),
  ('LONGITUDE', :'lon'),
