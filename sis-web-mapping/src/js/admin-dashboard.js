@@ -4,7 +4,7 @@
  */
 
 import api from './api-client.js';
-import { AVAILABLE as LANGUAGES } from './i18n.js';
+import { AVAILABLE as LANGUAGES, t } from './i18n.js';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import { Tile as TileLayer } from 'ol/layer';
@@ -120,7 +120,8 @@ class AdminDashboard {
     // Update the map login button back to "Admin Panel"
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn && api.isAuthenticated()) {
-      loginBtn.textContent = 'Admin Panel';
+      if (window.setAuthButtonIcon) window.setAuthButtonIcon(loginBtn, 'user', t('auth.adminPanel'));
+      else loginBtn.textContent = t('auth.adminPanel');
       loginBtn.onclick = () => {
         if (window.showAdminPanel) {
           window.showAdminPanel();
@@ -148,7 +149,8 @@ class AdminDashboard {
     // Reset login button to initial state
     const loginBtn = document.getElementById('login-btn');
     if (loginBtn) {
-      loginBtn.textContent = 'Login';
+      if (window.setAuthButtonIcon) window.setAuthButtonIcon(loginBtn, 'user', t('auth.login'));
+      else loginBtn.textContent = t('auth.login');
       loginBtn.onclick = () => {
         if (window.showLoginModal) {
           window.showLoginModal();
@@ -156,8 +158,8 @@ class AdminDashboard {
           window.showAdminPanel();
         } else {
           // Fallback: create simple login prompt
-          const email = prompt('Email:');
-          const password = prompt('Password:');
+          const email = prompt(t('auth.username'));
+          const password = prompt(t('auth.password'));
           if (email && password) {
             api.login(email, password)
               .then(() => {
@@ -165,14 +167,14 @@ class AdminDashboard {
                   window.showAdminPanel();
                 }
               })
-              .catch(err => alert('Login failed: ' + err.message));
+              .catch(err => alert(t('a.err.loginFailed') + err.message));
           }
         }
       };
     }
     
     // Show confirmation
-    alert('Logged out successfully');
+    alert(t('a.loggedOut'));
   }
 
   /**
@@ -183,28 +185,28 @@ class AdminDashboard {
       <div id="admin-dashboard" class="admin-dashboard">
         <div class="dashboard-content">
           <div class="dashboard-header">
-            <h2>Admin Panel</h2>
+            <h2>${t('a.adminPanel')}</h2>
             <div class="dashboard-header-actions">
-              <button class="close-dashboard" id="close-dashboard">Back to Map</button>
-              <button class="logout-btn" id="logout-dashboard">Logout</button>
+              <button class="close-dashboard" id="close-dashboard">${t('a.backToMap')}</button>
+              <button class="logout-btn" id="logout-dashboard">${t('a.logout')}</button>
             </div>
           </div>
           
           <ul class="dashboard-tabs">
-            <li><button class="tab-btn" data-tab="account">My account</button></li>
-            <li><button class="tab-btn active" data-tab="administration">Administration</button></li>
-            <li><button class="tab-btn" data-tab="projects">Projects</button></li>
-            <li><button class="tab-btn" data-tab="layers">Soil profiles</button></li>
-            <li><button class="tab-btn" data-tab="add-raster">Rasters</button></li>
-            <li><button class="tab-btn" data-tab="dst">Raster calculator</button></li>
-            <li><button class="tab-btn" data-tab="dashboard">Dashboard</button></li>
+            <li><button class="tab-btn" data-tab="account">${t('a.tab.account')}</button></li>
+            <li><button class="tab-btn active" data-tab="administration">${t('a.tab.administration')}</button></li>
+            <li><button class="tab-btn" data-tab="projects">${t('a.tab.projects')}</button></li>
+            <li><button class="tab-btn" data-tab="layers">${t('a.tab.soilProfiles')}</button></li>
+            <li><button class="tab-btn" data-tab="add-raster">${t('a.tab.rasters')}</button></li>
+            <li><button class="tab-btn" data-tab="dst">${t('a.tab.dst')}</button></li>
+            <li><button class="tab-btn" data-tab="dashboard">${t('a.tab.dashboard')}</button></li>
           </ul>
 
           <div class="dashboard-body">
             <!-- Administration Tab -->
             <div id="administration-tab" class="tab-pane active">
               <div class="admin-section">
-                <h3 class="admin-section-title">Settings</h3>
+                <h3 class="admin-section-title">${t('a.settings')}</h3>
 
                 <div class="settings-map-layout">
                   <div class="settings-table-side">
@@ -212,12 +214,12 @@ class AdminDashboard {
                       <table class="admin-table" id="settings-table" style="width:auto;">
                         <thead>
                           <tr>
-                            <th>Key</th>
-                            <th style="width:350px;">Value</th>
+                            <th>${t('a.key')}</th>
+                            <th style="width:350px;">${t('a.value')}</th>
                           </tr>
                         </thead>
                         <tbody id="settings-tbody">
-                          <tr><td colspan="2" class="loading">Loading settings...</td></tr>
+                          <tr><td colspan="2" class="loading">${t('a.loadingSettings')}</td></tr>
                         </tbody>
                       </table>
                     </div>
@@ -239,40 +241,34 @@ class AdminDashboard {
               <hr class="admin-divider">
 
               <div class="admin-section">
-                <h3 class="admin-section-title">Administrative divisions</h3>
+                <h3 class="admin-section-title">${t('a.admdiv.title')}</h3>
                 <p style="font-size:var(--fs-sm);color:#555;max-width:760px;">
-                  Upload polygon boundary layers — one per administrative level
-                  (e.g. Country, Provinces, Municipalities; levels and names differ
-                  per country). Accepted formats: GeoJSON (.geojson/.json), zipped
-                  Shapefile (.zip) or GeoPackage (.gpkg). Files in another
-                  coordinate system are reprojected to WGS 84 automatically when
-                  they declare their EPSG code. Layers appear in the map's layer
-                  list under “Base layers”.
+                  ${t('a.admdiv.intro')}
                 </p>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
-                  <input type="text" id="admdiv-name" placeholder="Layer name (e.g. Provinces)" style="width:240px;">
+                  <input type="text" id="admdiv-name" placeholder="${t('a.admdiv.namePh')}" style="width:240px;">
                   <input type="file" id="admdiv-file" accept=".geojson,.json,.zip,.gpkg">
-                  <button type="button" id="admdiv-upload-btn" class="btn btn-primary btn-sm">Upload layer</button>
+                  <button type="button" id="admdiv-upload-btn" class="btn btn-primary btn-sm">${t('a.admdiv.upload')}</button>
                   <span id="admdiv-upload-status" style="font-size:var(--fs-sm);"></span>
                 </div>
                 <div style="overflow-x:auto;">
                   <table class="admin-table" id="admdiv-table">
                     <thead>
                       <tr>
-                        <th title="Lower numbers appear first in the map's layer list">Order</th>
-                        <th>Name</th>
-                        <th>Features</th>
-                        <th>Stroke colour</th>
-                        <th>Stroke width</th>
-                        <th>Stroke type</th>
-                        <th>Fill colour</th>
-                        <th title="0 = transparent fill, 1 = opaque">Fill opacity</th>
-                        <th title="Yes = shown in the map's layer list">Published</th>
-                        <th>Delete</th>
+                        <th title="${t('a.orderTip')}">${t('a.order')}</th>
+                        <th>${t('a.name')}</th>
+                        <th>${t('a.features')}</th>
+                        <th>${t('a.strokeColour')}</th>
+                        <th>${t('a.strokeWidth')}</th>
+                        <th>${t('a.strokeType')}</th>
+                        <th>${t('a.fillColour')}</th>
+                        <th title="${t('a.fillOpacityTip')}">${t('a.fillOpacity')}</th>
+                        <th title="${t('a.publishedTip')}">${t('a.published')}</th>
+                        <th>${t('a.delete')}</th>
                       </tr>
                     </thead>
                     <tbody id="admdiv-tbody">
-                      <tr><td colspan="10" class="loading">Loading layers...</td></tr>
+                      <tr><td colspan="10" class="loading">${t('a.loadingLayers')}</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -281,39 +277,39 @@ class AdminDashboard {
               <hr class="admin-divider">
 
               <div class="admin-section">
-                <h3 class="admin-section-title">Users</h3>
+                <h3 class="admin-section-title">${t('a.users')}</h3>
                 <div id="users-table-container">
                 <table class="admin-table" id="users-table">
                   <thead>
                     <tr>
-                      <th>Username</th>
-                      <th>Admin</th>
-                      <th>Active</th>
-                      <th>Created</th>
-                      <th>Last login</th>
-                      <th style="width: 120px;">Actions</th>
+                      <th>${t('a.username')}</th>
+                      <th>${t('a.admin')}</th>
+                      <th>${t('a.active')}</th>
+                      <th>${t('a.created')}</th>
+                      <th>${t('a.lastLogin')}</th>
+                      <th style="width: 120px;">${t('a.actions')}</th>
                     </tr>
                   </thead>
                   <tbody id="users-tbody">
-                    <tr><td colspan="6" class="loading">Loading users...</td></tr>
+                    <tr><td colspan="6" class="loading">${t('a.loadingUsers')}</td></tr>
                   </tbody>
                 </table>
               </div>
                 <div style="margin-top:var(--sp-3);">
                   <form id="user-form" style="display:flex;align-items:flex-end;gap:var(--sp-3);flex-wrap:wrap;">
                     <div class="form-group" style="margin:0;">
-                      <label for="user-email" style="font-size:var(--fs-xs);margin-bottom:2px;">Username</label>
+                      <label for="user-email" style="font-size:var(--fs-xs);margin-bottom:2px;">${t('a.username')}</label>
                       <input type="text" id="user-email" required style="padding:4px 8px;font-size:var(--fs-sm);">
                     </div>
                     <div class="form-group" style="margin:0;">
-                      <label for="user-password" style="font-size:var(--fs-xs);margin-bottom:2px;">Password</label>
+                      <label for="user-password" style="font-size:var(--fs-xs);margin-bottom:2px;">${t('a.password')}</label>
                       <input type="password" id="user-password" required style="padding:4px 8px;font-size:var(--fs-sm);">
                     </div>
                     <label class="checkbox-label" style="font-size:var(--fs-sm);margin-bottom:4px;">
-                      <input type="checkbox" id="user-is-admin"> Admin
+                      <input type="checkbox" id="user-is-admin"> ${t('a.admin')}
                     </label>
-                    <button type="submit" class="btn btn-primary btn-sm">Add User</button>
-                    <button type="button" class="btn btn-secondary btn-sm" id="cancel-user" style="display:none;">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm">${t('a.addUser')}</button>
+                    <button type="button" class="btn btn-secondary btn-sm" id="cancel-user" style="display:none;">${t('a.cancel')}</button>
                   </form>
                 </div>
               </div>
@@ -321,16 +317,13 @@ class AdminDashboard {
               <hr class="admin-divider">
 
               <div class="admin-section" id="software-section">
-                <h3 class="admin-section-title">Software update</h3>
+                <h3 class="admin-section-title">${t('a.sw.title')}</h3>
                 <p style="color:#555;font-size:var(--fs-sm);margin:0 0 var(--sp-3);">
-                  The installed version and whether a newer release is available on the
-                  <code>FAO-SID/SIS-dev</code> repository. Applying an update is a host
-                  command (<code>./update.sh</code>) — this panel only checks, it never
-                  changes anything.
+                  ${t('a.sw.intro')} <code>FAO-SID/SIS-dev</code> ${t('a.sw.intro2')} (<code>./update.sh</code>) ${t('a.sw.intro3')}
                 </p>
                 <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;">
-                  <span>Installed version:&nbsp;<code id="sw-current">…</code></span>
-                  <button type="button" class="btn btn-sm btn-primary" id="sw-check-btn">Check for updates</button>
+                  <span>${t('a.sw.installed')}&nbsp;<code id="sw-current">…</code></span>
+                  <button type="button" class="btn btn-sm btn-primary" id="sw-check-btn">${t('a.sw.check')}</button>
                   <span id="sw-status" style="font-size:var(--fs-sm);color:#555;"></span>
                 </div>
                 <div id="sw-result" style="display:none;margin-top:var(--sp-3);"></div>
@@ -339,22 +332,19 @@ class AdminDashboard {
               <hr class="admin-divider">
 
               <div class="admin-section" id="glosis-section">
-                <h3 class="admin-section-title">GloSIS Federation</h3>
+                <h3 class="admin-section-title">${t('a.glosis.title')}</h3>
                 <p style="color:#555;font-size:var(--fs-sm);margin:0 0 var(--sp-3);">
-                  When enabled, this SIS connects to the GloSIS Federation.<br>
-                  The profiles shown in the federation will be the same ones currently visible on this SIS
-                  (customizable under Layers → Soil profiles).<br>
-                  Rasters will be advertised separately via the public metadata catalogue.
+                  ${t('a.glosis.p1')}<br>${t('a.glosis.p2')}<br>${t('a.glosis.p3')}
                 </p>
                 <div style="display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-3);">
-                  <span><strong>Status:</strong> <span id="glosis-status">…</span></span>
-                  <button type="button" class="btn btn-success btn-sm" id="glosis-enable-btn">Enable</button>
-                  <button type="button" class="btn btn-sm" id="glosis-disable-btn" style="background:#ffc107;color:#212529;">Disable</button>
-                  <button type="button" class="btn btn-sm" id="glosis-disable-delete-btn" style="background:#dc3545;color:#fff;">Disable &amp; Delete token</button>
+                  <span><strong>${t('a.glosis.status')}</strong> <span id="glosis-status">…</span></span>
+                  <button type="button" class="btn btn-success btn-sm" id="glosis-enable-btn">${t('a.glosis.enable')}</button>
+                  <button type="button" class="btn btn-sm" id="glosis-disable-btn" style="background:#ffc107;color:#212529;">${t('a.glosis.disable')}</button>
+                  <button type="button" class="btn btn-sm" id="glosis-disable-delete-btn" style="background:#dc3545;color:#fff;">${t('a.glosis.disableDelete')}</button>
                 </div>
 
                 <div style="margin-bottom:var(--sp-3);">
-                  <strong>Endpoints to share with the GloSIS Discovery Hub:</strong>
+                  <strong>${t('a.glosis.endpoints')}</strong>
                   <ul id="glosis-endpoints" style="margin:4px 0 0 18px;font-size:var(--fs-sm);"></ul>
                 </div>
 
@@ -364,32 +354,32 @@ class AdminDashboard {
 
             <!-- Dashboard Tab -->
             <div id="dashboard-tab" class="tab-pane">
-              <div id="dashboard-empty" style="padding:var(--sp-5,24px);color:#777;">Loading dashboard…</div>
+              <div id="dashboard-empty" style="padding:var(--sp-5,24px);color:#777;">${t('a.dash.loading')}</div>
               <div id="dashboard-content" style="display:none;">
                 <div class="stat-card-grid" id="stat-card-grid"></div>
                 <div class="chart-grid">
                   <div class="chart-card">
-                    <h4 class="chart-title">Profiles per project</h4>
+                    <h4 class="chart-title">${t('a.dash.profilesPerProject')}</h4>
                     <div class="chart-wrap"><canvas id="chart-profiles-per-project"></canvas></div>
                   </div>
                   <div class="chart-card">
-                    <h4 class="chart-title">Rasters per project</h4>
+                    <h4 class="chart-title">${t('a.dash.rastersPerProject')}</h4>
                     <div class="chart-wrap"><canvas id="chart-rasters-per-project"></canvas></div>
                   </div>
                   <div class="chart-card">
-                    <h4 class="chart-title">Top measured properties</h4>
+                    <h4 class="chart-title">${t('a.dash.topProperties')}</h4>
                     <div class="chart-wrap"><canvas id="chart-top-properties"></canvas></div>
                   </div>
                   <div class="chart-card chart-card-wide">
-                    <h4 class="chart-title">Profiles sampled per year</h4>
+                    <h4 class="chart-title">${t('a.dash.profilesPerYear')}</h4>
                     <div class="chart-wrap"><canvas id="chart-profiles-per-year"></canvas></div>
                   </div>
                   <div class="chart-card">
-                    <h4 class="chart-title">Observation depth distribution</h4>
+                    <h4 class="chart-title">${t('a.dash.depthDist')}</h4>
                     <div class="chart-wrap"><canvas id="chart-depth-distribution"></canvas></div>
                   </div>
                   <div class="chart-card">
-                    <h4 class="chart-title">Value range per property (min / Q1–Q3 / max)</h4>
+                    <h4 class="chart-title">${t('a.dash.valueRange')}</h4>
                     <div class="chart-wrap"><canvas id="chart-value-summary"></canvas></div>
                   </div>
                 </div>
@@ -399,25 +389,25 @@ class AdminDashboard {
             <!-- Projects Tab -->
             <div id="projects-tab" class="tab-pane">
               <section class="layers-section">
-                <h3 class="layers-section-title">Projects</h3>
-                <p style="color:#666;margin:0 0 12px;">Create, edit and delete projects. Deleting a project lets you delete or reassign its soil profiles and rasters.</p>
+                <h3 class="layers-section-title">${t('a.proj.title')}</h3>
+                <p style="color:#666;margin:0 0 12px;">${t('a.proj.intro')}</p>
                 <div style="margin-bottom:14px;">
-                  <button type="button" class="btn btn-primary btn-sm" onclick="adminDashboard.openProjectModal(null)">+ New project</button>
+                  <button type="button" class="btn btn-primary btn-sm" onclick="adminDashboard.openProjectModal(null)">${t('a.proj.new')}</button>
                 </div>
                 <table class="admin-table" id="projects-table">
                   <thead>
                     <tr>
-                      <th>Name</th>
-                      <th>ID</th>
-                      <th>Description</th>
-                      <th title="Number of soil profiles under this project">Profiles</th>
-                      <th title="Number of rasters under this project">Rasters</th>
-                      <th>Edit</th>
-                      <th>Delete</th>
+                      <th>${t('a.name')}</th>
+                      <th>${t('a.id')}</th>
+                      <th>${t('a.description')}</th>
+                      <th title="${t('a.proj.profilesTip')}">${t('a.sp.profiles')}</th>
+                      <th title="${t('a.proj.rastersTip')}">${t('a.tab.rasters')}</th>
+                      <th>${t('a.edit')}</th>
+                      <th>${t('a.delete')}</th>
                     </tr>
                   </thead>
                   <tbody id="projects-tbody">
-                    <tr><td colspan="7" class="loading">Loading projects...</td></tr>
+                    <tr><td colspan="7" class="loading">${t('a.loadingProjects')}</td></tr>
                   </tbody>
                 </table>
               </section>
@@ -428,14 +418,14 @@ class AdminDashboard {
 
               <!-- Upload CSV (formerly the standalone ETL tab) -->
               <section class="layers-section">
-                <h3 class="layers-section-title">Upload CSV</h3>
+                <h3 class="layers-section-title">${t('a.etl.uploadCsv')}</h3>
                 <div class="etl-steps">
 
                   <!-- List view (always visible unless detail panel open) -->
                   <div id="etl-list-view">
                     <div style="display:flex;align-items:center;gap:var(--sp-3);margin-bottom:var(--sp-4);">
                       <input type="file" id="etl-file-input" accept=".csv">
-                      <button type="button" class="btn btn-primary btn-sm" id="etl-upload-btn">Upload CSV</button>
+                      <button type="button" class="btn btn-primary btn-sm" id="etl-upload-btn">${t('a.etl.uploadCsv')}</button>
                       <span id="etl-upload-status" style="font-size:var(--fs-sm);"></span>
                     </div>
                     <div id="etl-datasets-list"></div>
@@ -445,13 +435,13 @@ class AdminDashboard {
                   <div id="etl-detail-panel" style="display:none;">
 
                     <div style="margin-bottom:var(--sp-4);">
-                      <button type="button" class="btn btn-secondary btn-sm" id="etl-back-btn">&larr; Back to list</button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="etl-back-btn">${t('a.etl.backToList')}</button>
                       <span id="etl-detail-title" style="font-weight:600;margin-left:var(--sp-3);"></span>
                     </div>
 
                     <!-- Preview -->
                     <details id="etl-preview-section" class="etl-section" open>
-                      <summary class="etl-section-title" style="cursor:pointer;">Preview <span id="etl-preview-info" style="font-weight:normal;font-size:var(--fs-sm);color:#555;"></span></summary>
+                      <summary class="etl-section-title" style="cursor:pointer;">${t('a.etl.preview')} <span id="etl-preview-info" style="font-weight:normal;font-size:var(--fs-sm);color:#555;"></span></summary>
                       <div class="etl-preview-scroll" style="margin-top:var(--sp-3);">
                         <table class="admin-table" id="etl-preview-table">
                           <thead id="etl-preview-thead"></thead>
@@ -459,30 +449,30 @@ class AdminDashboard {
                         </table>
                       </div>
                       <div id="etl-preview-pager" style="display:flex;align-items:center;gap:var(--sp-3);font-size:var(--fs-sm);margin-bottom:var(--sp-3);">
-                        <button type="button" class="btn btn-sm" id="etl-preview-prev">Previous</button>
+                        <button type="button" class="btn btn-sm" id="etl-preview-prev">${t('a.etl.previous')}</button>
                         <span id="etl-preview-page-info"></span>
-                        <button type="button" class="btn btn-sm" id="etl-preview-next">Next</button>
+                        <button type="button" class="btn btn-sm" id="etl-preview-next">${t('a.etl.next')}</button>
                       </div>
                     </details>
 
                     <!-- Metadata -->
                     <div id="etl-section-metadata" class="etl-section">
-                      <h3 class="etl-section-title">Metadata</h3>
+                      <h3 class="etl-section-title">${t('a.etl.metadata')}</h3>
                       <form id="etl-metadata-form">
                         <div class="etl-metadata-grid" style="margin-bottom:var(--sp-4);">
-                          <label for="etl-project">Project</label>
+                          <label for="etl-project">${t('a.project')}</label>
                           <div>
-                            <select id="etl-project" required><option value="">Loading...</option></select>
+                            <select id="etl-project" required><option value="">${t('a.loading')}</option></select>
                           </div>
                         </div>
 
                         <div class="etl-metadata-grid" style="margin-bottom:var(--sp-4);">
-                          <label for="etl-abstract">Abstract</label>
-                          <div><textarea id="etl-abstract" rows="6" style="width:400px;max-width:none;font-family:inherit;font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--color-border-strong);border-radius:var(--radius-sm);" placeholder="Abstract for this dataset (defaults to the project description)..."></textarea></div>
-                          <label for="etl-license">Licence</label>
+                          <label for="etl-abstract">${t('a.etl.abstract')}</label>
+                          <div><textarea id="etl-abstract" rows="6" style="width:400px;max-width:none;font-family:inherit;font-size:var(--fs-sm);padding:4px 8px;border:1px solid var(--color-border-strong);border-radius:var(--radius-sm);" placeholder="${t('a.etl.abstractPh')}"></textarea></div>
+                          <label for="etl-license">${t('a.licence')}</label>
                           <div>
                             <select id="etl-license" style="width:100%;">
-                              <option value="">-- Select --</option>
+                              <option value="">${t('a.select')}</option>
                               <option value="CC BY">CC BY</option>
                               <option value="CC BY-SA">CC BY-SA</option>
                               <option value="CC BY-NC">CC BY-NC</option>
@@ -493,7 +483,7 @@ class AdminDashboard {
                               <option value="Public Domain Mark">Public Domain Mark</option>
                             </select>
                           </div>
-                          <label for="etl-epsg">EPSG code of the coordinates</label>
+                          <label for="etl-epsg">${t('a.etl.epsg')}</label>
                           <div><input type="text" id="etl-epsg" value="4326" style="width:80px;padding:2px 6px;font-size:var(--fs-sm);"></div>
                         </div>
 
@@ -502,16 +492,16 @@ class AdminDashboard {
 
                     <!-- Standardisation -->
                     <div id="etl-mapping-section" class="etl-section">
-                      <h3 class="etl-section-title">Standardisation</h3>
+                      <h3 class="etl-section-title">${t('a.etl.standardisation')}</h3>
                       <table class="admin-table" id="etl-mapping-table">
                         <thead>
                           <tr>
-                            <th>CSV column</th>
-                            <th>Destination</th>
-                            <th>Property</th>
-                            <th>Procedure</th>
-                            <th>Unit</th>
-                            <th>Validation</th>
+                            <th>${t('a.etl.csvColumn')}</th>
+                            <th>${t('a.etl.destination')}</th>
+                            <th>${t('a.property')}</th>
+                            <th>${t('a.procedure')}</th>
+                            <th>${t('a.unit')}</th>
+                            <th>${t('a.validation')}</th>
                           </tr>
                         </thead>
                         <tbody id="etl-mapping-tbody"></tbody>
@@ -520,8 +510,8 @@ class AdminDashboard {
 
                     <!-- Save / Validate -->
                     <div style="margin-top:var(--sp-5);display:flex;align-items:center;gap:var(--sp-3);">
-                      <button type="button" class="btn btn-primary" id="etl-save-btn">Save</button>
-                      <button type="button" class="btn" id="etl-validate-btn" style="background:#17a2b8;color:#fff;">Validate</button>
+                      <button type="button" class="btn btn-primary" id="etl-save-btn">${t('a.save')}</button>
+                      <button type="button" class="btn" id="etl-validate-btn" style="background:#17a2b8;color:#fff;">${t('a.etl.validate')}</button>
                       <span id="etl-save-status" style="font-size:var(--fs-sm);"></span>
                     </div>
 
@@ -532,24 +522,24 @@ class AdminDashboard {
 
               <!-- Soil profiles section -->
               <section class="layers-section">
-                <h3 class="layers-section-title">Soil profiles</h3>
+                <h3 class="layers-section-title">${t('a.sp.title')}</h3>
                 <div id="soil-profile-layers-container">
                   <table class="admin-table" id="soil-profile-layers-table">
                     <thead>
                       <tr>
-                        <th>Project</th>
-                        <th>Profiles</th>
-                        <th>Measurements</th>
-                        <th>Public limit</th>
-                        <th title="Random coordinate offset in metres. Blank = precise coords.">Spatial blur (metres)</th>
-                        <th title="Yes = full attribute data is shared. No = only profile locations (points) are shared on the map, no attribute data.">Share attributes</th>
-                        <th title="Yes = the per-project profile CSV download button is shown on the map. No = it is hidden (data still publishes).">Show download button</th>
-                        <th>Published</th>
-                        <th title="Remove the project's ingested soil profiles from the database. The project and its uploaded CSVs are kept.">Prune</th>
+                        <th>${t('a.project')}</th>
+                        <th>${t('a.sp.profiles')}</th>
+                        <th>${t('a.sp.measurements')}</th>
+                        <th>${t('a.sp.publicLimit')}</th>
+                        <th title="${t('a.sp.blurTip')}">${t('a.sp.blur')}</th>
+                        <th title="${t('a.sp.shareAttrsTip')}">${t('a.sp.shareAttrs')}</th>
+                        <th title="${t('a.sp.showDlTip')}">${t('a.sp.showDl')}</th>
+                        <th>${t('a.published')}</th>
+                        <th title="${t('a.sp.pruneTip')}">${t('a.sp.prune')}</th>
                       </tr>
                     </thead>
                     <tbody id="soil-profile-layers-tbody">
-                      <tr><td colspan="9" class="loading">Loading soil profile layers...</td></tr>
+                      <tr><td colspan="9" class="loading">${t('a.sp.loading')}</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -562,51 +552,51 @@ class AdminDashboard {
 
               <div style="display:flex;gap:var(--sp-5);align-items:flex-start;flex-wrap:wrap;">
               <section class="layers-section" style="flex:0 0 820px;max-width:820px;">
-                <h3 class="layers-section-title">Upload GeoTIFF</h3>
+                <h3 class="layers-section-title">${t('a.raster.upload')}</h3>
 
                 <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-2) var(--sp-3);align-items:center;">
-                  <label>File</label>
+                  <label>${t('a.raster.file')}</label>
                   <div>
                     <input type="file" id="raster-file-input" accept=".tif,.tiff">
                   </div>
 
-                  <label>Country</label>
-                  <select id="raster-country" style="width:320px;"><option value="">Loading...</option></select>
+                  <label>${t('a.country')}</label>
+                  <select id="raster-country" style="width:320px;"><option value="">${t('a.loading')}</option></select>
 
-                  <label>Project</label>
+                  <label>${t('a.project')}</label>
                   <div>
                     <select id="raster-project">
-                      <option value="">-- Select --</option>
+                      <option value="">${t('a.select')}</option>
                     </select>
                   </div>
 
-                  <label>Mapped soil property</label>
+                  <label>${t('a.raster.mappedProp')}</label>
                   <div>
-                    <select id="raster-property-num" style="width:320px;"><option value="">Loading...</option></select>
+                    <select id="raster-property-num" style="width:320px;"><option value="">${t('a.loading')}</option></select>
                     <div id="raster-property-new" style="display:none;margin-top:6px;">
                       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                         <input type="text" id="raster-new-property-id"
-                               placeholder="ID (CAPS, A-Z 0-9 _)"
+                               placeholder="${t('a.etl.procIdPh')}"
                                pattern="[A-Z0-9_]+"
-                               title="Letters A-Z, digits, underscore. No spaces or symbols."
+                               title="${t('a.etl.procIdTip')}"
                                style="width:160px;text-transform:uppercase;">
                         <input type="text" id="raster-new-property-name"
-                               placeholder="Display name"
+                               placeholder="${t('a.raster.displayNamePh')}"
                                style="width:200px;">
-                        <select id="raster-new-property-type" style="width:140px;" title="Property type">
+                        <select id="raster-new-property-type" style="width:140px;" title="${t('a.propertyType')}">
                           <option value="quantitative">quantitative</option>
                           <option value="categorical">categorical</option>
                         </select>
-                        <button type="button" class="btn btn-sm btn-primary" id="raster-add-property-btn">Add</button>
+                        <button type="button" class="btn btn-sm btn-primary" id="raster-add-property-btn">${t('a.add')}</button>
                         <span id="raster-new-property-status" style="font-size:var(--fs-sm);"></span>
                       </div>
                     </div>
                   </div>
 
-                  <label>Unit</label>
-                  <select id="raster-unit" style="width:140px;"><option value="">-- pick a property first --</option></select>
+                  <label>${t('a.unit')}</label>
+                  <select id="raster-unit" style="width:140px;"><option value="">${t('a.pickPropertyFirst')}</option></select>
 
-                  <label>Created on</label>
+                  <label>${t('a.raster.createdOn')}</label>
                   <div style="display:flex;align-items:center;gap:var(--sp-3);">
                     <input type="text" id="raster-publication-date"
                            placeholder="YYYY-MM-DD"
@@ -614,10 +604,10 @@ class AdminDashboard {
                            maxlength="10"
                            title="Format: YYYY-MM-DD"
                            style="width:140px;">
-                    <span style="color:#666;font-size:var(--fs-sm);">Date when this map was produced.</span>
+                    <span style="color:#666;font-size:var(--fs-sm);">${t('a.raster.createdOnHint')}</span>
                   </div>
 
-                  <label>Period start</label>
+                  <label>${t('a.raster.periodStart')}</label>
                   <div style="display:flex;align-items:center;gap:var(--sp-3);">
                     <input type="text" id="raster-time-period-begin"
                            placeholder="YYYY-MM-DD"
@@ -625,10 +615,10 @@ class AdminDashboard {
                            maxlength="10"
                            title="Format: YYYY-MM-DD"
                            style="width:140px;">
-                    <span style="color:#666;font-size:var(--fs-sm);">The oldest date of the data used to create this map.</span>
+                    <span style="color:#666;font-size:var(--fs-sm);">${t('a.raster.periodStartHint')}</span>
                   </div>
 
-                  <label>Period end</label>
+                  <label>${t('a.raster.periodEnd')}</label>
                   <div style="display:flex;align-items:center;gap:var(--sp-3);">
                     <input type="text" id="raster-time-period-end"
                            placeholder="YYYY-MM-DD"
@@ -636,27 +626,27 @@ class AdminDashboard {
                            maxlength="10"
                            title="Format: YYYY-MM-DD"
                            style="width:140px;">
-                    <span style="color:#666;font-size:var(--fs-sm);">The most recent date of the data used to create this map.</span>
+                    <span style="color:#666;font-size:var(--fs-sm);">${t('a.raster.periodEndHint')}</span>
                   </div>
 
-                  <label>Depth (cm)</label>
+                  <label>${t('a.raster.depth')}</label>
                   <div style="display:flex;gap:6px;align-items:center;">
-                    <input type="number" id="raster-depth-upper" placeholder="upper" min="0" max="1000" step="1" class="no-spinner" style="width:90px;">
-                    <span>to</span>
-                    <input type="number" id="raster-depth-lower" placeholder="lower" min="0" max="1000" step="1" class="no-spinner" style="width:90px;">
+                    <input type="number" id="raster-depth-upper" placeholder="${t('a.upper')}" min="0" max="1000" step="1" class="no-spinner" style="width:90px;">
+                    <span>${t('a.to')}</span>
+                    <input type="number" id="raster-depth-lower" placeholder="${t('a.lower')}" min="0" max="1000" step="1" class="no-spinner" style="width:90px;">
                   </div>
 
-                  <label>Stats</label>
+                  <label>${t('a.raster.stats')}</label>
                   <select id="raster-stats" style="width:140px;">
-                    <option value="">-- Select --</option>
+                    <option value="">${t('a.select')}</option>
                     <option value="MEAN">MEAN</option>
                     <option value="SDEV">SDEV</option>
                     <option value="UNCT">UNCT</option>
                   </select>
 
-                  <label>Licence</label>
+                  <label>${t('a.licence')}</label>
                   <select id="raster-license" style="width:220px;">
-                    <option value="">-- Select --</option>
+                    <option value="">${t('a.select')}</option>
                     <option value="CC BY">CC BY</option>
                     <option value="CC BY-SA">CC BY-SA</option>
                     <option value="CC BY-NC">CC BY-NC</option>
@@ -667,16 +657,16 @@ class AdminDashboard {
                     <option value="Public Domain Mark">Public Domain Mark</option>
                   </select>
 
-                  <label>Publish to catalogue</label>
+                  <label>${t('a.raster.publish')}</label>
                   <div><input type="checkbox" id="raster-publish" checked></div>
 
-                  <label>Generated filename</label>
+                  <label>${t('a.raster.filename')}</label>
                   <code id="raster-filename-preview" style="font-size:var(--fs-sm);color:#444;background:#f7f7f7;padding:4px 8px;border-radius:4px;">—</code>
                 </div>
 
                 <div style="margin-top:var(--sp-4);display:flex;align-items:center;gap:var(--sp-3);">
-                  <button type="button" class="btn btn-primary" id="raster-register-btn">Upload</button>
-                  <button type="button" class="btn btn-secondary" id="raster-clear-btn">Clear</button>
+                  <button type="button" class="btn btn-primary" id="raster-register-btn">${t('a.upload')}</button>
+                  <button type="button" class="btn btn-secondary" id="raster-clear-btn">${t('a.clear')}</button>
                   <span id="raster-status" style="font-size:var(--fs-sm);"></span>
                 </div>
 
@@ -687,9 +677,9 @@ class AdminDashboard {
 
               <!-- Rasters list (moved here from the old Layers tab) -->
               <section class="layers-section" style="margin-top: var(--sp-6, 24px);">
-                <h3 class="layers-section-title">GeoTIFF's</h3>
+                <h3 class="layers-section-title">${t('a.raster.list')}</h3>
                 <div class="sync-bar" style="margin: 10px 0; display: flex; align-items: center; gap: 10px;">
-                  <button type="button" class="btn btn-primary" id="check-wms-btn">Check WMS</button>
+                  <button type="button" class="btn btn-primary" id="check-wms-btn">${t('a.raster.checkWms')}</button>
                   <span id="sync-status" style="font-size: 0.9em; color: #555;"></span>
                 </div>
 
@@ -697,18 +687,18 @@ class AdminDashboard {
                   <table class="admin-table" id="layers-table">
                     <thead>
                       <tr>
-                        <th>Raster ID</th>
-                        <th>Original file</th>
-                        <th style="width:120px;">Group</th>
-                        <th>Raster name</th>
-                        <th>Published</th>
-                        <th>Default</th>
+                        <th>${t('a.raster.id')}</th>
+                        <th>${t('a.raster.origFile')}</th>
+                        <th style="width:120px;">${t('a.raster.group')}</th>
+                        <th>${t('a.raster.name')}</th>
+                        <th>${t('a.published')}</th>
+                        <th>${t('a.default')}</th>
                         <th>WMS</th>
-                        <th class="raster-delete-col" style="width:90px;">Delete</th>
+                        <th class="raster-delete-col" style="width:90px;">${t('a.delete')}</th>
                       </tr>
                     </thead>
                     <tbody id="layers-tbody">
-                      <tr><td colspan="8" class="loading">Loading layers...</td></tr>
+                      <tr><td colspan="8" class="loading">${t('a.loadingLayers')}</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -719,54 +709,54 @@ class AdminDashboard {
             <div id="dst-tab" class="tab-pane">
               <section style="display:flex;flex-direction:column;gap:var(--sp-4);">
                 <div>
-                  <h3>Recipes</h3>
-                  <button type="button" class="btn btn-sm btn-primary" id="dst-new-btn" style="margin-bottom:var(--sp-3);">+ New Recipe</button>
+                  <h3>${t('a.dst.recipes')}</h3>
+                  <button type="button" class="btn btn-sm btn-primary" id="dst-new-btn" style="margin-bottom:var(--sp-3);">${t('a.dst.new')}</button>
                   <table class="admin-table" id="dst-recipes-table" style="width:100%;">
-                    <thead><tr><th>Raster ID</th><th>Name</th><th>Status</th><th>Last run</th><th>Actions</th></tr></thead>
-                    <tbody id="dst-recipes-tbody"><tr><td colspan="5" class="loading">Loading...</td></tr></tbody>
+                    <thead><tr><th>${t('a.raster.id')}</th><th>${t('a.name')}</th><th>${t('a.status')}</th><th>${t('a.dst.lastRun')}</th><th>${t('a.actions')}</th></tr></thead>
+                    <tbody id="dst-recipes-tbody"><tr><td colspan="5" class="loading">${t('a.loading')}</td></tr></tbody>
                   </table>
                 </div>
                 <div id="dst-editor-wrap" style="display:none;">
-                  <h3>Editor <span id="dst-editor-id" style="font-weight:normal;color:#666;font-size:var(--fs-sm);"></span></h3>
+                  <h3>${t('a.dst.editor')} <span id="dst-editor-id" style="font-weight:normal;color:#666;font-size:var(--fs-sm);"></span></h3>
                   <div id="dst-editor" style="display:none;">
                     <div style="display:grid;grid-template-columns:auto 1fr;gap:var(--sp-2) var(--sp-3);align-items:center;">
-                      <label>Project</label>
+                      <label>${t('a.project')}</label>
                       <div>
                         <select id="dst-output-project" style="width:320px;"><option value="DST">DST</option></select>
                         <div id="dst-output-project-new" style="display:none;margin-top:6px;">
                           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                             <input type="text" id="dst-new-output-project-id"
-                                   placeholder="Project ID (CAPS, A-Z 0-9 _)"
+                                   placeholder="${t('a.dst.projIdPh')}"
                                    pattern="[A-Z0-9_]+"
-                                   title="Letters A-Z, digits, underscore. No spaces or symbols."
+                                   title="${t('a.etl.procIdTip')}"
                                    style="width:200px;text-transform:uppercase;">
-                            <input type="text" id="dst-new-output-project-name" placeholder="Project name" style="width:240px;">
-                            <button type="button" class="btn btn-sm btn-primary" id="dst-add-output-project-btn">Add</button>
+                            <input type="text" id="dst-new-output-project-name" placeholder="${t('a.dst.projNamePh')}" style="width:240px;">
+                            <button type="button" class="btn btn-sm btn-primary" id="dst-add-output-project-btn">${t('a.add')}</button>
                             <span id="dst-new-output-project-status" style="font-size:var(--fs-sm);"></span>
                           </div>
                           <textarea id="dst-new-output-project-description"
-                                    placeholder="Project description"
+                                    placeholder="${t('a.dst.projDescPh')}"
                                     rows="2" style="width:100%;margin-top:4px;"></textarea>
                         </div>
                       </div>
-                      <label>Mapped property</label>
+                      <label>${t('a.dst.mappedProperty')}</label>
                       <div>
                         <select id="dst-output-property" style="width:320px;"><option value="SUITABILITY">SUITABILITY</option></select>
                         <div id="dst-output-property-new" style="display:none;margin-top:6px;">
                           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                             <input type="text" id="dst-new-output-property-id"
-                                   placeholder="ID (CAPS, A-Z 0-9 _)"
+                                   placeholder="${t('a.etl.procIdPh')}"
                                    pattern="[A-Z0-9_]+"
-                                   title="Letters A-Z, digits, underscore. No spaces or symbols."
+                                   title="${t('a.etl.procIdTip')}"
                                    style="width:160px;text-transform:uppercase;">
                             <input type="text" id="dst-new-output-property-name"
-                                   placeholder="Display name"
+                                   placeholder="${t('a.raster.displayNamePh')}"
                                    style="width:200px;">
-                            <select id="dst-new-output-property-type" style="width:140px;" title="Property type">
+                            <select id="dst-new-output-property-type" style="width:140px;" title="${t('a.propertyType')}">
                               <option value="quantitative">quantitative</option>
                               <option value="categorical">categorical</option>
                             </select>
-                            <button type="button" class="btn btn-sm btn-primary" id="dst-add-output-property-btn">Add</button>
+                            <button type="button" class="btn btn-sm btn-primary" id="dst-add-output-property-btn">${t('a.add')}</button>
                             <span id="dst-new-output-property-status" style="font-size:var(--fs-sm);"></span>
                           </div>
                         </div>
@@ -780,33 +770,31 @@ class AdminDashboard {
                       <label style="display:none;">description</label>
                       <textarea id="dst-recipe-description" rows="2" style="display:none;"></textarea>
                     </div>
-                    <h4 style="margin-top:var(--sp-4);margin-bottom:var(--sp-2);">Input layers</h4>
+                    <h4 style="margin-top:var(--sp-4);margin-bottom:var(--sp-2);">${t('a.dst.inputLayers')}</h4>
                     <p style="font-size:var(--fs-xs);color:#666;margin:0 0 var(--sp-2) 0;">
-                      Pick a raster per row. The threshold splits each layer: pixels at or above
-                      become the <em>above</em> value, below become the <em>below</em> value.
-                      Defaults are 0 / 1 — overwrite for custom scoring.
+                      ${t('a.dst.inputsIntro')}
                     </p>
                     <table class="admin-table" id="dst-rows-table" style="width:auto;font-size:var(--fs-sm);">
                       <thead>
                         <tr>
-                          <th>Layer</th>
-                          <th style="text-align:right;padding-right:6px;">Min</th>
-                          <th style="text-align:right;padding-left:6px;padding-right:56px;">Max</th>
-                          <th style="padding-right:6px;">Below</th>
-                          <th style="padding-left:6px;padding-right:6px;text-align:center;">Threshold</th>
-                          <th style="padding-left:6px;">Above</th>
+                          <th>${t('a.dst.layer')}</th>
+                          <th style="text-align:right;padding-right:6px;">${t('a.min')}</th>
+                          <th style="text-align:right;padding-left:6px;padding-right:56px;">${t('a.max')}</th>
+                          <th style="padding-right:6px;">${t('a.dst.below')}</th>
+                          <th style="padding-left:6px;padding-right:6px;text-align:center;">${t('a.dst.threshold')}</th>
+                          <th style="padding-left:6px;">${t('a.dst.above')}</th>
                           <th style="width:30px;"></th>
                         </tr>
                       </thead>
                       <tbody id="dst-rows-tbody">
-                        <tr><td colspan="7" class="empty-state">No inputs yet — click "+ Add layer".</td></tr>
+                        <tr><td colspan="7" class="empty-state">${t('a.dst.noInputs')}</td></tr>
                       </tbody>
                     </table>
                     <div style="margin-top:var(--sp-2);">
-                      <button type="button" class="btn btn-sm btn-secondary" id="dst-add-row-btn">+ Add layer</button>
+                      <button type="button" class="btn btn-sm btn-secondary" id="dst-add-row-btn">${t('a.dst.addLayer')}</button>
                     </div>
                     <div style="margin-top:var(--sp-3);display:flex;gap:var(--sp-2);align-items:center;">
-                      <button type="button" class="btn btn-sm" id="dst-run-btn" style="background:#28a745;color:#fff;">Run</button>
+                      <button type="button" class="btn btn-sm" id="dst-run-btn" style="background:#28a745;color:#fff;">${t('a.dst.run')}</button>
                       <span id="dst-status" style="font-size:var(--fs-sm);"></span>
                     </div>
                   </div>
@@ -817,20 +805,20 @@ class AdminDashboard {
             <!-- My Account Tab -->
             <div id="account-tab" class="tab-pane">
               <div class="admin-form" style="max-width:500px;">
-                <h3>Change Email or Password</h3>
+                <h3>${t('a.acct.title')}</h3>
                 <p style="color:#555;font-size:0.85em;margin-bottom:var(--sp-4);">
-                  Leave a field blank to keep it unchanged. Current password is always required.
+                  ${t('a.acct.intro')}
                 </p>
                 <form id="account-form" style="display:grid;grid-template-columns:auto 220px;gap:var(--sp-2) var(--sp-3);align-items:center;">
-                  <label for="account-current-password" style="font-size:var(--fs-sm);white-space:nowrap;">Current Password *</label>
+                  <label for="account-current-password" style="font-size:var(--fs-sm);white-space:nowrap;">${t('a.acct.currentPw')}</label>
                   <input type="password" id="account-current-password" required style="padding:4px 8px;font-size:var(--fs-sm);width:100%;box-sizing:border-box;">
-                  <label for="account-new-email" style="font-size:var(--fs-sm);white-space:nowrap;">New username</label>
-                  <input type="text" id="account-new-email" placeholder="Keep current" style="padding:4px 8px;font-size:var(--fs-sm);width:100%;box-sizing:border-box;">
-                  <label for="account-new-password" style="font-size:var(--fs-sm);white-space:nowrap;">New Password</label>
-                  <input type="password" id="account-new-password" placeholder="Keep current" style="padding:4px 8px;font-size:var(--fs-sm);width:100%;box-sizing:border-box;">
+                  <label for="account-new-email" style="font-size:var(--fs-sm);white-space:nowrap;">${t('a.acct.newUser')}</label>
+                  <input type="text" id="account-new-email" placeholder="${t('a.acct.keepCurrent')}" style="padding:4px 8px;font-size:var(--fs-sm);width:100%;box-sizing:border-box;">
+                  <label for="account-new-password" style="font-size:var(--fs-sm);white-space:nowrap;">${t('a.acct.newPw')}</label>
+                  <input type="password" id="account-new-password" placeholder="${t('a.acct.keepCurrent')}" style="padding:4px 8px;font-size:var(--fs-sm);width:100%;box-sizing:border-box;">
                   <div></div>
                   <div style="display:flex;align-items:center;gap:var(--sp-3);">
-                    <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                    <button type="submit" class="btn btn-primary btn-sm">${t('a.update')}</button>
                     <span id="account-status" style="font-size:0.85em;"></span>
                   </div>
                 </form>
@@ -1017,27 +1005,27 @@ class AdminDashboard {
     const statusEl = document.getElementById('account-status');
 
     if (!currentPassword) {
-      statusEl.textContent = 'Current password is required.';
+      statusEl.textContent = t('a.acct.pwRequired');
       statusEl.style.color = '#c33';
       return;
     }
     if (!newEmail && !newPassword) {
-      statusEl.textContent = 'Enter a new email or a new password.';
+      statusEl.textContent = t('a.acct.nothing');
       statusEl.style.color = '#c33';
       return;
     }
 
-    statusEl.textContent = 'Updating…';
+    statusEl.textContent = t('a.acct.updating');
     statusEl.style.color = '#555';
 
     try {
       await api.updateOwnAccount(currentPassword, newEmail || null, newPassword || null);
-      statusEl.textContent = 'Account updated successfully.';
+      statusEl.textContent = t('a.acct.updated');
       statusEl.style.color = '#2a7';
       document.getElementById('account-form').reset();
       if (newEmail) this.currentUserId = newEmail;
     } catch (error) {
-      statusEl.textContent = 'Error: ' + error.message;
+      statusEl.textContent = t('a.err.prefix') + error.message;
       statusEl.style.color = '#c33';
     }
   }
@@ -1055,7 +1043,7 @@ class AdminDashboard {
     const btn = document.getElementById('check-wms-btn');
     btn.disabled = true;
     const originalText = btn.textContent;
-    btn.textContent = 'Checking...';
+    btn.textContent = t('a.st.checking');
 
     this.layers.forEach(layer => {
       const cell = document.getElementById(`wms-status-${layer.layer_id}`);
@@ -1066,7 +1054,7 @@ class AdminDashboard {
       const cell = document.getElementById(`wms-status-${layer.layer_id}`);
       if (!cell) return;
       if (!layer.get_legend_url) {
-        cell.innerHTML = '<span style="color:#888;" title="No URL">—</span>';
+        cell.innerHTML = `<span style="color:#888;" title="${t('a.noUrl')}">—</span>`;
         return;
       }
       try {
@@ -1169,7 +1157,7 @@ class AdminDashboard {
     if (!tbody) return;
     const rows = this.projects || [];
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No projects found</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${t('a.proj.none')}</td></tr>`;
       return;
     }
     tbody.innerHTML = rows.map(p => {
@@ -1183,8 +1171,8 @@ class AdminDashboard {
         <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${desc}">${desc}</td>
         <td>${Number(p.profile_count || 0).toLocaleString()}</td>
         <td>${Number(p.raster_count || 0).toLocaleString()}</td>
-        <td><button class="btn btn-secondary btn-sm proj-edit-btn" data-project-id="${pid}">Edit</button></td>
-        <td><button class="btn btn-sm proj-del-btn" style="background:#dc3545;color:#fff;" data-project-id="${pid}">Delete</button></td>
+        <td><button class="btn btn-secondary btn-sm proj-edit-btn" data-project-id="${pid}">${t('a.edit')}</button></td>
+        <td><button class="btn btn-sm proj-del-btn" style="background:#dc3545;color:#fff;" data-project-id="${pid}">${t('a.delete')}</button></td>
       </tr>`;
     }).join('');
     tbody.querySelectorAll('.proj-edit-btn').forEach(b => b.addEventListener('click', (e) => {
@@ -1225,21 +1213,21 @@ class AdminDashboard {
   }
 
   _refreshProjectAuthorDropdowns() {
-    const orgOpts = '<option value="">-- Select --</option>'
+    const orgOpts = `<option value="">${t('a.select')}</option>`
       + (this._projOrgs || []).map(o => `<option value="${this.escapeHtml(o.organisation_id)}">${this.escapeHtml(o.organisation_id + (o.country ? ' (' + o.country + ')' : ''))}</option>`).join('')
-      + '<option value="__new__">+ Add new...</option>';
-    const indOpts = '<option value="">-- Select --</option>'
+      + `<option value="__new__">${t('a.pm.addNew')}</option>`;
+    const indOpts = `<option value="">${t('a.select')}</option>`
       + (this._projInds || []).map(i => `<option value="${this.escapeHtml(i.individual_id)}">${this.escapeHtml(i.individual_id + (i.email ? ' — ' + i.email : ''))}</option>`).join('')
-      + '<option value="__new__">+ Add new...</option>';
+      + `<option value="__new__">${t('a.pm.addNew')}</option>`;
     document.querySelectorAll('.proj-org-sel').forEach(sel => {
       const prev = sel.dataset.value || sel.value; sel.innerHTML = orgOpts;
       if (prev && prev !== '__new__') sel.value = prev;
       sel.onchange = async () => {
         if (sel.value !== '__new__') return;
-        const id = (prompt('New organisation ID:') || '').trim();
+        const id = (prompt(t('a.pm.newOrgPrompt')) || '').trim();
         if (!id) { sel.value = ''; return; }
         try { await api.createOrganisation({ organisation_id: id }); this._projOrgs.push({ organisation_id: id }); this._refreshProjectAuthorDropdowns(); sel.value = id; }
-        catch (e) { alert('Error: ' + e.message); sel.value = ''; }
+        catch (e) { alert(t('a.err.prefix') + e.message); sel.value = ''; }
       };
     });
     document.querySelectorAll('.proj-ind-sel').forEach(sel => {
@@ -1247,10 +1235,10 @@ class AdminDashboard {
       if (prev && prev !== '__new__') sel.value = prev;
       sel.onchange = async () => {
         if (sel.value !== '__new__') return;
-        const id = (prompt('New author (individual) ID:') || '').trim();
+        const id = (prompt(t('a.pm.newIndPrompt')) || '').trim();
         if (!id) { sel.value = ''; return; }
         try { await api.createIndividual({ individual_id: id }); this._projInds.push({ individual_id: id }); this._refreshProjectAuthorDropdowns(); sel.value = id; }
-        catch (e) { alert('Error: ' + e.message); sel.value = ''; }
+        catch (e) { alert(t('a.err.prefix') + e.message); sel.value = ''; }
       };
     });
   }
@@ -1269,11 +1257,11 @@ class AdminDashboard {
     // and the row wraps. min-width:0 lets the grid clip them instead.
     row.style.cssText = `display:grid;grid-template-columns:${this._projAuthorGridCols};column-gap:6px;margin-bottom:6px;align-items:center;flex-wrap:nowrap;padding-right:0;`;
     row.innerHTML = `
-      <select class="proj-org-sel" data-value="${this.escapeHtml((author && author.organisation_id) || '')}" style="min-width:0;width:100%;"><option>Loading...</option></select>
-      <select class="proj-ind-sel" data-value="${this.escapeHtml((author && author.individual_id) || '')}" style="min-width:0;width:100%;"><option>Loading...</option></select>
-      <input type="text" class="proj-pos-input" placeholder="Position" value="${this.escapeHtml((author && author.position) || '')}" style="min-width:0;width:100%;box-sizing:border-box;">
+      <select class="proj-org-sel" data-value="${this.escapeHtml((author && author.organisation_id) || '')}" style="min-width:0;width:100%;"><option>${t('a.loading')}</option></select>
+      <select class="proj-ind-sel" data-value="${this.escapeHtml((author && author.individual_id) || '')}" style="min-width:0;width:100%;"><option>${t('a.loading')}</option></select>
+      <input type="text" class="proj-pos-input" placeholder="${t('a.pm.position')}" value="${this.escapeHtml((author && author.position) || '')}" style="min-width:0;width:100%;box-sizing:border-box;">
       <select class="proj-role-sel" style="min-width:0;width:100%;">${this._roleOptions((author && author.role) || 'author')}</select>
-      <button type="button" class="btn btn-danger btn-sm" title="Remove" onclick="this.closest('.etl-author-row').remove()" style="width:26px;">&times;</button>`;
+      <button type="button" class="btn btn-danger btn-sm" title="${t('a.remove')}" onclick="this.closest('.etl-author-row').remove()" style="width:26px;">&times;</button>`;
     container.appendChild(row);
     this._refreshProjectAuthorDropdowns();
   }
@@ -1286,25 +1274,25 @@ class AdminDashboard {
     const pid = isNew ? '' : project.project_id;
     const cc = isNew ? '' : (project.country_id || '');
     const idRow = isNew
-      ? `<input class="pm-id" placeholder="Project ID (A-Z, 0-9)" title="Uppercase letters and digits only — no spaces, symbols or lower case." style="width:100%;box-sizing:border-box;margin-bottom:12px;" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">`
+      ? `<input class="pm-id" placeholder="${t('a.pm.idPh')}" title="${t('a.pm.idRuleTip')}" style="width:100%;box-sizing:border-box;margin-bottom:12px;" oninput="this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'')">`
       : `<input class="pm-id" value="${this.escapeHtml(pid)}" disabled style="width:100%;box-sizing:border-box;margin-bottom:12px;background:#f2f2f2;color:#666;">`;
-    const { body } = this._openModal(isNew ? 'New project' : `Edit project — ${project.name || pid}`, `
-      <label style="display:block;font-weight:600;margin-bottom:4px;">Project ID</label>
+    const { body } = this._openModal(isNew ? t('a.pm.newProject') : t('a.pm.editProject') + (project.name || pid), `
+      <label style="display:block;font-weight:600;margin-bottom:4px;">${t('a.pm.projectId')}</label>
       ${idRow}
-      <label style="display:block;font-weight:600;margin-bottom:4px;">Name</label>
+      <label style="display:block;font-weight:600;margin-bottom:4px;">${t('a.name')}</label>
       <input class="pm-name" style="width:100%;box-sizing:border-box;margin-bottom:12px;" value="${this.escapeHtml(isNew ? '' : (project.name || ''))}">
-      <label style="display:block;font-weight:600;margin-bottom:4px;">Description</label>
+      <label style="display:block;font-weight:600;margin-bottom:4px;">${t('a.description')}</label>
       <textarea class="pm-description" rows="3" style="width:100%;box-sizing:border-box;margin-bottom:14px;">${this.escapeHtml(isNew ? '' : (project.description || ''))}</textarea>
-      <label style="display:block;font-weight:600;margin-bottom:4px;">Authors</label>
+      <label style="display:block;font-weight:600;margin-bottom:4px;">${t('a.pm.authors')}</label>
       <div style="display:grid;grid-template-columns:${this._projAuthorGridCols};column-gap:6px;font-size:12px;color:#666;margin-bottom:4px;">
-        <div>Organisation</div><div>Author</div><div>Position</div><div>Role</div><div></div>
+        <div>${t('a.pm.organisation')}</div><div>${t('a.pm.author')}</div><div>${t('a.pm.position')}</div><div>${t('a.pm.role')}</div><div></div>
       </div>
       <div id="project-author-rows"></div>
-      <button type="button" class="btn btn-secondary btn-sm pm-add-author" style="margin-top:6px;">+ Add author</button>
+      <button type="button" class="btn btn-secondary btn-sm pm-add-author" style="margin-top:6px;">${t('a.pm.addAuthor')}</button>
       <div class="pm-status" style="margin-top:10px;font-size:12px;"></div>
       <div style="margin-top:14px;text-align:right;">
-        <button type="button" class="btn btn-secondary btn-sm pm-cancel">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm pm-save">${isNew ? 'Create project' : 'Save'}</button>
+        <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
+        <button type="button" class="btn btn-primary btn-sm pm-save">${isNew ? t('a.pm.create') : t('a.save')}</button>
       </div>`, 760);
     body.querySelector('.pm-add-author').addEventListener('click', () => this.addProjectAuthorRow());
     body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
@@ -1320,7 +1308,7 @@ class AdminDashboard {
       if (list.length === 0) this.addProjectAuthorRow();
       else list.forEach(a => this.addProjectAuthorRow(a));
     } catch (e) {
-      const s = body.querySelector('.pm-status'); if (s) { s.textContent = 'Could not load authors: ' + e.message; s.style.color = '#dc3545'; }
+      const s = body.querySelector('.pm-status'); if (s) { s.textContent = t('a.pm.loadAuthorsFailed') + e.message; s.style.color = '#dc3545'; }
       this.addProjectAuthorRow();
     }
   }
@@ -1333,13 +1321,13 @@ class AdminDashboard {
     if (isNew) {
       projectId = (overlay.querySelector('.pm-id').value || '').trim().toUpperCase();
       if (!/^[A-Z0-9]+$/.test(projectId)) {
-        status.textContent = 'Project ID must be uppercase letters and digits only (no spaces, symbols or lower case).';
+        status.textContent = t('a.pm.idRule');
         status.style.color = '#dc3545'; return;
       }
     }
     const name = overlay.querySelector('.pm-name').value.trim();
     const description = overlay.querySelector('.pm-description').value.trim();
-    if (!name) { status.textContent = 'Name is required'; status.style.color = '#dc3545'; return; }
+    if (!name) { status.textContent = t('a.pm.nameRequired'); status.style.color = '#dc3545'; return; }
     const authors = [];
     overlay.querySelectorAll('#project-author-rows .etl-author-row').forEach(r => {
       const org = r.querySelector('.proj-org-sel').value;
@@ -1351,7 +1339,7 @@ class AdminDashboard {
         tag: 'pointOfContact', role: r.querySelector('.proj-role-sel').value || 'author'
       });
     });
-    status.textContent = isNew ? 'Creating...' : 'Saving...'; status.style.color = '#666';
+    status.textContent = isNew ? t('a.st.creating') : t('a.st.saving2'); status.style.color = '#666';
     try {
       if (isNew) await api.createProject({ project_id: projectId, name, description: description || null });
       else await api.updateProject(projectId, { name, description: description || null });
@@ -1361,41 +1349,41 @@ class AdminDashboard {
       }
       overlay.remove();
       await this.loadProjects(); this.renderProjects();
-    } catch (e) { status.textContent = 'Error: ' + e.message; status.style.color = '#dc3545'; }
+    } catch (e) { status.textContent = t('a.err.prefix') + e.message; status.style.color = '#dc3545'; }
   }
 
   async openDeleteProjectModal(project) {
     const pid = project.project_id;
     let dep;
     try { dep = await api.getProjectDependents(pid); }
-    catch (e) { alert('Could not load dependents: ' + e.message); return; }
+    catch (e) { alert(t('a.pm.loadDepsFailed') + e.message); return; }
     const cc = dep.country_id || project.country_id || '';
     const others = (this.projects || []).filter(p => String(p.project_id) !== String(pid));
     const targetSelect = (kind) => `<select class="pm-${kind}-target" style="margin-left:8px;">`
       + others.map(p => `<option value="${this.escapeHtml(p.project_id)}">${this.escapeHtml(p.name || p.project_id)} (${this.escapeHtml(p.project_id)})</option>`).join('')
       + `</select>`;
     const typeBlock = (kind, label, count) => {
-      if (!count) return `<p style="color:#888;margin:6px 0;">No ${label}.</p>`;
+      if (!count) return `<p style="color:#888;margin:6px 0;">${t('a.pm.noDeps', {label})}</p>`;
       const hasTargets = others.length > 0;
       return `
       <div style="border:1px solid #eee;border-radius:6px;padding:10px;margin:8px 0;">
         <strong>${count.toLocaleString()} ${label}</strong>
         <div style="margin-top:6px;">
-          <label style="display:block;margin:3px 0;"><input type="radio" name="pm-${kind}-action" value="delete" checked> Delete them permanently</label>
+          <label style="display:block;margin:3px 0;"><input type="radio" name="pm-${kind}-action" value="delete" checked> ${t('a.pm.deleteThem')}</label>
           <label style="display:block;margin:3px 0;${hasTargets ? '' : 'color:#aaa;'}">
-            <input type="radio" name="pm-${kind}-action" value="reassign" ${hasTargets ? '' : 'disabled'}> Reassign to ${hasTargets ? targetSelect(kind) : '(no other project available)'}
+            <input type="radio" name="pm-${kind}-action" value="reassign" ${hasTargets ? '' : 'disabled'}> ${t('a.pm.reassignTo')} ${hasTargets ? targetSelect(kind) : t('a.pm.noOther')}
           </label>
         </div>
       </div>`;
     };
-    const { body } = this._openModal(`Delete project — ${project.name || pid}`, `
-      <p>This permanently deletes project <strong>${this.escapeHtml(project.name || pid)}</strong> (<code>${this.escapeHtml(pid)}</code>). Choose what happens to its dependents:</p>
-      ${typeBlock('profiles', 'soil profiles', dep.profiles.count)}
-      ${typeBlock('rasters', 'rasters', dep.rasters.count)}
+    const { body } = this._openModal(t('a.pm.deleteTitle') + (project.name || pid), `
+      <p>${t('a.pm.deleteIntro')} <strong>${this.escapeHtml(project.name || pid)}</strong> (<code>${this.escapeHtml(pid)}</code>). ${t('a.pm.deleteIntro2')}</p>
+      ${typeBlock('profiles', t('a.pm.profilesLabel'), dep.profiles.count)}
+      ${typeBlock('rasters', t('a.pm.rastersLabel'), dep.rasters.count)}
       <div class="pm-status" style="margin-top:8px;font-size:12px;color:#dc3545;"></div>
       <div style="margin-top:14px;text-align:right;">
-        <button type="button" class="btn btn-secondary btn-sm pm-cancel">Cancel</button>
-        <button type="button" class="btn btn-sm pm-confirm" style="background:#dc3545;color:#fff;">Delete project</button>
+        <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
+        <button type="button" class="btn btn-sm pm-confirm" style="background:#dc3545;color:#fff;">${t('a.pm.deleteBtn')}</button>
       </div>`, 560);
     body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
     body.querySelector('.pm-confirm').addEventListener('click', () => this.confirmDeleteProject(pid, dep));
@@ -1417,16 +1405,16 @@ class AdminDashboard {
     };
     if (dep.profiles.count) actions.profiles = build('profiles');
     if (dep.rasters.count) actions.rasters = build('rasters');
-    status.style.color = '#666'; status.textContent = 'Working...';
+    status.style.color = '#666'; status.textContent = t('a.st.working');
     try {
       const res = await api.deleteProject(projectId, actions);
       overlay.remove();
       await this.loadProjects(); this.renderProjects();
       const warns = (res && res.warnings) || [];
       if (!res.project_deleted || warns.length) {
-        alert((res.message || 'Done') + (warns.length ? '\n\n- ' + warns.join('\n- ') : ''));
+        alert((res.message || t('a.done')) + (warns.length ? '\n\n- ' + warns.join('\n- ') : ''));
       }
-    } catch (e) { status.style.color = '#dc3545'; status.textContent = 'Error: ' + e.message; }
+    } catch (e) { status.style.color = '#dc3545'; status.textContent = t('a.err.prefix') + e.message; }
   }
 
   // ==================== Add Raster ====================
@@ -1443,7 +1431,7 @@ class AdminDashboard {
     // api.setting — server already sorted it that way). Preselect it.
     this._rasterCountries = countries;
     const countrySel = document.getElementById('raster-country');
-    countrySel.innerHTML = '<option value="">-- Select --</option>' +
+    countrySel.innerHTML = `<option value="">${t('a.select')}</option>` +
       countries.map(c => `<option value="${c.country_id}">${this.escapeHtml(c.en)} (${c.country_id})</option>`).join('');
     if (countries.length > 0) countrySel.value = countries[0].country_id;
 
@@ -1546,7 +1534,7 @@ class AdminDashboard {
     if (countrySel.options.length > 1) countrySel.selectedIndex = 1;
     // Unit dropdown depends on property — reset its placeholder.
     document.getElementById('raster-unit').innerHTML =
-      '<option value="">-- pick a property first --</option>';
+      `<option value="">${t('a.pickPropertyFirst')}</option>`;
 
     document.getElementById('raster-publish').checked = true;
     this._rasterInspectMeta = null;
@@ -1560,7 +1548,7 @@ class AdminDashboard {
   _renderRasterProjectOptions(selectId) {
     const sel = document.getElementById('raster-project');
     const current = selectId || sel.value;
-    sel.innerHTML = '<option value="">-- Select --</option>'
+    sel.innerHTML = `<option value="">${t('a.select')}</option>`
       + (this._rasterProjects || []).map(p =>
           `<option value="${p.project_id}" data-country="${p.country_id}">${this.escapeHtml(p.project_id)}</option>`
         ).join('');
@@ -1570,7 +1558,7 @@ class AdminDashboard {
   _renderRasterPropertyOptions(selectId) {
     const sel = document.getElementById('raster-property-num');
     const current = selectId || sel.value;
-    sel.innerHTML = '<option value="">-- Select --</option>'
+    sel.innerHTML = `<option value="">${t('a.select')}</option>`
       + (this._rasterPropertyNums || []).map(p =>
           `<option value="${p.mapped_property_id}">${this.escapeHtml(p.name)} (${p.mapped_property_id})</option>`
         ).join('')
@@ -1616,12 +1604,12 @@ class AdminDashboard {
     const pid = document.getElementById('dst-new-output-project-id').value.trim().toUpperCase();
     const pname = document.getElementById('dst-new-output-project-name').value.trim();
     const descr = document.getElementById('dst-new-output-project-description').value.trim();
-    if (!country) { status.textContent = 'COUNTRY_CODE setting missing.'; return; }
-    if (!pid)     { status.textContent = 'Project ID required.';  return; }
+    if (!country) { status.textContent = t('a.countryCodeMissing'); return; }
+    if (!pid)     { status.textContent = t('a.projIdRequired');  return; }
     if (!/^[A-Z0-9_]+$/.test(pid)) {
-      status.textContent = 'Project ID must be CAPS (A-Z, 0-9, _).'; return;
+      status.textContent = t('a.projIdCaps'); return;
     }
-    status.textContent = 'Adding…';
+    status.textContent = t('a.st.adding');
     try {
       await api.createRasterProject({
         country_id: country, project_id: pid,
@@ -1639,7 +1627,7 @@ class AdminDashboard {
       if (document.getElementById('raster-project')) {
         this._renderRasterProjectOptions();
       }
-    } catch (e) { status.textContent = 'Add failed: ' + e.message; }
+    } catch (e) { status.textContent = t('a.err.addFailed') + e.message; }
   }
 
   // DST "output property" dropdown — same catalogue as the Upload GeoTIFF
@@ -1662,14 +1650,14 @@ class AdminDashboard {
     const status = document.getElementById('dst-new-output-property-status');
     const pid = document.getElementById('dst-new-output-property-id').value.trim().toUpperCase();
     const pname = document.getElementById('dst-new-output-property-name').value.trim();
-    if (!pid)   { status.textContent = 'ID required.'; return; }
+    if (!pid)   { status.textContent = t('a.idRequired'); return; }
     if (!/^[A-Z0-9_]+$/.test(pid)) {
-      status.textContent = 'ID must be CAPS (A-Z, 0-9, _).'; return;
+      status.textContent = t('a.idCaps'); return;
     }
-    if (!pname) { status.textContent = 'Name required.'; return; }
+    if (!pname) { status.textContent = t('a.nameRequired'); return; }
     const property_type =
       document.getElementById('dst-new-output-property-type').value || 'quantitative';
-    status.textContent = 'Adding…';
+    status.textContent = t('a.st.adding');
     try {
       // DST outputs don't have an inspected raster yet — min/max stay NULL.
       // Override the catalogue's default soil ramp with a distinct green (low)
@@ -1692,18 +1680,18 @@ class AdminDashboard {
       if (document.getElementById('raster-property-num')) {
         this._renderRasterPropertyOptions();
       }
-    } catch (e) { status.textContent = 'Add failed: ' + e.message; }
+    } catch (e) { status.textContent = t('a.err.addFailed') + e.message; }
   }
 
   async rasterAddMappedProperty() {
     const status = document.getElementById('raster-new-property-status');
     const pid = document.getElementById('raster-new-property-id').value.trim().toUpperCase();
     const pname = document.getElementById('raster-new-property-name').value.trim();
-    if (!pid)   { status.textContent = 'ID required.'; return; }
+    if (!pid)   { status.textContent = t('a.idRequired'); return; }
     if (!/^[A-Z0-9_]+$/.test(pid)) {
-      status.textContent = 'ID must be CAPS (A-Z, 0-9, _).'; return;
+      status.textContent = t('a.idCaps'); return;
     }
-    if (!pname) { status.textContent = 'Name required.'; return; }
+    if (!pname) { status.textContent = t('a.nameRequired'); return; }
     // Pull stats min/max from the auto-inspect result (band 0). When the
     // user adds a property before picking a file we have nothing — those
     // stay NULL on the catalogue row.
@@ -1711,7 +1699,7 @@ class AdminDashboard {
     const min = band0 && band0.stats_minimum != null ? band0.stats_minimum : null;
     const max = band0 && band0.stats_maximum != null ? band0.stats_maximum : null;
     const property_type = document.getElementById('raster-new-property-type').value || 'quantitative';
-    status.textContent = 'Adding…';
+    status.textContent = t('a.st.adding');
     try {
       await api.createRasterMappedSoilProperty({
         mapped_property_id: pid, name: pname, min, max, property_type,
@@ -1727,7 +1715,7 @@ class AdminDashboard {
       await this._loadRasterUnitsForCurrentProperty();
       this._refreshRasterLimits();
       this._updateRasterFilenamePreview();
-    } catch (e) { status.textContent = 'Add failed: ' + e.message; }
+    } catch (e) { status.textContent = t('a.err.addFailed') + e.message; }
   }
 
   async _loadRasterUnitsForCurrentProperty() {
@@ -1735,17 +1723,17 @@ class AdminDashboard {
     const unitSel = document.getElementById('raster-unit');
     this._rasterLimits = null;          // invalidate cached limits
     if (!propId) {
-      unitSel.innerHTML = '<option value="">-- pick a property first --</option>';
+      unitSel.innerHTML = `<option value="">${t('a.pickPropertyFirst')}</option>`;
       return;
     }
-    unitSel.innerHTML = '<option value="">Loading…</option>';
+    unitSel.innerHTML = `<option value="">${t('a.loading')}</option>`;
     try {
       const units = await api.listRasterUnitsForProperty(propId);
       if (!units.length) {
-        unitSel.innerHTML = '<option value="">(no units defined for this property)</option>';
+        unitSel.innerHTML = `<option value="">${t('a.noUnits')}</option>`;
         return;
       }
-      unitSel.innerHTML = '<option value="">-- Select --</option>' +
+      unitSel.innerHTML = `<option value="">${t('a.select')}</option>` +
         units.map(u => `<option value="${u.unit_of_measure_id}">${this.escapeHtml(u.unit_of_measure_id)}</option>`).join('');
     } catch (e) {
       unitSel.innerHTML = `<option value="">(error: ${this.escapeHtml(e.message)})</option>`;
@@ -1904,18 +1892,18 @@ class AdminDashboard {
     const f = document.getElementById('raster-file-input').files[0];
     const status = document.getElementById('raster-status');
     const out = document.getElementById('raster-inspect-output');
-    if (!f) { status.textContent = 'Choose a file first.'; return; }
-    status.textContent = 'Inspecting...';
+    if (!f) { status.textContent = t('a.chooseFile'); return; }
+    status.textContent = t('a.st.inspecting');
     try {
       const meta = await api.inspectRaster(f);
       this._rasterInspectMeta = meta;
       out.style.display = 'block';
       this._renderRasterInspectOutput();
-      status.textContent = 'Inspected.';
+      status.textContent = t('a.st.inspected');
       this._updateRasterFilenamePreview();
     } catch (e) {
       this._rasterInspectMeta = null;
-      status.textContent = 'Inspect failed: ' + e.message;
+      status.textContent = t('a.err.inspectFailed') + e.message;
     }
   }
 
@@ -1957,12 +1945,12 @@ class AdminDashboard {
   async rasterRegister() {
     const f = document.getElementById('raster-file-input').files[0];
     const status = document.getElementById('raster-status');
-    if (!f) { status.textContent = 'Choose a file first.'; return; }
+    if (!f) { status.textContent = t('a.chooseFile'); return; }
 
     // Auto-inspect so the no-NoData / stats-in-range rules can fire even
     // if the user didn't click Inspect.
     if (!this._rasterInspectMeta) {
-      status.textContent = 'Inspecting…';
+      status.textContent = t('a.st.inspecting2');
       await this.rasterInspect();
       if (!this._rasterInspectMeta) return;   // inspect failed → status already set
     }
@@ -1972,13 +1960,13 @@ class AdminDashboard {
     if (s.missing.length > 0 || s.rules.length > 0) {
       // The Generated filename row already lists the issues — don't duplicate
       // them here. A short pointer is enough.
-      status.innerHTML = '<span style="color:#c0392b;font-weight:bold;">Fix the issues listed above.</span>';
+      status.innerHTML = `<span style="color:#c0392b;font-weight:bold;">${t('a.fixIssues')}</span>`;
       return;
     }
     const layerId = [s.country, s.project, s.prop, s.yyyy, s.upper, s.lower, s.stats].join('-');
     document.getElementById('raster-filename-preview').textContent = `${layerId}.tif`;
 
-    status.textContent = 'Registering…';
+    status.textContent = t('a.st.registering');
     try {
       const projSel = document.getElementById('raster-project');
       // Look up labels for the title / abstract templates.
@@ -2009,8 +1997,8 @@ class AdminDashboard {
       // Rename via FormData filename arg — avoids constructing a new File()
       // for large blobs (which can cause Firefox "NetworkError" on upload).
       const res = await api.registerRaster(f, fields, `${layerId}.tif`);
-      status.textContent = `Registered: ${res.layer_id}` +
-        (res.warnings && res.warnings.length ? ` (${res.warnings.length} warning(s))` : '');
+      status.textContent = t('a.raster.registered', {name: res.layer_id}) +
+        (res.warnings && res.warnings.length ? t('a.raster.warnings', {n: res.warnings.length}) : '');
       document.getElementById('raster-inspect-output').style.display = 'block';
       document.getElementById('raster-inspect-output').textContent = JSON.stringify(res, null, 2);
       // Refresh the rasters list table now that a new layer exists.
@@ -2019,7 +2007,7 @@ class AdminDashboard {
         if (typeof this.renderLayers === 'function') this.renderLayers();
       }
     } catch (e) {
-      status.textContent = 'Register failed: ' + e.message;
+      status.textContent = t('a.err.registerFailed') + e.message;
     }
   }
 
@@ -2097,7 +2085,7 @@ class AdminDashboard {
     try {
       const recipes = await api.listDstRecipes();
       if (!recipes.length) {
-        tb.innerHTML = '<tr><td colspan="5" class="empty-state">No recipes yet</td></tr>';
+        tb.innerHTML = `<tr><td colspan="5" class="empty-state">${t('a.dst.noRecipes')}</td></tr>`;
         return;
       }
       // Stable order by Raster ID — the API sorts by updated_at, which would
@@ -2112,7 +2100,7 @@ class AdminDashboard {
         const rid = this.escapeHtml(r.recipe_id);
         // The Open button doubles as Close while this recipe's editor is open.
         const isOpen = this._dstOpenRecipeId === r.recipe_id;
-        const openLabel = isOpen ? 'Close' : 'Open';
+        const openLabel = isOpen ? t('a.close') : t('a.etl.open');
         return `
         <tr>
           <td>${rid}</td>
@@ -2121,7 +2109,7 @@ class AdminDashboard {
           <td>${started}</td>
           <td style="white-space:nowrap;">
             <button type="button" class="btn btn-sm btn-primary dst-row-open" data-recipe="${rid}">${openLabel}</button>
-            ${this.isAdmin ? `<button type="button" class="btn btn-sm dst-row-del"  data-recipe="${rid}" style="background:#dc3545;color:#fff;margin-left:4px;">Delete</button>` : ''}
+            ${this.isAdmin ? `<button type="button" class="btn btn-sm dst-row-del"  data-recipe="${rid}" style="background:#dc3545;color:#fff;margin-left:4px;">${t('a.delete')}</button>` : ''}
           </td>
         </tr>`;
       }).join('');
@@ -2150,7 +2138,7 @@ class AdminDashboard {
   dstNewRecipe() {
     document.getElementById('dst-editor-wrap').style.display = '';
     document.getElementById('dst-editor').style.display = 'block';
-    document.getElementById('dst-editor-id').textContent = '(new)';
+    document.getElementById('dst-editor-id').textContent = t('a.dst.newTag');
     document.getElementById('dst-recipe-id').value = '';
     document.getElementById('dst-recipe-id').disabled = false;
     this._dstLoadedRecipeId = null;
@@ -2167,7 +2155,7 @@ class AdminDashboard {
     this._dstRefreshRecipeId();
     // Wipe rows back to the empty state.
     document.getElementById('dst-rows-tbody').innerHTML =
-      '<tr><td colspan="7" class="empty-state">No inputs yet — click "+ Add layer".</td></tr>';
+      `<tr><td colspan="7" class="empty-state">${t('a.dst.noInputs')}</td></tr>`;
     document.getElementById('dst-status').textContent = '';
   }
 
@@ -2369,12 +2357,12 @@ class AdminDashboard {
       <td class="dst-row-max" style="text-align:right;color:#555;padding-left:6px;padding-right:56px;">${fmt(match?.stats_maximum)}</td>
       <td style="padding-right:6px;"><input type="number" class="dst-row-below no-spinner" step="any" value="${step.false_score ?? 0}" style="width:35px;"></td>
       <td style="padding-left:6px;padding-right:6px;text-align:center;white-space:nowrap;">
-        <input type="number" class="dst-row-threshold-val no-spinner" step="any" title="Type a precise threshold"
+        <input type="number" class="dst-row-threshold-val no-spinner" step="any" title="${t('a.dst.thresholdTip')}"
                style="width:74px;color:#444;font-size:var(--fs-sm);font-weight:600;text-align:center;">
         <input type="range" class="dst-row-threshold" style="width:120px;vertical-align:middle;display:block;margin:5px auto 0;">
       </td>
       <td style="padding-left:6px;"><input type="number" class="dst-row-above no-spinner" step="any" value="${step.true_score ?? 1}" style="width:35px;"></td>
-      <td><button type="button" class="btn btn-sm dst-row-remove" style="background:#dc3545;color:#fff;" title="Remove">×</button></td>
+      <td><button type="button" class="btn btn-sm dst-row-remove" style="background:#dc3545;color:#fff;" title="${t('a.remove')}">×</button></td>
     `;
     // Initialise the slider bounds from the row's current layer.
     this._dstApplyThresholdRange(tr, match?.stats_minimum, match?.stats_maximum, step.threshold);
@@ -2422,7 +2410,7 @@ class AdminDashboard {
       tr.remove();
       const tbody = document.getElementById('dst-rows-tbody');
       if (!tbody.querySelector('tr.dst-row')) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No inputs yet — click "+ Add layer".</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${t('a.dst.noInputs')}</td></tr>`;
       }
       this._dstRefreshAutoDescription();
       this._dstRefreshRecipeId();
@@ -2444,7 +2432,7 @@ class AdminDashboard {
     const tbody = document.getElementById('dst-rows-tbody');
     tbody.innerHTML = '';
     if (!steps.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No inputs yet — click "+ Add layer".</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${t('a.dst.noInputs')}</td></tr>`;
       return;
     }
     steps.forEach(s => tbody.appendChild(this._dstRenderRow(s)));
@@ -2544,8 +2532,8 @@ class AdminDashboard {
     try {
       const res = await this._dstPersistEditor();
       status.textContent = res.renamed_from
-        ? `Renamed from ${res.renamed_from} — old raster removed.`
-        : 'Saved.';
+        ? t('a.dst.renamedFrom', {name: res.renamed_from})
+        : t('a.dst.saved');
       await this.dstReloadRecipes();
       // Rename → an old layer was deleted; refresh the admin Rasters table
       // so it doesn't show the now-gone entry.
@@ -2560,12 +2548,12 @@ class AdminDashboard {
     const status = document.getElementById('dst-status');
     // Persist editor state first (handles the rename → delete old +
     // create new case), then run against the freshly-saved recipe.
-    status.textContent = 'Saving…';
+    status.textContent = t('a.st.saving');
     let persisted;
     try {
       persisted = await this._dstPersistEditor();
     } catch (e) {
-      status.textContent = 'Save failed: ' + e.message;
+      status.textContent = t('a.err.saveFailed') + e.message;
       return;
     }
     const id = persisted.recipe_id;
@@ -2576,12 +2564,12 @@ class AdminDashboard {
       // Refresh the admin Rasters table so the deleted old entry disappears.
       await this.loadLayers();
     }
-    status.textContent = 'Queuing run...';
+    status.textContent = t('a.st.queuing');
     try {
       await api.runDstRecipe(id);
-      status.textContent = 'Queued; polling…';
+      status.textContent = t('a.st.queued');
       this._dstPollRun(id);
-    } catch (e) { status.textContent = 'Run failed: ' + e.message; }
+    } catch (e) { status.textContent = t('a.err.runFailed') + e.message; }
   }
 
   // Run state now lives on api.dst_recipe directly; poll the recipe
@@ -2606,7 +2594,7 @@ class AdminDashboard {
         }
       } catch (e) { /* keep polling */ }
     }
-    status.textContent = `${recipeId}: still running (stopped polling)`;
+    status.textContent = t('a.dst.stillRunning', {name: recipeId});
   }
 
   // Relabel the "+ New Recipe" button to "Close" while a NEW (unsaved)
@@ -2652,27 +2640,27 @@ class AdminDashboard {
     // than the (possibly already-rewritten) recipe_id field so this still
     // works after a Project/Mapped-property change.
     if (this._dstOpenRecipeId && this._dstOpenRecipeId === recipeId) {
-      status.textContent = 'Saving…';
+      status.textContent = t('a.st.saving');
       try {
         const persisted = await this._dstPersistEditor();
         recipeId = persisted.recipe_id;   // may have changed (rename)
         await this.dstReloadRecipes();
       } catch (e) {
-        status.textContent = 'Save failed: ' + e.message;
+        status.textContent = t('a.err.saveFailed') + e.message;
         return;
       }
     }
-    status.textContent = `${recipeId}: queuing run…`;
+    status.textContent = t('a.dst.queuingRun', {name: recipeId});
     try {
       await api.runDstRecipe(recipeId);
       this._dstPollRun(recipeId);
     } catch (e) {
-      status.textContent = `Run failed: ${e.message}`;
+      status.textContent = t('a.err.runFailed') + e.message;
     }
   }
 
   async dstDeleteRecipeById(recipeId) {
-    if (!confirm(`Delete recipe ${recipeId}? Also removes the produced raster, metadata and map file.`)) return;
+    if (!confirm(t('a.dst.deleteConfirm', {name: recipeId}))) return;
     try {
       await api.deleteDstRecipe(recipeId);
       // If the editor was showing this recipe, close it too.
@@ -2699,9 +2687,9 @@ class AdminDashboard {
     if (!el) return;
     try {
       const v = await api.getSoftwareVersion();
-      el.textContent = v.sha || 'unknown';
+      el.textContent = v.sha || t('a.unknown');
     } catch (e) {
-      el.textContent = 'unknown';
+      el.textContent = t('a.unknown');
     }
   }
 
@@ -2711,7 +2699,7 @@ class AdminDashboard {
     const result = document.getElementById('sw-result');
     if (!btn || !status || !result) return;
     btn.disabled = true;
-    status.textContent = 'Checking GitHub…';
+    status.textContent = t('a.st.checkingGithub');
     status.style.color = '#555';
     result.style.display = 'none';
     try {
@@ -2724,7 +2712,7 @@ class AdminDashboard {
         status.style.color = '#b8860b';
       } else if (r.available) {
         const n = r.new_commits || 0;
-        status.textContent = `Update available — ${n} new commit${n === 1 ? '' : 's'}.`;
+        status.textContent = t('a.sw.updateAvailable', {n});
         status.style.color = '#c0392b';
         const list = (r.commits || []).map(c => {
           const d = c.date ? ` <span style="color:#888;">(${this.escapeHtml(c.date.slice(0, 10))})</span>` : '';
@@ -2732,24 +2720,24 @@ class AdminDashboard {
         }).join('');
         result.innerHTML = `
           <div style="border:1px solid #e0c36b;background:#fff8e1;border-radius:6px;padding:var(--sp-3);">
-            <p style="margin:0 0 var(--sp-2);">A newer version is available
+            <p style="margin:0 0 var(--sp-2);">${t('a.sw.newerAvailable')}
               (<code>${this.escapeHtml(r.current)}</code> → <code>${this.escapeHtml(r.latest || '')}</code>).
-              To apply it, run on the server:</p>
+              ${t('a.sw.applyRun')}</p>
             <pre style="margin:0 0 var(--sp-3);background:#f3f3f3;padding:8px;border-radius:4px;">cd &lt;install dir&gt; &amp;&amp; ./update.sh</pre>
             <details>
-              <summary style="cursor:pointer;">What's new (${(r.commits || []).length} shown)</summary>
+              <summary style="cursor:pointer;">${t('a.sw.whatsNew', {n: (r.commits || []).length})}</summary>
               <ul style="margin:var(--sp-2) 0 0;padding-left:1.2em;font-size:var(--fs-sm);">${list}</ul>
             </details>
             <p style="margin:var(--sp-3) 0 0;color:#777;font-size:var(--fs-xs);">
-              This panel only checks — it never changes anything. The update preserves your data.</p>
+              ${t('a.sw.checkOnly')}</p>
           </div>`;
         result.style.display = 'block';
       } else {
-        status.textContent = `Up to date (${this.escapeHtml(r.current || '')}).`;
+        status.textContent = t('a.sw.upToDate', {v: r.current || ''});
         status.style.color = '#2a7';
       }
     } catch (e) {
-      status.textContent = 'Check failed: ' + (e && e.message ? e.message : e);
+      status.textContent = t('a.err.checkFailed') + (e && e.message ? e.message : e);
       status.style.color = '#c0392b';
     } finally {
       btn.disabled = false;
@@ -2763,7 +2751,7 @@ class AdminDashboard {
       this.settings = await api.getAllSettings();
     } catch (error) {
       console.error('Error loading settings:', error);
-      alert('Failed to load settings: ' + error.message);
+      alert(t('a.err.loadFailed') + error.message);
     }
   }
 
@@ -2777,7 +2765,7 @@ class AdminDashboard {
     const visible = this.settings.filter(s => !hiddenKeys.has(s.key));
 
     if (visible.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="2" class="empty-state">No settings found</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="2" class="empty-state">${t('a.emptySettings')}</td></tr>`;
       return;
     }
 
@@ -2810,7 +2798,7 @@ class AdminDashboard {
         ).join('');
         valueCell = `<select class="inline-edit" data-key="${key}" style="padding:2px 6px;font-size:var(--fs-sm);">${opts}</select>`;
       } else {
-        valueCell = `<input class="inline-edit" data-key="${key}" value="${this.escapeHtml(setting.value)}" style="padding:2px 6px;font-size:var(--fs-sm);width:100%;box-sizing:border-box;"${isMapKey ? ' readonly title="Controlled by the map"' : ''}>`;
+        valueCell = `<input class="inline-edit" data-key="${key}" value="${this.escapeHtml(setting.value)}" style="padding:2px 6px;font-size:var(--fs-sm);width:100%;box-sizing:border-box;"${isMapKey ? ` readonly title="${t('a.settings.mapControlled')}"` : ''}>`;
       }
       return `
         <tr>
@@ -2835,7 +2823,7 @@ class AdminDashboard {
             this.initViewEditor();
           }
         } catch (err) {
-          alert('Error saving: ' + err.message);
+          alert(t('a.err.saveFailed') + err.message);
         }
       });
       // Save on Enter for text inputs
@@ -2862,7 +2850,7 @@ class AdminDashboard {
     textInput.style.display = '';
     textInput.setAttribute('required', 'required');
     selectInput.style.display = 'none';
-    document.getElementById('setting-btn-text').textContent = 'Add';
+    document.getElementById('setting-btn-text').textContent = t('a.add');
     document.getElementById('cancel-setting').style.display = 'none';
   }
 
@@ -2874,7 +2862,7 @@ class AdminDashboard {
       : document.getElementById('setting-value').value.trim();
 
     if (!key || !value) {
-      alert('Please fill in all required fields');
+      alert(t('a.fillRequired'));
       return;
     }
 
@@ -2882,11 +2870,11 @@ class AdminDashboard {
       if (this.editingItem && this.editingItem.type === 'setting') {
         // Update existing
         await api.updateSetting(key, value);
-        alert('Setting updated successfully');
+        alert(t('a.settings.updated'));
       } else {
         // Create new
         await api.createSetting(key, value);
-        alert('Setting created successfully');
+        alert(t('a.settings.created'));
       }
 
       this.cancelSettingEdit();
@@ -2896,22 +2884,22 @@ class AdminDashboard {
         this.initViewEditor();
       }
     } catch (error) {
-      alert('Error saving setting: ' + error.message);
+      alert(t('a.err.saveFailed') + error.message);
     }
   }
 
   async deleteSetting(key) {
-    if (!confirm(`Are you sure you want to delete the setting "${key}"?`)) {
+    if (!confirm(t('a.settings.deleteConfirm', {name: key}))) {
       return;
     }
 
     try {
       await api.deleteSetting(key);
-      alert('Setting deleted successfully');
+      alert(t('a.settings.deleted'));
       await this.loadSettings();
       this.renderSettings();
     } catch (error) {
-      alert('Error deleting setting: ' + error.message);
+      alert(t('a.err.deleteFailed') + error.message);
     }
   }
 
@@ -2930,7 +2918,7 @@ class AdminDashboard {
     if (!tbody) return;
 
     if (this.users.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No users found</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${t('a.emptyUsers')}</td></tr>`;
       return;
     }
 
@@ -2946,28 +2934,28 @@ class AdminDashboard {
       // row, nobody manages the default admin account, and the last admin
       // cannot be removed.
       const locked = isSelf || isDefaultAdmin || isOnlyAdmin;
-      const lockTitle = isSelf ? 'Your own account — ask another administrator'
-        : isDefaultAdmin ? "The default 'admin' account cannot be modified"
-        : 'Only admin — cannot be removed';
+      const lockTitle = isSelf ? t('a.users.ownAccount')
+        : isDefaultAdmin ? t('a.users.defaultAdmin')
+        : t('a.users.onlyAdmin');
       const deleteBtn = locked
         ? ''
-        : `<button class="btn btn-danger btn-sm" onclick="adminDashboard.deleteUser('${this.escapeJsAttr(u.user_id)}')">Delete</button>`;
+        : `<button class="btn btn-danger btn-sm" onclick="adminDashboard.deleteUser('${this.escapeJsAttr(u.user_id)}')">${t('a.delete')}</button>`;
       let activeLabel;
       if (locked) {
-        activeLabel = `<span class="badge badge-${u.is_active ? 'success' : 'danger'}" title="${lockTitle}">${u.is_active ? 'Yes' : 'No'}</span>`;
+        activeLabel = `<span class="badge badge-${u.is_active ? 'success' : 'danger'}" title="${lockTitle}">${u.is_active ? t('a.yes') : t('a.no')}</span>`;
       } else if (u.is_active) {
-        activeLabel = '<span class="badge badge-success toggle-active" style="cursor:pointer;" title="Click to deactivate">Yes</span>';
+        activeLabel = `<span class="badge badge-success toggle-active" style="cursor:pointer;" title="${t('a.users.clickDeactivate')}">${t('a.yes')}</span>`;
       } else {
-        activeLabel = '<span class="badge badge-danger toggle-active" style="cursor:pointer;" title="Click to activate">No</span>';
+        activeLabel = `<span class="badge badge-danger toggle-active" style="cursor:pointer;" title="${t('a.users.clickActivate')}">${t('a.no')}</span>`;
       }
       let adminLabel;
       if (locked) {
         adminLabel = u.is_admin
-          ? `<span class="badge badge-success" title="${lockTitle}">Admin</span>` : '-';
+          ? `<span class="badge badge-success" title="${lockTitle}">${t('a.admin')}</span>` : '-';
       } else if (u.is_admin) {
-        adminLabel = '<span class="badge badge-success toggle-admin" style="cursor:pointer;" title="Click to revoke administrator rights">Admin</span>';
+        adminLabel = `<span class="badge badge-success toggle-admin" style="cursor:pointer;" title="${t('a.users.clickRevoke')}">${t('a.admin')}</span>`;
       } else {
-        adminLabel = '<span class="badge toggle-admin" style="cursor:pointer;background:#e0e0e0;color:#555;" title="Click to grant administrator rights">User</span>';
+        adminLabel = `<span class="badge toggle-admin" style="cursor:pointer;background:#e0e0e0;color:#555;" title="${t('a.users.clickGrant')}">${t('a.user')}</span>`;
       }
       return `
         <tr>
@@ -2986,14 +2974,14 @@ class AdminDashboard {
         const td = el.closest('td');
         const userId = td.dataset.userId;
         const currentlyAdmin = td.dataset.admin === 'true';
-        const verb = currentlyAdmin ? 'Revoke administrator rights from' : 'Grant administrator rights to';
+        const verb = currentlyAdmin ? t('a.users.revokeConfirm') : t('a.users.grantConfirm');
         if (!confirm(`${verb} "${userId}"?`)) return;
         try {
           await api.toggleUserAdmin(userId, !currentlyAdmin);
           await this.loadUsers();
           this.renderUsers();
         } catch (e) {
-          alert('Error: ' + e.message);
+          alert(t('a.err.prefix') + e.message);
         }
       });
     });
@@ -3009,7 +2997,7 @@ class AdminDashboard {
           await this.loadUsers();
           this.renderUsers();
         } catch (err) {
-          alert('Error toggling active status: ' + err.message);
+          alert(t('a.err.updateFailed') + err.message);
         }
       });
     });
@@ -3021,7 +3009,7 @@ class AdminDashboard {
     const isAdmin = document.getElementById('user-is-admin').checked;
 
     if (!email || !password) {
-      alert('Email and password are required');
+      alert(t('a.emailPwRequired'));
       return;
     }
 
@@ -3031,18 +3019,18 @@ class AdminDashboard {
       await this.loadUsers();
       this.renderUsers();
     } catch (error) {
-      alert('Error creating user: ' + error.message);
+      alert(t('a.err.addFailed') + error.message);
     }
   }
 
   async deleteUser(userId) {
-    if (!confirm(`Delete user "${userId}"?`)) return;
+    if (!confirm(t('a.users.deleteConfirm', {name: userId}))) return;
     try {
       await api.deleteUser(userId);
       await this.loadUsers();
       this.renderUsers();
     } catch (error) {
-      alert('Error deleting user: ' + error.message);
+      alert(t('a.err.deleteFailed') + error.message);
     }
   }
 
@@ -3053,7 +3041,7 @@ class AdminDashboard {
       this.layers = await api.getAllLayers();
     } catch (error) {
       console.error('Error loading layers:', error);
-      alert('Failed to load layers: ' + error.message);
+      alert(t('a.err.loadFailed') + error.message);
     }
   }
 
@@ -3061,7 +3049,7 @@ class AdminDashboard {
     const tbody = document.getElementById('layers-tbody');
 
     if (this.layers.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No layers found</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="8" class="empty-state">${t('a.raster.none')}</td></tr>`;
       return;
     }
 
@@ -3073,23 +3061,23 @@ class AdminDashboard {
       const id = this.escapeHtml(layer.layer_id);
       const idJs = this.escapeJsAttr(layer.layer_id);
       const defaultCell = layer.is_default
-        ? `<button class="btn btn-secondary" onclick="adminDashboard.clearDefaultLayer()">Clear Default</button>`
+        ? `<button class="btn btn-secondary" onclick="adminDashboard.clearDefaultLayer()">${t('a.raster.clearDefault')}</button>`
         : (layer.publish
-            ? `<button class="btn btn-primary" onclick="adminDashboard.setDefaultLayer('${idJs}')">Set Default</button>`
+            ? `<button class="btn btn-primary" onclick="adminDashboard.setDefaultLayer('${idJs}')">${t('a.raster.setDefault')}</button>`
             : '-');
       const deleteCell = this.isAdmin
-        ? `<td class="raster-delete-col"><button class="btn btn-sm" style="background:#dc3545;color:#fff;" title="Delete raster + map + catalogue + DB" onclick="adminDashboard.deleteRasterLayer('${idJs}')">Delete</button></td>`
+        ? `<td class="raster-delete-col"><button class="btn btn-sm" style="background:#dc3545;color:#fff;" title="${t('a.raster.deleteTip')}" onclick="adminDashboard.deleteRasterLayer('${idJs}')">${t('a.delete')}</button></td>`
         : `<td class="raster-delete-col"></td>`;
       return `
       <tr${layer.is_default ? ' style="background:#fff8d6;"' : ''}>
         <td><strong>${id}</strong></td>
         <td title="${this.escapeHtml(layer.file_orig_name || '')}" style="font-size:var(--fs-sm);color:#555;">${this.escapeHtml(layer.file_orig_name || '-')}</td>
-        <td style="width:120px;"><input class="layer-edit" data-layer-id="${id}" data-field="project_name" value="${this.escapeHtml(layer.project_name || '')}" placeholder="-" style="${editStyle}" title="Click to edit (saved to mapset.costum_group)"></td>
-        <td><input class="layer-edit" data-layer-id="${id}" data-field="property_name" value="${this.escapeHtml(layer.property_name || '')}" placeholder="-" style="${editStyle}" title="Click to edit (saved to layer.costum_name)"></td>
+        <td style="width:120px;"><input class="layer-edit" data-layer-id="${id}" data-field="project_name" value="${this.escapeHtml(layer.project_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editGroupTip')}"></td>
+        <td><input class="layer-edit" data-layer-id="${id}" data-field="property_name" value="${this.escapeHtml(layer.property_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editNameTip')}"></td>
         <td>
           <button class="btn ${layer.publish ? 'btn-secondary' : 'btn-success'}"
                   onclick="adminDashboard.toggleLayerPublish('${idJs}', ${!layer.publish})">
-            ${layer.publish ? 'Unpublish' : 'Publish'}
+            ${layer.publish ? t('a.raster.unpublishBtn') : t('a.raster.publishBtn')}
           </button>
         </td>
         <td>${defaultCell}</td>
@@ -3115,7 +3103,7 @@ class AdminDashboard {
           await api.updateLayerCustom(layerId, { [field]: newValue });
           layer[field] = newValue;
         } catch (e) {
-          alert('Failed to save: ' + e.message);
+          alert(t('a.err.saveFailed') + e.message);
           el.value = layer[field] || '';
         }
       });
@@ -3128,7 +3116,7 @@ class AdminDashboard {
       await this.loadLayers();
       this.renderLayers();
     } catch (error) {
-      alert('Error setting default layer: ' + error.message);
+      alert(t('a.err.updateFailed') + error.message);
     }
   }
 
@@ -3138,7 +3126,7 @@ class AdminDashboard {
       await this.loadLayers();
       this.renderLayers();
     } catch (error) {
-      alert('Error clearing default layer: ' + error.message);
+      alert(t('a.err.updateFailed') + error.message);
     }
   }
 
@@ -3148,7 +3136,7 @@ class AdminDashboard {
       await this.loadLayers();
       this.renderLayers();
     } catch (error) {
-      alert('Error toggling layer publish status: ' + error.message);
+      alert(t('a.err.updateFailed') + error.message);
     }
   }
 
@@ -3169,7 +3157,7 @@ class AdminDashboard {
       await this.loadLayers();
       this.renderLayers();
     } catch (e) {
-      alert('Delete failed: ' + e.message);
+      alert(t('a.err.deleteFailed') + e.message);
     }
   }
 
@@ -3190,7 +3178,7 @@ class AdminDashboard {
 
     const rows = this.soilProfileLayers || [];
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No projects found</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${t('a.sp.none')}</td></tr>`;
       return;
     }
 
@@ -3204,13 +3192,13 @@ class AdminDashboard {
       // the underlying locations_only flag; data-value is still the locations_only
       // value written on click, so the backend/DB semantics are unchanged.
       const shareAttrBadge = r.locations_only
-        ? `<span class="badge badge-danger sp-loc-only-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="Only locations are shared — no attribute data. Click to share attributes.">No</span>`
-        : `<span class="badge badge-success sp-loc-only-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="Full attribute data is shared. Click to share locations only.">Yes</span>`;
+        ? `<span class="badge badge-danger sp-loc-only-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="${t('a.sp.locOnlyTip')}">${t('a.no')}</span>`
+        : `<span class="badge badge-success sp-loc-only-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="${t('a.sp.fullAttrsTip')}">${t('a.yes')}</span>`;
       // "Show download button" is the inverse of the underlying hide_download flag;
       // data-value is still the hide_download value written on click.
       const showDlBadge = r.hide_download
-        ? `<span class="badge badge-danger sp-hide-dl-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="Download button is hidden on the map. Click to show it.">No</span>`
-        : `<span class="badge badge-success sp-hide-dl-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="Download button is shown on the map. Click to hide it.">Yes</span>`;
+        ? `<span class="badge badge-danger sp-hide-dl-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="${t('a.sp.dlHiddenTip')}">${t('a.no')}</span>`
+        : `<span class="badge badge-success sp-hide-dl-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="${t('a.sp.dlShownTip')}">${t('a.yes')}</span>`;
       const totalProfiles = Number(r.total_profile_count || 0);
       const pubProfiles = Number(r.published_profile_count || 0);
       const totalObs = Number(r.total_observation_count || 0);
@@ -3218,12 +3206,12 @@ class AdminDashboard {
       return `
       <tr>
         <td><strong>${name}</strong></td>
-        <td title="Published / Total">
+        <td title="${t('a.sp.pubTotalTip')}">
           <span class="sp-count-pub">${pubProfiles.toLocaleString()}</span>
           <span class="sp-count-sep">/</span>
           <span class="sp-count-total">${totalProfiles.toLocaleString()}</span>
         </td>
-        <td title="Published / Total">
+        <td title="${t('a.sp.pubTotalTip')}">
           <span class="sp-count-pub">${pubObs.toLocaleString()}</span>
           <span class="sp-count-sep">/</span>
           <span class="sp-count-total">${totalObs.toLocaleString()}</span>
@@ -3231,13 +3219,13 @@ class AdminDashboard {
         <td>
           <input type="number" min="1" step="1" class="sp-limit-input"
                  data-project-id="${pid}" value="${this.escapeHtml(limitVal)}"
-                 placeholder="no limit" inputmode="numeric">
+                 placeholder="${t('a.sp.noLimitPh')}" inputmode="numeric">
           <span class="sp-limit-status" data-project-id="${pid}"></span>
         </td>
         <td>
           <input type="number" min="0" step="1" class="sp-blur-input"
                  data-project-id="${pid}" value="${this.escapeHtml(blurVal)}"
-                 placeholder="precise" inputmode="numeric">
+                 placeholder="${t('a.sp.precisePh')}" inputmode="numeric">
           <span class="sp-blur-status" data-project-id="${pid}"></span>
         </td>
         <td>${shareAttrBadge}</td>
@@ -3245,14 +3233,14 @@ class AdminDashboard {
         <td>
           <button class="btn ${r.is_published ? 'btn-secondary' : 'btn-success'} sp-publish-btn"
                   data-project-id="${pid}" data-publish="${r.is_published ? '0' : '1'}">
-            ${r.is_published ? 'Unpublish' : 'Publish'}
+            ${r.is_published ? t('a.raster.unpublishBtn') : t('a.raster.publishBtn')}
           </button>
         </td>
         <td>
           <button class="btn btn-sm sp-delete-btn" style="background:#dc3545;color:#fff;"
                   data-project-id="${pid}" data-project-name="${name}"
-                  title="Remove this project's ingested soil profiles from the database. The project and its uploaded CSVs are kept.">
-            Prune
+                  title="${t('a.sp.pruneTip')}">
+            ${t('a.sp.prune')}
           </button>
         </td>
       </tr>`;
@@ -3345,7 +3333,7 @@ class AdminDashboard {
       await this.loadSoilProfileLayers();
       this.renderSoilProfileLayers();
     } catch (error) {
-      alert('Error updating publish state: ' + error.message);
+      alert(t('a.err.updateFailed') + error.message);
     }
   }
 
@@ -3355,7 +3343,7 @@ class AdminDashboard {
       await this.loadSoilProfileLayers();
       this.renderSoilProfileLayers();
     } catch (error) {
-      alert('Error updating "locations only": ' + error.message);
+      alert(t('a.err.updateFailed') + error.message);
     }
   }
 
@@ -3365,7 +3353,7 @@ class AdminDashboard {
       await this.loadSoilProfileLayers();
       this.renderSoilProfileLayers();
     } catch (error) {
-      alert('Error updating "hide download": ' + error.message);
+      alert(t('a.err.updateFailed') + error.message);
     }
   }
 
@@ -3379,7 +3367,7 @@ class AdminDashboard {
     for (const [projectId, raw] of entries) {
       const limit = raw === '' ? null : parseInt(raw, 10);
       if (limit !== null && (Number.isNaN(limit) || limit <= 0)) {
-        this.setSoilProfileLimitStatus(projectId, 'Invalid — must be a positive integer', true);
+        this.setSoilProfileLimitStatus(projectId, t('a.sp.invalidLimit'), true);
         anyError = true;
         continue;
       }
@@ -3389,7 +3377,7 @@ class AdminDashboard {
         if (row) row.profile_limit = limit;
         anySaved = true;
       } catch (error) {
-        this.setSoilProfileLimitStatus(projectId, error.message || 'Error saving limit', true);
+        this.setSoilProfileLimitStatus(projectId, error.message || t('a.err.saveFailed'), true);
         anyError = true;
       }
     }
@@ -3406,7 +3394,7 @@ class AdminDashboard {
     for (const [projectId, raw] of entries) {
       const blur = raw === '' ? null : parseInt(raw, 10);
       if (blur !== null && (Number.isNaN(blur) || blur < 0)) {
-        this.setSoilProfileBlurStatus(projectId, 'Invalid — must be ≥ 0 or blank', true);
+        this.setSoilProfileBlurStatus(projectId, t('a.sp.invalidBlur'), true);
         anyError = true;
         continue;
       }
@@ -3416,7 +3404,7 @@ class AdminDashboard {
         if (row) row.spatial_blur_m = blur;
         anySaved = true;
       } catch (error) {
-        this.setSoilProfileBlurStatus(projectId, error.message || 'Error saving blur', true);
+        this.setSoilProfileBlurStatus(projectId, error.message || t('a.err.saveFailed'), true);
         anyError = true;
       }
     }
@@ -3444,7 +3432,7 @@ class AdminDashboard {
 
     if (this.dashboardLoaded) return; // one-shot; user can reload page to refresh
     try {
-      empty.textContent = 'Loading dashboard…';
+      empty.textContent = t('a.dash.loading');
       const stats = await api.getDashboardStats();
       this.renderDashboardCards(stats.totals || {});
       this.renderDashboardCharts(stats);
@@ -3453,7 +3441,7 @@ class AdminDashboard {
       this.dashboardLoaded = true;
     } catch (e) {
       console.error('Dashboard load failed:', e);
-      empty.textContent = 'Failed to load dashboard: ' + (e.message || e);
+      empty.textContent = t('a.dash.loadFailed') + (e.message || e);
     }
   }
 
@@ -3716,20 +3704,20 @@ class AdminDashboard {
     tr.className = 'etl-proc-add-row';
     tr.innerHTML = `
       <td colspan="6" style="background:#fafafa;border-top:2px solid var(--color-primary);padding:8px;">
-        <strong style="font-size:var(--fs-sm);">New Procedure</strong>
+        <strong style="font-size:var(--fs-sm);">${t('a.etl.newProcedure')}</strong>
         <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;margin-top:6px;">
           <input type="text" class="etl-new-proc-id"
-                 placeholder="ID (CAPS, A-Z 0-9 _)"
+                 placeholder="${t('a.etl.procIdPh')}"
                  pattern="[A-Z0-9_]+"
-                 title="Letters A-Z, digits, underscore. No spaces or symbols."
+                 title="${t('a.etl.procIdTip')}"
                  style="width:170px;text-transform:uppercase;">
           <input type="text" class="etl-new-proc-name"
-                 placeholder="Display name" style="width:220px;">
+                 placeholder="${t('a.raster.displayNamePh')}" style="width:220px;">
           <textarea class="etl-new-proc-def" rows="2"
-                    placeholder="Definition (optional)"
+                    placeholder="${t('a.etl.defPh')}"
                     style="flex:1;min-width:260px;font-family:inherit;font-size:var(--fs-sm);"></textarea>
-          <button type="button" class="btn btn-sm btn-primary etl-new-proc-add">Add</button>
-          <button type="button" class="btn btn-sm btn-secondary etl-new-proc-cancel">Cancel</button>
+          <button type="button" class="btn btn-sm btn-primary etl-new-proc-add">${t('a.add')}</button>
+          <button type="button" class="btn btn-sm btn-secondary etl-new-proc-cancel">${t('a.cancel')}</button>
           <span class="etl-new-proc-status" style="font-size:var(--fs-sm);align-self:center;"></span>
         </div>
       </td>`;
@@ -3751,12 +3739,12 @@ class AdminDashboard {
         const pid = (idIn.value || '').trim().toUpperCase();
         const pname = (nameIn.value || '').trim();
         const def = (defIn.value || '').trim() || null;
-        if (!pid)   { status.textContent = 'ID required.'; return; }
+        if (!pid)   { status.textContent = t('a.idRequired'); return; }
         if (!/^[A-Z0-9_]+$/.test(pid)) {
-          status.textContent = 'ID must be CAPS (A-Z, 0-9, _).'; return;
+          status.textContent = t('a.idCaps'); return;
         }
-        if (!pname) { status.textContent = 'Name required.'; return; }
-        status.textContent = 'Adding…';
+        if (!pname) { status.textContent = t('a.nameRequired'); return; }
+        status.textContent = t('a.st.adding');
         try {
           const created = await api.createProcedure({
             procedure_num_id: pid, procedure_name: pname, definition: def,
@@ -3775,7 +3763,7 @@ class AdminDashboard {
             uri:              created.uri || '',
           });
         } catch (e) {
-          status.textContent = 'Add failed: ' + (e && e.message ? e.message : e);
+          status.textContent = t('a.err.addFailed') + (e && e.message ? e.message : e);
         }
       });
     });
@@ -3815,20 +3803,20 @@ class AdminDashboard {
     tr.className = 'etl-prop-add-row';
     tr.innerHTML = `
       <td colspan="6" style="background:#fafafa;border-top:2px solid var(--color-primary);padding:8px;">
-        <strong style="font-size:var(--fs-sm);">New Property</strong>
+        <strong style="font-size:var(--fs-sm);">${t('a.etl.newProperty')}</strong>
         <div style="display:flex;gap:6px;align-items:flex-start;flex-wrap:wrap;margin-top:6px;">
           <input type="text" class="etl-new-prop-id"
-                 placeholder="ID (CAPS, A-Z 0-9 _)"
+                 placeholder="${t('a.etl.procIdPh')}"
                  pattern="[A-Z0-9_]+"
-                 title="Letters A-Z, digits, underscore. No spaces or symbols."
+                 title="${t('a.etl.procIdTip')}"
                  style="width:170px;text-transform:uppercase;">
           <input type="text" class="etl-new-prop-name"
-                 placeholder="Display name" style="width:220px;">
+                 placeholder="${t('a.raster.displayNamePh')}" style="width:220px;">
           <textarea class="etl-new-prop-def" rows="2"
-                    placeholder="Definition (optional)"
+                    placeholder="${t('a.etl.defPh')}"
                     style="flex:1;min-width:260px;font-family:inherit;font-size:var(--fs-sm);"></textarea>
-          <button type="button" class="btn btn-sm btn-primary etl-new-prop-add">Add</button>
-          <button type="button" class="btn btn-sm btn-secondary etl-new-prop-cancel">Cancel</button>
+          <button type="button" class="btn btn-sm btn-primary etl-new-prop-add">${t('a.add')}</button>
+          <button type="button" class="btn btn-sm btn-secondary etl-new-prop-cancel">${t('a.cancel')}</button>
           <span class="etl-new-prop-status" style="font-size:var(--fs-sm);align-self:center;"></span>
         </div>
       </td>`;
@@ -3851,12 +3839,12 @@ class AdminDashboard {
         const pid = (idIn.value || '').trim().toUpperCase();
         const pname = (nameIn.value || '').trim();
         const def = (defIn.value || '').trim() || null;
-        if (!pid)   { status.textContent = 'ID required.'; return; }
+        if (!pid)   { status.textContent = t('a.idRequired'); return; }
         if (!/^[A-Z0-9_]+$/.test(pid)) {
-          status.textContent = 'ID must be CAPS (A-Z, 0-9, _).'; return;
+          status.textContent = t('a.idCaps'); return;
         }
-        if (!pname) { status.textContent = 'Name required.'; return; }
-        status.textContent = 'Adding…';
+        if (!pname) { status.textContent = t('a.nameRequired'); return; }
+        status.textContent = t('a.st.adding');
         try {
           const created = await api.createProperty({
             property_num_id: pid, property_name: pname, definition: def,
@@ -3868,7 +3856,7 @@ class AdminDashboard {
             uri:             created.uri || '',
           });
         } catch (e) {
-          status.textContent = 'Add failed: ' + (e && e.message ? e.message : e);
+          status.textContent = t('a.err.addFailed') + (e && e.message ? e.message : e);
         }
       });
     });
@@ -3899,7 +3887,7 @@ class AdminDashboard {
     // Project dropdown (single)
     const projEl = document.getElementById('etl-project');
     if (projEl) {
-      projEl.innerHTML = '<option value="">-- Select --</option>' +
+      projEl.innerHTML = `<option value="">${t('a.select')}</option>` +
         (cl.projects || []).map(i => `<option value="${this.escapeHtml(i.project_id)}">${this.escapeHtml(i.project_id + ' — ' + (i.name || ''))}</option>`).join('');
       projEl.onchange = () => {
         this.loadProjectDetails(projEl.value);
@@ -3922,7 +3910,7 @@ class AdminDashboard {
 
   async handleEtlSave() {
     const statusEl = document.getElementById('etl-save-status');
-    statusEl.textContent = 'Saving...';
+    statusEl.textContent = t('a.st.saving2');
     statusEl.style.color = '#555';
 
     try {
@@ -3930,7 +3918,7 @@ class AdminDashboard {
       // Projects tab, not here).
       const projectId = document.getElementById('etl-project').value;
       if (!projectId) {
-        statusEl.textContent = 'Please select a project.';
+        statusEl.textContent = t('a.selectProject');
         statusEl.style.color = '#c33';
         return;
       }
@@ -3980,7 +3968,7 @@ class AdminDashboard {
 
       this.closeDetailPanel();
     } catch (e) {
-      statusEl.textContent = 'Error: ' + e.message;
+      statusEl.textContent = t('a.err.prefix') + e.message;
       statusEl.style.color = '#c33';
     }
   }
@@ -4024,11 +4012,11 @@ class AdminDashboard {
     const section = document.getElementById('etl-mapping-section');
     const tableName = section.dataset.tableName;
     if (!tableName) {
-      statusEl.textContent = 'No dataset open.';
+      statusEl.textContent = t('a.noDatasetOpen');
       statusEl.style.color = '#c33';
       return;
     }
-    statusEl.textContent = 'Validating...';
+    statusEl.textContent = t('a.st.validating');
     statusEl.style.color = '#555';
     try {
       await this.persistCurrentMappings();
@@ -4066,7 +4054,7 @@ class AdminDashboard {
 
       this.showEtlValidationPopup(result);
     } catch (e) {
-      statusEl.textContent = 'Validation failed: ' + e.message;
+      statusEl.textContent = t('a.err.validationFailed') + e.message;
       statusEl.style.color = '#c33';
     }
   }
@@ -4076,18 +4064,18 @@ class AdminDashboard {
   // Mirrors RULES in sis-api/main.py:validate_dataset.
   get ETL_RULE_DESCRIPTIONS() {
     return {
-      'plot|plot_code':           "free-text identifier; rows sharing the same profile_code are merged into one profile and must agree on Longitude and Latitude",
-      'plot|type':                "must be 'TrialPit' or 'Borehole'",
-      'plot|altitude':            "must be a whole number in smallint range (-32768 to 32767)",
-      'plot|positional_accuracy': "must be a whole number in smallint range (-32768 to 32767)",
-      'plot|sampling_date':       "must be a valid date (YYYY-MM-DD)",
-      'plot|geom (longitude)':    "must be a number in [-180, 180]",
-      'plot|geom (latitude)':     "must be a number in [-90, 90]",
-      'element|upper_depth':      "must be a whole number in [0, 1000]; layers within the same profile must be contiguous (each upper = previous lower)",
-      'element|lower_depth':      "must be a whole number ≥ 0 (and greater than upper depth); layers within the same profile must be contiguous",
-      'element|type':             "must be 'Horizon' or 'Layer'",
-      'element|horizon':          "free-text horizon designation (e.g. A, Bw, C); no format check",
-      'result_num|value':         "must be a number; converted to canonical unit",
+      'plot|plot_code':           t('a.val.r.plotCode'),
+      'plot|type':                t('a.val.r.plotType'),
+      'plot|altitude':            t('a.val.r.altitude'),
+      'plot|positional_accuracy': t('a.val.r.posAccuracy'),
+      'plot|sampling_date':       t('a.val.r.samplingDate'),
+      'plot|geom (longitude)':    t('a.val.r.longitude'),
+      'plot|geom (latitude)':     t('a.val.r.latitude'),
+      'element|upper_depth':      t('a.val.r.upperDepth'),
+      'element|lower_depth':      t('a.val.r.lowerDepth'),
+      'element|type':             t('a.val.r.elementType'),
+      'element|horizon':          t('a.val.r.horizon'),
+      'result_num|value':         t('a.val.r.resultNum'),
     };
   }
 
@@ -4129,18 +4117,18 @@ class AdminDashboard {
             : '');
       const hasData = b.data_min !== null && b.data_min !== undefined;
       const dataLine = hasData
-        ? `<div style="font-size:0.85em;color:#555;margin-top:2px;">Your data: min = <strong>${e(String(b.data_min))}</strong>, max = <strong>${e(String(b.data_max))}</strong> ${e(unit)}</div>`
+        ? `<div style="font-size:0.85em;color:#555;margin-top:2px;">${t('a.val.yourData')} <strong>${e(String(b.data_min))}</strong>, ${t('a.val.max')} <strong>${e(String(b.data_max))}</strong> ${e(unit)}</div>`
         : '';
-      return `<div style="font-size:0.85em;color:#555;margin-top:2px;">Bounds applied: between <strong>${e(minStr)}</strong> and <strong>${e(maxStr)}</strong> ${e(unit)}${e(conv)}</div>${dataLine}`;
+      return `<div style="font-size:0.85em;color:#555;margin-top:2px;">${t('a.val.boundsApplied')} <strong>${e(minStr)}</strong> ${t('a.val.and')} <strong>${e(maxStr)}</strong> ${e(unit)}${e(conv)}</div>${dataLine}`;
     };
     const colRows = Object.entries(cols).map(([csvCol, r]) => {
       const dest = colDestMap[csvCol];
-      const destLabel = dest ? dest : '(skip)';
+      const destLabel = dest ? dest : t('a.val.skip');
       let ruleDesc = dest && ruleDescs[dest] ? ruleDescs[dest] : '—';
       // Specialise the result_num rule with the actual canonical unit so it
       // doesn't read as generic "converted to canonical unit" boilerplate.
       if (dest === 'result_num|value' && r.applied_bounds && r.applied_bounds.canonical_unit) {
-        ruleDesc = `must be a number; converted to ${r.applied_bounds.canonical_unit}`;
+        ruleDesc = t('a.val.convertedTo', {unit: r.applied_bounds.canonical_unit});
       }
       const ok = r.status === 'OK';
       const icon = ok ? '✅' : '❌';
@@ -4151,11 +4139,11 @@ class AdminDashboard {
       return `
         <div style="border:1px solid #e1e4e8;border-radius:4px;padding:8px;margin-bottom:8px;">
           <div style="font-weight:bold;color:${color};">${icon} <code>${e(csvCol)}</code> → ${e(destLabel)}</div>
-          <div style="font-size:0.85em;color:#555;margin-top:2px;">Rule: ${e(ruleDesc)}</div>
+          <div style="font-size:0.85em;color:#555;margin-top:2px;">${t('a.val.rule')} ${e(ruleDesc)}</div>
           ${fmtBounds(r.applied_bounds)}
           ${errBlock}
         </div>`;
-    }).join('') || '<em style="color:#777;">No mapped columns to check.</em>';
+    }).join('') || `<em style="color:#777;">${t('a.val.noCols')}</em>`;
 
     // Build/replace modal
     document.getElementById('etl-validation-modal')?.remove();
@@ -4165,28 +4153,28 @@ class AdminDashboard {
     modal.innerHTML = `
       <div style="background:#fff;border-radius:6px;max-width:780px;width:100%;box-shadow:0 4px 20px rgba(0,0,0,0.3);">
         <div style="padding:14px 20px;border-bottom:1px solid #e1e4e8;display:flex;align-items:center;justify-content:space-between;">
-          <h3 style="margin:0;color:#2c3e50;">Validation results</h3>
+          <h3 style="margin:0;color:#2c3e50;">${t('a.val.title')}</h3>
           <button id="etl-validation-close" type="button" style="background:transparent;border:0;font-size:22px;cursor:pointer;color:#555;">&times;</button>
         </div>
         <div style="padding:16px 20px;">
           <div style="margin-bottom:10px;font-size:0.95em;">
-            <strong>Summary:</strong>
+            <strong>${t('a.val.summary')}</strong>
             <span style="color:${/OK/.test(result.message) ? '#28a745' : '#dc3545'};">${e(result.message || '')}</span>
-            <span style="color:#777;font-size:0.9em;margin-left:8px;">${result.total_rows ?? '?'} data rows checked</span>
+            <span style="color:#777;font-size:0.9em;margin-left:8px;">${t('a.val.rowsChecked', {n: result.total_rows ?? '?'})}</span>
           </div>
 
-          <h4 style="margin:16px 0 6px;">Required destinations</h4>
+          <h4 style="margin:16px 0 6px;">${t('a.val.required')}</h4>
           <ul style="margin:0;padding-left:20px;">${reqRows}</ul>
 
-          <h4 style="margin:16px 0 6px;">Country bounds</h4>
+          <h4 style="margin:16px 0 6px;">${t('a.val.countryBounds')}</h4>
           ${this.formatCountryBoundsBlock(result.country_bounds)}
 
-          <h4 style="margin:16px 0 6px;">Per-column checks</h4>
+          <h4 style="margin:16px 0 6px;">${t('a.val.perColumn')}</h4>
           ${colRows}
         </div>
         <div style="padding:10px 20px;border-top:1px solid #e1e4e8;text-align:right;">
-          <button id="etl-validation-export" type="button" class="btn btn-sm" style="background:#17a2b8;color:#fff;margin-right:8px;">Export</button>
-          <button id="etl-validation-ok" type="button" class="btn btn-primary btn-sm">Close</button>
+          <button id="etl-validation-export" type="button" class="btn btn-sm" style="background:#17a2b8;color:#fff;margin-right:8px;">${t('a.val.export')}</button>
+          <button id="etl-validation-ok" type="button" class="btn btn-primary btn-sm">${t('a.close')}</button>
         </div>
       </div>
     `;
@@ -4203,19 +4191,19 @@ class AdminDashboard {
   formatCountryBoundsBlock(cb) {
     const e = (s) => this.escapeHtml(String(s));
     if (!cb || !cb.checked) {
-      return `<div style="color:#777;font-size:0.9em;">Skipped — needs both Longitude and Latitude mapped, plus a <code>COUNTRY_CODE</code> setting and a non-null <code>soil_data.country.geom_convexhull</code>.</div>`;
+      return `<div style="color:#777;font-size:0.9em;">${t('a.val.cbSkipped')}</div>`;
     }
     const ok = cb.status === 'OK';
     const icon = ok ? '✅' : '❌';
     const color = ok ? '#28a745' : '#dc3545';
     const previewRows = (cb.outside_rows_preview && cb.outside_rows_preview.length)
-      ? `<div style="font-size:0.85em;color:#dc3545;background:#fff5f5;padding:6px 8px;border-radius:3px;margin-top:6px;">Outside rows (first ${cb.outside_rows_preview.length}): ${cb.outside_rows_preview.join(', ')}${cb.outside > cb.outside_rows_preview.length ? ', …' : ''}</div>`
+      ? `<div style="font-size:0.85em;color:#dc3545;background:#fff5f5;padding:6px 8px;border-radius:3px;margin-top:6px;">${t('a.val.outsideRows', {n: cb.outside_rows_preview.length})} ${cb.outside_rows_preview.join(', ')}${cb.outside > cb.outside_rows_preview.length ? ', …' : ''}</div>`
       : '';
     return `
       <div style="border:1px solid #e1e4e8;border-radius:4px;padding:8px;">
-        <div style="font-weight:bold;color:${color};">${icon} ${e(cb.percent_inside)}% of points inside ${e(cb.country_code)} convex hull (need ≥${e(cb.threshold)}%)</div>
-        <div style="font-size:0.85em;color:#555;margin-top:2px;">Rule: ≥95% of mapped (longitude, latitude) points must fall within <code>soil_data.country.geom_convexhull</code> for the configured COUNTRY_CODE.</div>
-        <div style="font-size:0.85em;color:#555;margin-top:2px;">${e(cb.checked_rows)} rows checked · ${e(cb.inside)} inside · ${e(cb.outside)} outside</div>
+        <div style="font-weight:bold;color:${color};">${icon} ${t('a.val.cbHeadline', {p: cb.percent_inside, c: cb.country_code, t: cb.threshold})}</div>
+        <div style="font-size:0.85em;color:#555;margin-top:2px;">${t('a.val.cbRule')}</div>
+        <div style="font-size:0.85em;color:#555;margin-top:2px;">${t('a.val.cbCounts', {n: cb.checked_rows, i: cb.inside, o: cb.outside})}</div>
         ${previewRows}
       </div>`;
   }
@@ -4297,14 +4285,14 @@ class AdminDashboard {
     const fileInput = document.getElementById('etl-file-input');
     const statusEl = document.getElementById('etl-upload-status');
     if (!fileInput.files.length) {
-      statusEl.textContent = 'Please select a CSV file.';
+      statusEl.textContent = t('a.selectCsv');
       statusEl.style.color = '#c33';
       return;
     }
     const projectId = document.getElementById('etl-project').value;
     const btn = document.getElementById('etl-upload-btn');
     btn.disabled = true;
-    statusEl.textContent = 'Uploading...';
+    statusEl.textContent = t('a.st.uploading');
     statusEl.style.color = '#555';
     try {
       const result = await api.uploadCsv(fileInput.files[0], projectId !== '__new__' ? projectId : null);
@@ -4314,7 +4302,7 @@ class AdminDashboard {
       await this.loadEtlDatasets();
       this.openDataset(result.table_name);
     } catch (e) {
-      statusEl.textContent = 'Error: ' + e.message;
+      statusEl.textContent = t('a.err.prefix') + e.message;
       statusEl.style.color = '#c33';
     } finally {
       btn.disabled = false;
@@ -4335,7 +4323,7 @@ class AdminDashboard {
     const container = document.getElementById('etl-datasets-list');
     if (!container) return;
     if (!this.etlDatasets.length) {
-      container.innerHTML = '<p style="font-size:var(--fs-sm);color:#555;">No datasets uploaded yet.</p>';
+      container.innerHTML = `<p style="font-size:var(--fs-sm);color:#555;">${t('a.noDatasets')}</p>`;
       return;
     }
     const fmtDate = v => {
@@ -4345,7 +4333,7 @@ class AdminDashboard {
     };
     container.innerHTML = `
       <table class="admin-table">
-        <thead><tr><th>Table</th><th>User</th><th>Uploaded</th><th>Ingested</th><th>Status</th><th>Cols</th><th>Rows</th><th>Actions</th><th>Result</th></tr></thead>
+        <thead><tr><th>${t('a.etl.table')}</th><th>${t('a.user')}</th><th>${t('a.etl.uploaded')}</th><th>${t('a.etl.ingested')}</th><th>${t('a.status')}</th><th>${t('a.etl.cols')}</th><th>${t('a.etl.rows')}</th><th>${t('a.actions')}</th><th>${t('a.etl.result')}</th></tr></thead>
         <tbody>${this.etlDatasets.map(d => {
           const tn = this.escapeHtml(d.table_name);
           const tnJs = this.escapeJsAttr(d.table_name);
@@ -4360,9 +4348,9 @@ class AdminDashboard {
             <td>${d.n_col ?? '-'}</td>
             <td>${d.n_rows ?? '-'}</td>
             <td>
-              <button class="btn btn-primary btn-sm" onclick="adminDashboard.openDataset('${tnJs}')">Open</button>
-              <button class="btn btn-sm" style="background:#28a745;color:#fff;margin-left:4px;${ingested ? 'opacity:0.5;pointer-events:none;' : ''}" onclick="adminDashboard.ingestDataset('${tnJs}')"${ingested ? ' disabled' : ''}>Ingest</button>
-              ${this.isAdmin ? `<button class="btn btn-sm" style="background:#dc3545;color:#fff;margin-left:4px;" onclick="adminDashboard.deleteDataset('${tnJs}')">Delete</button>` : ''}
+              <button class="btn btn-primary btn-sm" onclick="adminDashboard.openDataset('${tnJs}')">${t('a.etl.open')}</button>
+              <button class="btn btn-sm" style="background:#28a745;color:#fff;margin-left:4px;${ingested ? 'opacity:0.5;pointer-events:none;' : ''}" onclick="adminDashboard.ingestDataset('${tnJs}')"${ingested ? ' disabled' : ''}>${t('a.etl.ingest')}</button>
+              ${this.isAdmin ? `<button class="btn btn-sm" style="background:#dc3545;color:#fff;margin-left:4px;" onclick="adminDashboard.deleteDataset('${tnJs}')">${t('a.delete')}</button>` : ''}
             </td>
             <td class="etl-result" style="font-size:var(--fs-xs);max-width:300px;white-space:pre-wrap;">${this.escapeHtml(d.note || '')}</td>
           </tr>`;
@@ -4400,7 +4388,7 @@ class AdminDashboard {
       document.getElementById('etl-detail-title').textContent = tableName;
       document.getElementById('etl-save-status').textContent = '';
     } catch (e) {
-      alert('Error opening dataset: ' + e.message);
+      alert(t('a.err.loadFailed') + e.message);
     }
   }
 
@@ -4428,12 +4416,12 @@ class AdminDashboard {
     // project's stub mapset.
     const licenseEl = document.getElementById('etl-license');
     const license = (licenseEl && licenseEl.value || '').trim() || null;
-    this.setRowResult(tableName, 'Ingesting...', false);
+    this.setRowResult(tableName, t('a.st.ingesting'), false);
     try {
       const result = await api.ingestDataset(tableName, { license });
-      let msg = result.message || `Ingested ${result.ingested}/${result.total} rows`;
+      let msg = result.message || t('a.etl.ingestedRows', {a: result.ingested, b: result.total});
       if (result.errors && result.errors.length) {
-        msg += `\nErrors: ${result.errors.length}`;
+        msg += '\n' + t('a.etl.errorsCount', {n: result.errors.length});
       }
       this.setRowResult(tableName, this.escapeHtml(msg), false);
       this.loadEtlDatasets();
@@ -4446,7 +4434,7 @@ class AdminDashboard {
   }
 
   async pruneDataset(tableName) {
-    this.setRowResult(tableName, 'Pruning...', false);
+    this.setRowResult(tableName, t('a.st.pruning'), false);
     try {
       const result = await api.pruneDataset(tableName);
       this.setRowResult(tableName, this.escapeHtml(result.message), false);
@@ -4460,8 +4448,8 @@ class AdminDashboard {
   }
 
   async deleteDataset(tableName) {
-    if (!confirm(`Delete the uploaded CSV "${tableName}" and its related data? This cannot be undone.`)) return;
-    this.setRowResult(tableName, 'Deleting...', false);
+    if (!confirm(t('a.etl.deleteCsvConfirm', {name: tableName}))) return;
+    this.setRowResult(tableName, t('a.st.deleting'), false);
     try {
       await api.deleteDataset(tableName);
       await this.loadEtlDatasets();
@@ -4483,7 +4471,7 @@ class AdminDashboard {
       await this.loadSoilProfileLayers();
       this.renderSoilProfileLayers();
     } catch (e) {
-      alert('Delete failed: ' + (e && e.message ? e.message : e));
+      alert(t('a.err.deleteFailed') + (e && e.message ? e.message : e));
     }
   }
 
@@ -4508,9 +4496,9 @@ class AdminDashboard {
     const status = document.getElementById('admdiv-upload-status');
     const name = (nameEl.value || '').trim();
     const file = fileEl.files && fileEl.files[0];
-    if (!name) { status.textContent = 'A layer name is required.'; status.style.color = '#dc3545'; return; }
-    if (!file) { status.textContent = 'Choose a GeoJSON, zipped Shapefile or GeoPackage.'; status.style.color = '#dc3545'; return; }
-    status.textContent = 'Uploading...'; status.style.color = '#666';
+    if (!name) { status.textContent = t('a.admdiv.nameRequired'); status.style.color = '#dc3545'; return; }
+    if (!file) { status.textContent = t('a.admdiv.chooseFile'); status.style.color = '#dc3545'; return; }
+    status.textContent = t('a.st.uploading'); status.style.color = '#666';
     try {
       const res = await api.uploadAdminDivision(file, name);
       status.textContent = res.message; status.style.color = '#28a745';
@@ -4518,7 +4506,7 @@ class AdminDashboard {
       await this.loadAdminDivisions();
       this.renderAdminDivisions();
     } catch (e) {
-      status.textContent = 'Error: ' + e.message; status.style.color = '#dc3545';
+      status.textContent = t('a.err.prefix') + e.message; status.style.color = '#dc3545';
     }
   }
 
@@ -4527,14 +4515,14 @@ class AdminDashboard {
     if (!tbody) return;
     const rows = this.adminDivisions || [];
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No layers uploaded yet.</td></tr>';
+      tbody.innerHTML = `<tr><td colspan="10" class="empty-state">${t('a.admdiv.none')}</td></tr>`;
       return;
     }
     tbody.innerHTML = rows.map(d => {
       const id = d.division_id;
       const pub = d.is_published
-        ? `<span class="badge badge-success admdiv-pub" data-id="${id}" data-value="0" style="cursor:pointer;" title="Shown in the map's layer list. Click to unpublish.">Yes</span>`
-        : `<span class="badge badge-danger admdiv-pub" data-id="${id}" data-value="1" style="cursor:pointer;" title="Hidden from the map. Click to publish.">No</span>`;
+        ? `<span class="badge badge-success admdiv-pub" data-id="${id}" data-value="0" style="cursor:pointer;" title="${t('a.admdiv.pubTip')}">${t('a.yes')}</span>`
+        : `<span class="badge badge-danger admdiv-pub" data-id="${id}" data-value="1" style="cursor:pointer;" title="${t('a.admdiv.unpubTip')}">${t('a.no')}</span>`;
       return `<tr data-id="${id}">
         <td><input type="number" class="admdiv-order" data-id="${id}" value="${d.display_order ?? 0}" min="0" max="999" style="width:64px;"></td>
         <td><input type="text" class="admdiv-name" data-id="${id}" value="${this.escapeHtml(d.name)}" style="min-width:160px;"></td>
@@ -4542,25 +4530,25 @@ class AdminDashboard {
         <td><input type="color" class="admdiv-stroke" data-id="${id}" value="${this.escapeHtml(d.stroke_color || '#444444')}"></td>
         <td><input type="number" class="admdiv-width" data-id="${id}" value="${d.stroke_width ?? 1.5}" min="0" max="20" step="0.5" style="width:64px;"></td>
         <td><select class="admdiv-stroke-type" data-id="${id}">
-          ${[['solid', 'Continuous'], ['dashed', 'Dashed'], ['dotted', 'Dotted'], ['dash-dot', 'Dash-dot']]
+          ${[['solid', t('a.stroke.solid')], ['dashed', t('a.stroke.dashed')], ['dotted', t('a.stroke.dotted')], ['dash-dot', t('a.stroke.dashdot')]]
             .map(([v, l]) => `<option value="${v}"${(d.stroke_type || 'solid') === v ? ' selected' : ''}>${l}</option>`).join('')}
         </select></td>
         <td><input type="color" class="admdiv-fill" data-id="${id}" value="${this.escapeHtml(d.fill_color || '#cccccc')}"></td>
         <td><input type="number" class="admdiv-opacity" data-id="${id}" value="${d.fill_opacity ?? 0}" min="0" max="1" step="0.05" style="width:64px;"></td>
         <td>${pub}</td>
-        <td><button class="btn btn-sm admdiv-del" data-id="${id}" data-name="${this.escapeHtml(d.name)}" style="background:#dc3545;color:#fff;">Delete</button></td>
+        <td><button class="btn btn-sm admdiv-del" data-id="${id}" data-name="${this.escapeHtml(d.name)}" style="background:#dc3545;color:#fff;">${t('a.delete')}</button></td>
       </tr>`;
     }).join('');
 
     const patch = async (id, payload) => {
       try { await api.updateAdminDivision(id, payload); }
-      catch (e) { alert('Update failed: ' + e.message); }
+      catch (e) { alert(t('a.err.updateFailed') + e.message); }
     };
     tbody.querySelectorAll('.admdiv-order').forEach(el => el.addEventListener('change', e =>
       patch(e.target.dataset.id, { display_order: parseInt(e.target.value || '0', 10) })));
     tbody.querySelectorAll('.admdiv-name').forEach(el => el.addEventListener('change', e => {
       const v = e.target.value.trim();
-      if (!v) { alert('Name cannot be empty'); return; }
+      if (!v) { alert(t('a.nameEmpty')); return; }
       patch(e.target.dataset.id, { name: v });
     }));
     tbody.querySelectorAll('.admdiv-stroke').forEach(el => el.addEventListener('change', e =>
@@ -4580,13 +4568,13 @@ class AdminDashboard {
     }));
     tbody.querySelectorAll('.admdiv-del').forEach(el => el.addEventListener('click', async (e) => {
       const { id, name } = e.currentTarget.dataset;
-      if (!confirm(`Delete the layer "${name}" and all its polygons? This cannot be undone.`)) return;
+      if (!confirm(t('a.admdiv.deleteConfirm', {name}))) return;
       try {
         await api.deleteAdminDivision(id);
         await this.loadAdminDivisions();
         this.renderAdminDivisions();
       } catch (err) {
-        alert('Delete failed: ' + err.message);
+        alert(t('a.err.deleteFailed') + err.message);
       }
     }));
   }
@@ -4677,8 +4665,8 @@ class AdminDashboard {
     const start = this.etlPreviewPage * pageSize;
     const end = Math.min(start + pageSize, total);
 
-    info.textContent = `(${total} rows loaded)`;
-    pageInfo.textContent = `Page ${this.etlPreviewPage + 1}/${totalPages} — rows ${start + 1}-${end}`;
+    info.textContent = t('a.etl.rowsLoaded', {n: total});
+    pageInfo.textContent = t('a.etl.pageInfo', {p: this.etlPreviewPage + 1, tp: totalPages, a: start + 1, b: end});
     prevBtn.disabled = this.etlPreviewPage === 0;
     nextBtn.disabled = this.etlPreviewPage >= totalPages - 1;
 
@@ -4690,7 +4678,7 @@ class AdminDashboard {
       return ` ${arrow}${badge}`;
     };
     thead.innerHTML = '<tr><th style="width:40px;">#</th>' + columns.map(c =>
-      `<th class="etl-preview-sort" data-col="${this.escapeHtml(c)}" style="cursor:pointer;user-select:none;" title="Click to sort; Shift+click to add secondary sort">${this.escapeHtml(c)}${sortIndicator(c)}</th>`
+      `<th class="etl-preview-sort" data-col="${this.escapeHtml(c)}" style="cursor:pointer;user-select:none;" title="${t('a.etl.sortTip')}">${this.escapeHtml(c)}${sortIndicator(c)}</th>`
     ).join('') + '</tr>';
 
     thead.querySelectorAll('.etl-preview-sort').forEach(th => {
@@ -4758,13 +4746,13 @@ class AdminDashboard {
         td.textContent = orig;
         td.style.backgroundColor = '';
         if (result.errors && result.errors.length) {
-          alert('Edit failed: ' + result.errors.join('; '));
+          alert(t('a.err.updateFailed') + result.errors.join('; '));
         }
       }
     } catch (e) {
       td.textContent = orig;
       td.style.backgroundColor = '';
-      alert('Edit failed: ' + e.message);
+      alert(t('a.err.updateFailed') + e.message);
     }
   }
 
@@ -4813,15 +4801,15 @@ class AdminDashboard {
           <td><select class="etl-dest" style="${ss}">${destOpts}</select></td>
           <td style="white-space:nowrap;">
             <select class="etl-prop" style="${ss}${hideResult}">${propOpts}</select>
-            <a class="etl-prop-link" href="" target="_blank" rel="noopener" title="Open property reference" style="${linkSS}display:none;">↗</a>
+            <a class="etl-prop-link" href="" target="_blank" rel="noopener" title="${t('a.etl.openRef')}" style="${linkSS}display:none;">↗</a>
           </td>
           <td style="white-space:nowrap;">
             <select class="etl-proc" style="${ss}${hideResult}"><option value="">—</option></select>
-            <a class="etl-proc-link" href="" target="_blank" rel="noopener" title="Open procedure reference" style="${linkSS}display:none;">↗</a>
+            <a class="etl-proc-link" href="" target="_blank" rel="noopener" title="${t('a.etl.openRef')}" style="${linkSS}display:none;">↗</a>
           </td>
           <td style="white-space:nowrap;">
             <select class="etl-unit" style="${ss}${hideResult}"><option value="">—</option></select>
-            <a class="etl-unit-link" href="" target="_blank" rel="noopener" title="Open unit reference" style="${linkSS}display:none;">↗</a>
+            <a class="etl-unit-link" href="" target="_blank" rel="noopener" title="${t('a.etl.openRef')}" style="${linkSS}display:none;">↗</a>
           </td>
           <td class="etl-validation" style="font-size:var(--fs-xs);max-width:260px;white-space:pre-wrap;color:${valColor};vertical-align:middle;">${this.escapeHtml(validation)}</td>
         </tr>`;
@@ -4921,7 +4909,7 @@ class AdminDashboard {
         updateUnitLink(tr);
         return;
       }
-      unitSel.innerHTML = '<option value="">Loading...</option>';
+      unitSel.innerHTML = `<option value="">${t('a.loading')}</option>`;
       try {
         const opts = await api.getSourceUnitsForObservation(propId, procId);
         const canonical = opts.find(u => u.is_canonical);
@@ -4973,7 +4961,7 @@ class AdminDashboard {
         const unitSel = tr.querySelector('.etl-unit');
         const propId = sel.value;
         unitSel.innerHTML = '<option value="">—</option>';
-        procSel.innerHTML = '<option value="">Loading...</option>';
+        procSel.innerHTML = `<option value="">${t('a.loading')}</option>`;
         updateRefLink(procSel, '.etl-proc-link');
         if (!propId) {
           procSel.innerHTML = '<option value="">—</option>';
@@ -4996,7 +4984,7 @@ class AdminDashboard {
           const tr = sel.closest('tr');
           const propId = tr.querySelector('.etl-prop').value;
           if (!propId) {
-            alert('Pick a Property first.');
+            alert(t('a.pickPropertyAlert'));
             sel.value = '';
             return;
           }
@@ -5055,17 +5043,17 @@ class AdminDashboard {
         await api.enableGlosis();
         await this.loadGlosis();
       } catch (e) {
-        alert('Failed to enable: ' + e.message);
+        alert(t('a.err.enableFailed') + e.message);
       }
     });
     disableBtn.addEventListener('click', async () => {
       try { await api.disableGlosis(); await this.loadGlosis(); }
-      catch (e) { alert('Failed to disable: ' + e.message); }
+      catch (e) { alert(t('a.err.disableFailed') + e.message); }
     });
     disableDeleteBtn.addEventListener('click', async () => {
-      if (!confirm('Disable federation and delete the token? Re-enabling will mint a new key — the current one stops working.')) return;
+      if (!confirm(t('a.glosis.disableConfirm'))) return;
       try { await api.disableAndDeleteGlosis(); await this.loadGlosis(); }
-      catch (e) { alert('Failed: ' + e.message); }
+      catch (e) { alert(t('a.err.failed') + e.message); }
     });
 
     this.renderGlosisEndpoints();
@@ -5097,14 +5085,14 @@ class AdminDashboard {
     try {
       const data = await api.getGlosisStatus();
       const enabled = !!data.enabled;
-      statusEl.textContent = enabled ? 'Enabled' : 'Disabled';
+      statusEl.textContent = enabled ? t('a.enabled') : t('a.disabled');
       statusEl.style.color = enabled ? '#28a745' : '#777';
       document.getElementById('glosis-enable-btn').disabled = enabled;
       document.getElementById('glosis-disable-btn').disabled = !enabled;
       document.getElementById('glosis-disable-delete-btn').disabled = !data.token;
       this.renderGlosisEndpoints(data.token ? data.token.api_key : null);
     } catch (e) {
-      statusEl.textContent = 'Error';
+      statusEl.textContent = t('a.error');
       statusEl.style.color = '#c33';
     }
   }

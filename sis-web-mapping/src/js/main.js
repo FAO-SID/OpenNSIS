@@ -1610,6 +1610,8 @@ function showLoginModal() {
 
 // Make it globally accessible:
 window.showLoginModal = showLoginModal;
+// Admin dashboard restores the button icon on hide/logout via this.
+window.setAuthButtonIcon = setAuthButtonIcon;
 
 function showAdminPanel() {
   // Show the admin dashboard
