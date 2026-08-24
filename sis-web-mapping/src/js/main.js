@@ -334,25 +334,6 @@ function addBaseMapsGroup(container) {
     </div>
   `;
 
-  // Language selector — the visitor's choice persists in localStorage and
-  // overrides the instance default (the LANGUAGE setting).
-  const langItem = document.createElement('div');
-  langItem.className = 'layer-item';
-  langItem.style.cssText = 'border-top:1px solid #eee;margin-top:6px;padding-top:8px;display:flex;align-items:center;gap:6px;';
-  const langLabel = document.createElement('label');
-  langLabel.textContent = '\uD83C\uDF10 ' + t('lang.label');
-  const langSel = document.createElement('select');
-  for (const [code, label] of AVAILABLE) {
-    const o = document.createElement('option');
-    o.value = code; o.textContent = label;
-    if (code === currentLang()) o.selected = true;
-    langSel.appendChild(o);
-  }
-  langSel.addEventListener('change', () => switchLanguage(langSel.value));
-  langItem.appendChild(langLabel);
-  langItem.appendChild(langSel);
-  groupDiv.querySelector('.layer-group-content').appendChild(langItem);
-
   container.appendChild(groupDiv);
 
   // Add event listeners for basemap switching
@@ -1504,7 +1485,7 @@ function setupControls() {
 function addLoginButton() {
   const loginBtn = document.createElement('button');
   loginBtn.id = 'login-btn';
-  loginBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; padding: 8px 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 4px; cursor: pointer; z-index: 1001; font-weight: 500;';
+  loginBtn.style.cssText = 'position: absolute; top: 20px; right: 66px; padding: 8px 16px; background: rgba(255,255,255,0.9); border: none; border-radius: 4px; cursor: pointer; z-index: 1001; font-weight: 500;';
   
   // Check if user is already logged in (restore session)
   if (api.restoreSession()) {
@@ -1516,6 +1497,37 @@ function addLoginButton() {
   }
 
   document.body.appendChild(loginBtn);
+
+  // Language button — globe only, at the right of the Login button. The
+  // visitor's choice persists in localStorage and overrides the instance
+  // default (LANGUAGE setting).
+  const langBtn = document.createElement('button');
+  langBtn.id = 'lang-btn';
+  langBtn.type = 'button';
+  langBtn.textContent = '\uD83C\uDF10';
+  langBtn.title = t('lang.label');
+  langBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; padding: 8px 10px; background: rgba(255,255,255,0.9); border: none; border-radius: 4px; cursor: pointer; z-index: 1001; font-size: 15px; line-height: 1;';
+
+  const langMenu = document.createElement('div');
+  langMenu.id = 'lang-menu';
+  langMenu.style.cssText = 'position: absolute; top: 56px; right: 20px; background: #fff; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1002; display: none; min-width: 130px; overflow: hidden;';
+  for (const [code, label] of AVAILABLE) {
+    const item = document.createElement('div');
+    item.textContent = label;
+    item.style.cssText = 'padding: 8px 14px; cursor: pointer; font-size: 13px;'
+      + (code === currentLang() ? 'font-weight: 700; background: #f2f7f2;' : '');
+    item.addEventListener('mouseenter', () => { item.style.background = '#eef3ee'; });
+    item.addEventListener('mouseleave', () => { item.style.background = code === currentLang() ? '#f2f7f2' : ''; });
+    item.addEventListener('click', () => switchLanguage(code));
+    langMenu.appendChild(item);
+  }
+  langBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    langMenu.style.display = langMenu.style.display === 'none' ? 'block' : 'none';
+  });
+  document.addEventListener('click', () => { langMenu.style.display = 'none'; });
+  document.body.appendChild(langBtn);
+  document.body.appendChild(langMenu);
 
   window.addEventListener('auth:expired', () => {
     if (adminDashboard && typeof adminDashboard.hide === 'function') adminDashboard.hide();
