@@ -21,6 +21,33 @@ is printed at the end — save it.
 Optional 3rd arg: a logo URL (`ORG_LOGO_URL`). Env knobs: `REPO_URL`, `BRANCH`,
 `DEST` (install dir, default `/opt/sis`).
 
+## One command (on the server itself)
+
+When the person installing is at the server — a country's own admin, a box we
+have no SSH access to — the same steps run locally via `host-install.sh`:
+
+```bash
+# without the repo yet — fetch and run in one line:
+curl -fsSL https://raw.githubusercontent.com/FAO-SID/SIS-dev/main/ops/single/host-install.sh | sudo bash -s -- ID
+
+# or from an existing checkout:
+sudo ops/single/host-install.sh ID
+```
+
+Same sequence (Docker + Compose, firewall, clone to `/opt/sis`, `deploy.sh`)
+and the same knobs (`REPO_URL`, `BRANCH`, `DEST`, 2nd arg = logo URL), plus:
+
+- `LANGUAGE=pt` — default UI language for the instance.
+- `DOMAIN=sis.example.org` — automatic HTTPS via the Caddy front (point the
+  A-record at the server first).
+
+```bash
+LANGUAGE=pt DOMAIN=sis.example.org sudo -E ops/single/host-install.sh BR
+```
+
+The firewall step allows every port `sshd` listens on (not just 22), so
+enabling `ufw` over an SSH session on a custom port won't lock the admin out.
+
 ## Or by hand
 
 ```bash
