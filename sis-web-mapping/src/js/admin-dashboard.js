@@ -325,7 +325,7 @@ class AdminDashboard {
               <div class="admin-section" id="software-section">
                 <h3 class="admin-section-title">${t('a.sw.title')}</h3>
                 <p style="color:#555;font-size:var(--fs-sm);margin:0 0 var(--sp-3);">
-                  ${t('a.sw.intro')} <code>FAO-SID/OpenNSIS</code> ${t('a.sw.intro2')} (<code>./update.sh</code>) ${t('a.sw.intro3')}
+                  ${t('a.sw.intro')} <code>un-fao/OpenNSIS</code> ${t('a.sw.intro2')} (<code>./update.sh</code>) ${t('a.sw.intro3')}
                 </p>
                 <div style="display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;">
                   <span>${t('a.sw.installed')}&nbsp;<code id="sw-current">…</code></span>

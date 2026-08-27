@@ -15,7 +15,7 @@ set -euo pipefail
 # Usage (on the server, as root or a sudo-capable user):
 #
 #   # without the repo yet — fetch and run in one line:
-#   curl -fsSL https://raw.githubusercontent.com/FAO-SID/OpenNSIS/main/ops/single/host-install.sh | sudo bash -s -- ID
+#   curl -fsSL https://raw.githubusercontent.com/un-fao/OpenNSIS/main/ops/single/host-install.sh | sudo bash -s -- ID
 #
 #   # or from an existing checkout:
 #   sudo ops/single/host-install.sh ID
@@ -24,7 +24,7 @@ set -euo pipefail
 # Env knobs (export before running, or prefix the command):
 #   REPO_URL   git URL to clone (default: the repo this script sits in, else
 #              the public GitHub repo). For a PRIVATE repo embed a token:
-#              REPO_URL='https://<PAT>@github.com/FAO-SID/OpenNSIS.git'
+#              REPO_URL='https://<PAT>@github.com/un-fao/OpenNSIS.git'
 #   BRANCH     branch to check out             (default: main)
 #   DEST       install dir                     (default: /opt/sis, or the
 #              checkout this script is run from)
@@ -63,7 +63,7 @@ if [[ -z "${DEST:-}" ]]; then
 fi
 
 REPO_URL="${REPO_URL:-$(git -C "$DEST" config --get remote.origin.url 2>/dev/null \
-  || echo 'https://github.com/FAO-SID/OpenNSIS.git')}"
+  || echo 'https://github.com/un-fao/OpenNSIS.git')}"
 
 echo "============================================================"
 echo " This server   : $(hostname) ($(hostname -I 2>/dev/null | awk '{print $1}'))"

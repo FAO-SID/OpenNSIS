@@ -294,7 +294,7 @@ async def create_user(
 # performs an update — applying one is the deliberate host command ./update.sh.
 # The only outbound call is an unauthenticated, read-only GitHub compare.
 
-UPDATE_REPO = os.getenv("UPDATE_REPO", "FAO-SID/OpenNSIS")
+UPDATE_REPO = os.getenv("UPDATE_REPO", "un-fao/OpenNSIS")
 UPDATE_BRANCH = os.getenv("UPDATE_BRANCH", "main")
 
 
