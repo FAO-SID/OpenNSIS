@@ -16,7 +16,7 @@ set -euo pipefail
 # Env:
 #   REPO_URL   git URL to clone (default: this repo's origin). For a PRIVATE
 #              repo, embed a token, e.g.
-#                REPO_URL='https://<GH_PAT>@github.com/FAO-SID/SIS-dev.git'
+#                REPO_URL='https://<GH_PAT>@github.com/FAO-SID/OpenNSIS.git'
 #   BRANCH     branch to check out (default: main)
 #
 # PREREQUISITES (both must be true or the clone is useless):

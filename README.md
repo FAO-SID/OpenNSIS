@@ -1,4 +1,4 @@
-# SIS — Soil Information System
+# OpenNSIS — Open National Soil Information System
 
 A spatial data infrastructure for soils, designed to be deployed as a node of
 the **GloSIS Federation**. Each instance hosts the soil data of one country or

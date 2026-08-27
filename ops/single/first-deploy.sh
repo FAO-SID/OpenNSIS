@@ -21,7 +21,7 @@ set -euo pipefail
 #
 # Env:
 #   REPO_URL   git URL to clone (default: this repo's origin). For a PRIVATE
-#              repo embed a token: REPO_URL='https://<PAT>@github.com/FAO-SID/SIS-dev.git'
+#              repo embed a token: REPO_URL='https://<PAT>@github.com/FAO-SID/OpenNSIS.git'
 #   BRANCH     branch to check out (default: main)
 #   DEST       server install dir (default: /opt/sis)
 #   SSH_PORT   ssh port (default: parsed from user@host:port, else 22)

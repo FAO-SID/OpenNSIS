@@ -28,7 +28,7 @@ have no SSH access to — the same steps run locally via `host-install.sh`:
 
 ```bash
 # without the repo yet — fetch and run in one line:
-curl -fsSL https://raw.githubusercontent.com/FAO-SID/SIS-dev/main/ops/single/host-install.sh | sudo bash -s -- ID
+curl -fsSL https://raw.githubusercontent.com/FAO-SID/OpenNSIS/main/ops/single/host-install.sh | sudo bash -s -- ID
 
 # or from an existing checkout:
 sudo ops/single/host-install.sh ID
@@ -54,7 +54,7 @@ enabling `ufw` over an SSH session on a custom port won't lock the admin out.
 # on the server
 curl -fsSL https://get.docker.com | sh
 ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp && yes | ufw enable
-git clone https://github.com/FAO-SID/SIS-dev.git /opt/sis && cd /opt/sis
+git clone https://github.com/FAO-SID/OpenNSIS.git /opt/sis && cd /opt/sis
 COUNTRY=NP PROJECT_DIR=/opt/sis ./deploy.sh
 ```
 
