@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenNSIS — Open National Soil Information System</title>
+<meta name="description" content="OpenNSIS is an open-source national soil information system: web mapping, soil-profile ETL, a metadata catalogue and GloSIS federation endpoints, deployed with one command.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+<style>
+  :root {
+    --green: #2e7d32; --green-dark: #1b5e20; --green-pale: #e8f2e8;
+    --ink: #1f2a1f; --muted: #5c6b5c; --line: #dfe5df; --bg: #f7faf7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink); background: var(--bg); line-height: 1.6;
+  }
+  a { color: var(--green); }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+  header.hero {
+    background: linear-gradient(150deg, var(--green-dark), var(--green) 65%, #43a047);
+    color: #fff; padding: 64px 0 0; overflow: hidden;
+  }
+  .hero-inner { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .hero h1 { font-size: clamp(2rem, 5vw, 3.1rem); font-weight: 750; letter-spacing: -.02em; }
+  .hero .sub {
+    margin-top: 14px; font-size: clamp(1rem, 2.2vw, 1.25rem);
+    max-width: 720px; opacity: .92;
+  }
+  .cta { margin: 28px 0 44px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .btn {
+    display: inline-block; padding: 12px 22px; border-radius: 8px;
+    font-weight: 600; text-decoration: none; font-size: .95rem;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+  .btn.primary { background: #fff; color: var(--green-dark); }
+  .btn.ghost { border: 1.5px solid rgba(255,255,255,.75); color: #fff; }
+  .shot {
+    display: block; width: min(960px, 92%); margin: 0 auto -3px;
+    border-radius: 12px 12px 0 0; box-shadow: 0 -8px 40px rgba(0,0,0,.35);
+  }
+
+  section { padding: 56px 0; }
+  section h2 {
+    font-size: 1.6rem; letter-spacing: -.01em; color: var(--green-dark);
+    margin-bottom: 8px;
+  }
+  section .lead { color: var(--muted); max-width: 760px; margin-bottom: 30px; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px 22px;
+  }
+  .card .ic { font-size: 1.5rem; }
+  .card h3 { font-size: 1.02rem; margin: 8px 0 4px; }
+  .card p { font-size: .9rem; color: var(--muted); }
+
+  .band { background: var(--green-pale); }
+  .stack { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    background: #fff; border: 1px solid var(--line); border-radius: 999px;
+    padding: 7px 16px; font-size: .88rem; font-weight: 600; color: var(--green-dark);
+  }
+  .langs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .lang { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px; font-size: .9rem; }
+
+  pre {
+    background: #16281a; color: #d7ead9; border-radius: 10px;
+    padding: 18px 20px; overflow-x: auto; font-size: .86rem; line-height: 1.55;
+  }
+  pre .c { color: #7fa886; }
+  .note { font-size: .85rem; color: var(--muted); margin-top: 10px; }
+
+  .cols { display: grid; gap: 28px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+
+  footer {
+    border-top: 1px solid var(--line); padding: 26px 0 34px;
+    color: var(--muted); font-size: .85rem; text-align: center;
+  }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap hero-inner">
+    <h1>🌱 OpenNSIS</h1>
+    <p class="sub">The <strong>Open National Soil Information System</strong> — open-source
+    infrastructure for a country's soil data: maps, profiles, metadata and
+    federation, deployed with one command.</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/FAO-SID/OpenNSIS">View on GitHub</a>
+      <a class="btn ghost" href="#quick-start">Quick start</a>
+      <a class="btn ghost" href="#features">Features</a>
+    </div>
+    <img class="shot" src="assets/map-us.jpg"
+         alt="OpenNSIS map view: soil property rasters, clustered soil profiles and a layer panel">
+  </div>
+</header>
+
+<section id="features">
+  <div class="wrap">
+    <h2>One system, the whole soil-data workflow</h2>
+    <p class="lead">Each OpenNSIS instance hosts the soil data of one country or
+    organisation — from field CSVs to published maps and federated metadata.</p>
+    <div class="grid">
+      <div class="card"><span class="ic">🗺️</span>
+        <h3>Web mapping</h3>
+        <p>A public OpenLayers viewer for soil property rasters (Cloud-Optimised
+        GeoTIFFs via MapServer WMS), soil profiles with their observations, and
+        administrative boundary layers.</p></div>
+      <div class="card"><span class="ic">📥</span>
+        <h3>Soil-profile ETL</h3>
+        <p>Upload field CSVs, map columns to the standard model, validate against
+        rules and country bounds, then ingest — with a full validation report and
+        one-click prune.</p></div>
+      <div class="card"><span class="ic">🧮</span>
+        <h3>Raster calculator</h3>
+        <p>Build suitability maps from published rasters with threshold-based
+        recipes — edit, run and publish the result like any other layer.</p></div>
+      <div class="card"><span class="ic">📚</span>
+        <h3>Metadata catalogue</h3>
+        <p>Every published map is catalogued automatically as ISO 19115/19139
+        metadata, served by pyCSW — harvestable by any standard catalogue.</p></div>
+      <div class="card"><span class="ic">🌐</span>
+        <h3>GloSIS federation</h3>
+        <p>Purpose-built endpoints connect the instance to the Global Soil
+        Information System federation — profiles and observations shared on the
+        country's own terms.</p></div>
+      <div class="card"><span class="ic">🔒</span>
+        <h3>Data sharing controls</h3>
+        <p>Per-project switches for what leaves the server: full attributes or
+        locations only, spatial blurring in metres, public profile limits and
+        download visibility.</p></div>
+      <div class="card"><span class="ic">🗂️</span>
+        <h3>Administrative divisions</h3>
+        <p>Country boundary layers from GeoJSON, zipped Shapefile or GeoPackage —
+        reprojected to WGS&nbsp;84 automatically and styled from the admin panel.</p></div>
+      <div class="card"><span class="ic">🈯</span>
+        <h3>Six languages</h3>
+        <p>The interface ships in English, Spanish, French, Portuguese, Russian
+        and Chinese — per-instance default plus a per-visitor switch. Adding a
+        language is one JSON file.</p></div>
+      <div class="card"><span class="ic">🔄</span>
+        <h3>Self-service updates</h3>
+        <p>The admin panel shows the installed version and what's new upstream;
+        one server-side command applies the update and keeps all data.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>A boring, proven stack</h2>
+    <p class="lead">Standard open-source components, wired together with Docker
+    Compose — no exotic dependencies, nothing to license.</p>
+    <div class="stack">
+      <span class="chip">OpenLayers</span>
+      <span class="chip">FastAPI</span>
+      <span class="chip">PostgreSQL + PostGIS</span>
+      <span class="chip">MapServer</span>
+      <span class="chip">pyCSW</span>
+      <span class="chip">GDAL</span>
+      <span class="chip">nginx</span>
+      <span class="chip">Caddy (optional HTTPS)</span>
+      <span class="chip">Docker Compose</span>
+    </div>
+    <div class="langs">
+      <span class="lang">English</span><span class="lang">Español</span>
+      <span class="lang">Français</span><span class="lang">Português</span>
+      <span class="lang">Русский</span><span class="lang">中文</span>
+    </div>
+  </div>
+</section>
+
+<section id="quick-start">
+  <div class="wrap">
+    <h2>Quick start</h2>
+    <p class="lead">One country per server. On a fresh Ubuntu box, as root or a
+    sudo-capable user:</p>
+    <div class="cols">
+      <div>
+        <h3 style="margin-bottom:8px;">On the server itself</h3>
+<pre><span class="c"># installs Docker, opens the firewall, clones and deploys</span>
+curl -fsSL https://raw.githubusercontent.com/FAO-SID/OpenNSIS/main/ops/single/host-install.sh \
+  | sudo bash -s -- NP</pre>
+      </div>
+      <div>
+        <h3 style="margin-bottom:8px;">Or driven from your laptop</h3>
+<pre><span class="c"># same steps over SSH</span>
+git clone https://github.com/FAO-SID/OpenNSIS.git
+cd OpenNSIS
+ops/single/first-deploy.sh root@SERVER_IP NP</pre>
+      </div>
+    </div>
+    <p class="note">Replace <code>NP</code> with your ISO 3166-1 alpha-2 country
+    code. Optional environment knobs: <code>LANGUAGE=es</code> for the default
+    interface language and <code>DOMAIN=soil.example.org</code> for automatic
+    HTTPS with Let's Encrypt. The admin password is printed once at the end —
+    save it.</p>
+  </div>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>In use</h2>
+    <p class="lead">OpenNSIS runs as national soil information systems installed
+    on countries' own infrastructure, and as the training environment for FAO
+    SoilFER workshops across Asia and Latin America — each country working on an
+    isolated instance of the same software.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Apache License 2.0 · soil property and laboratory-method codelists from the
+    <a href="https://github.com/glosis-ld/glosis">GloSIS ontology</a>
+    (CC&nbsp;BY-NC-SA&nbsp;3.0&nbsp;IGO)</p>
+    <p style="margin-top:6px;"><a href="https://github.com/FAO-SID/OpenNSIS">github.com/FAO-SID/OpenNSIS</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
