@@ -84,6 +84,22 @@
     color: var(--muted); font-size: .85rem; text-align: center;
   }
   footer a { color: var(--muted); }
+
+  /* Contribute */
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 32px; }
+  .flow .arrow { color: var(--green); font-weight: 700; opacity: .65; }
+  .steps { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .step { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
+  .step .n {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--green); color: #fff; font-weight: 700; font-size: .9rem;
+  }
+  .step h3 { font-size: 1.02rem; margin: 12px 0 4px; }
+  .step p { font-size: .9rem; color: var(--muted); }
+  .contribute-cta { margin-top: 30px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn.solid { background: var(--green); color: #fff; }
+  .btn.outline { border: 1.5px solid var(--green); color: var(--green); }
 </style>
 </head>
 <body>
@@ -98,6 +114,7 @@
       <a class="btn primary" href="https://github.com/FAO-SID/OpenNSIS">View on GitHub</a>
       <a class="btn ghost" href="#quick-start">Quick start</a>
       <a class="btn ghost" href="#features">Features</a>
+      <a class="btn ghost" href="#contribute">Contribute</a>
     </div>
     <img class="shot" src="assets/map-us.jpg"
          alt="OpenNSIS map view: soil property rasters, clustered soil profiles and a layer panel">
@@ -214,6 +231,64 @@ ops/single/first-deploy.sh root@SERVER_IP NP</pre>
     on countries' own infrastructure, and as the training environment for FAO
     SoilFER workshops across Asia and Latin America — each country working on an
     isolated instance of the same software.</p>
+  </div>
+</section>
+
+<section id="contribute">
+  <div class="wrap">
+    <h2>How to contribute</h2>
+    <p class="lead">Every improvement to OpenNSIS — a fix, a new feature or an open
+    question — follows the same path, with <strong>GitHub as the single point of
+    coordination</strong>: ideas, discussion, code and releases all live in one place.</p>
+
+    <div class="flow">
+      <span class="chip">Idea</span><span class="arrow">→</span>
+      <span class="chip">GitHub issue</span><span class="arrow">→</span>
+      <span class="chip">Discussion &amp; prioritisation</span><span class="arrow">→</span>
+      <span class="chip">Development</span><span class="arrow">→</span>
+      <span class="chip">Review</span><span class="arrow">→</span>
+      <span class="chip">Integration</span><span class="arrow">→</span>
+      <span class="chip">Documentation</span><span class="arrow">→</span>
+      <span class="chip">Dissemination</span>
+    </div>
+
+    <div class="steps">
+      <div class="step"><span class="n">1</span>
+        <h3>Idea</h3>
+        <p>A need, a fix or a new capability — from anyone using or running an OpenNSIS
+        instance.</p></div>
+      <div class="step"><span class="n">2</span>
+        <h3>GitHub issue</h3>
+        <p>Write it down as an issue — bug report, feature request or discussion — so it
+        is visible and searchable.</p></div>
+      <div class="step"><span class="n">3</span>
+        <h3>Discussion &amp; prioritisation</h3>
+        <p>The community weighs in on the issue, agrees on the scope and decides how it
+        fits the roadmap.</p></div>
+      <div class="step"><span class="n">4</span>
+        <h3>Development</h3>
+        <p>A contributor implements the change on a branch and opens a pull request.</p></div>
+      <div class="step"><span class="n">5</span>
+        <h3>Review</h3>
+        <p>Maintainers and peers review the pull request, test it and request any
+        adjustments.</p></div>
+      <div class="step"><span class="n">6</span>
+        <h3>Integration</h3>
+        <p>Once approved, the change is merged into the main branch.</p></div>
+      <div class="step"><span class="n">7</span>
+        <h3>Documentation</h3>
+        <p>The README, the docs site and in-app help are updated so others can use and
+        maintain it.</p></div>
+      <div class="step"><span class="n">8</span>
+        <h3>Dissemination</h3>
+        <p>The improvement reaches users through releases and updates, and FAO SoilFER
+        workshops.</p></div>
+    </div>
+
+    <div class="contribute-cta">
+      <a class="btn solid" href="https://github.com/un-fao/OpenNSIS/issues/new/choose">Open an issue</a>
+      <a class="btn outline" href="https://github.com/un-fao/OpenNSIS/issues">Browse open issues</a>
+    </div>
   </div>
 </section>
 
