@@ -1,7 +1,7 @@
 #!/bin/bash
 
 clear
-PROJECT_DIR="/home/carva014/Work/Code/FAO/SIS-dev/sis-database/owl2sql"
+PROJECT_DIR="/home/carva014/Work/Code/FAO/OpenNSIS/sis-database/owl2sql"
 cd $PROJECT_DIR
 
 

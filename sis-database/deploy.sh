@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # variables
-PROJECT_DIR="/home/carva014/Work/Code/FAO/SIS-dev"      # << EDIT THIS LINE!
+PROJECT_DIR="/home/carva014/Work/Code/FAO/OpenNSIS"      # << EDIT THIS LINE!
 DATE=`date +%Y-%m-%d`
 clear
 

@@ -6,7 +6,7 @@ Used by:
   - Add Raster (operator uploads a TIFF)
   - DST engine (recipe writes a TIFF, then calls the registrar)
 
-See /home/carva014/Work/Code/FAO/SIS-dev/RASTER-AND-DST-PLAN.md for the
+See /home/carva014/Work/Code/FAO/OpenNSIS/RASTER-AND-DST-PLAN.md for the
 broader plan and the relationship to the external pipeline in
 ~/Work/Code/FAO/GloSIS-private/Metadata/.
 """
