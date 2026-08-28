@@ -57,7 +57,11 @@ def ensure_nodata(path: str) -> Optional[float]:
 
     if remap_from is None:
         # No pixels to touch — just stamp the tag (cheap, no full read/write).
-        with rasterio.open(path, "r+") as dst:
+        # IGNORE_COG_LAYOUT_BREAK: GDAL refuses to update a Cloud-Optimised
+        # GeoTIFF in place without it (the upload may well be a COG already).
+        # Breaking the layout here is harmless — register re-encodes the file
+        # as a fresh COG via to_cog() afterwards.
+        with rasterio.open(path, "r+", IGNORE_COG_LAYOUT_BREAK="YES") as dst:
             dst.nodata = nodata
         return nodata
 
