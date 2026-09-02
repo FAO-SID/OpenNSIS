@@ -656,6 +656,8 @@ h1, h2, h3, h4, h5 {
     box-shadow: none;
     border-bottom: 1px solid #e4e4e4;
     justify-self: auto;
+    align-self: stretch;   /* the base rule centres it, which blocks the full-width stretch */
+    text-align: center;
 }
 
 .dyn-legend.stacked .dyn-legend-bar {
