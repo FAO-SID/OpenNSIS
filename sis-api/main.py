@@ -637,7 +637,20 @@ async def update_layer_custom(
 
     has_proj = "project_name" in payload
     has_prop = "property_name" in payload
-    if not (has_proj or has_prop):
+    has_opac = "default_opacity" in payload
+    opacity = None
+    if has_opac:
+        raw = payload.get("default_opacity")
+        if raw is None or str(raw).strip() == "":
+            opacity = None
+        else:
+            try:
+                opacity = float(raw)
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="default_opacity must be a number")
+            if not 0 <= opacity <= 1:
+                raise HTTPException(status_code=400, detail="default_opacity must be between 0 and 1")
+    if not (has_proj or has_prop or has_opac):
         raise HTTPException(status_code=400, detail="No editable field supplied")
 
     with get_db() as conn:
@@ -653,13 +666,18 @@ async def update_layer_custom(
                     "UPDATE soil_data.layer SET costum_name = %s WHERE layer_id = %s",
                     (_clean(payload.get("property_name")), layer_id),
                 )
+            if has_opac:
+                cur.execute(
+                    "UPDATE soil_data.layer SET default_opacity = %s WHERE layer_id = %s",
+                    (opacity, layer_id),
+                )
             if has_proj:
                 cur.execute(
                     "UPDATE soil_data.mapset SET costum_group = %s WHERE mapset_id = %s",
                     (_clean(payload.get("project_name")), mapset_id),
                 )
     log_audit(current_user["user_id"], None, "layer_custom_updated",
-              {"layer_id": layer_id, **{k: payload[k] for k in ("project_name", "property_name") if k in payload}},
+              {"layer_id": layer_id, **{k: payload[k] for k in ("project_name", "property_name", "default_opacity") if k in payload}},
               None)
     return {"layer_id": layer_id, "ok": True}
 
@@ -1098,6 +1116,7 @@ async def get_all_layers(current_user: dict = Depends(get_current_user)):
                   COALESCE(mp.num_intervals, 10) AS num_intervals,
                   mp.property_type,
                   COALESCE(m.custom_classes, FALSE) AS custom_classes,
+                  l.default_opacity,
                   -- A short token that mutates whenever the engine writes
                   -- new pixels: stats_min/max + the embedded MapServer .map
                   -- text hash. Used as the WMS cache-buster.
@@ -1254,6 +1273,7 @@ async def get_published_layers(
                   l.stats_minimum, l.stats_maximum, l.no_data_value,
                   mp.property_type,
                   COALESCE(m.custom_classes, FALSE) AS custom_classes,
+                  l.default_opacity,
                   m.unit_of_measure_id,
                   m.keyword_theme      AS keywords,
                   -- DST outputs get a richer click popup (per-input breakdown).
@@ -1322,6 +1342,7 @@ async def get_published_layers(
             "stats_maximum": r.get("stats_maximum"),
             "no_data_value": r.get("no_data_value"),
             "custom_classes": bool(r.get("custom_classes")),
+            "default_opacity": r.get("default_opacity"),
             "property_type": r.get("property_type"),
             "legend_classes": classes_by_mapset.get(r.get("mapset_id")) or None,
             "metadata_url": metadata_url,

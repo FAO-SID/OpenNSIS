@@ -1666,6 +1666,7 @@ COMMENT ON COLUMN soil_data.element.type IS 'Type of profile element, Horizon or
 --
 
 CREATE TABLE soil_data.layer (
+    default_opacity real,
     mapset_id text NOT NULL,
     dimension_depth text,
     dimension_stats text,

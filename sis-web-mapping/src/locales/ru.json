@@ -484,5 +484,7 @@
   "a.lg.keepTwo": "Для своих границ нужно не менее двух классов.",
   "a.lg.tabRamp": "Цветовая шкала",
   "a.lg.tabCustom": "Свои границы классов",
-  "basemap.eox": "EOX Terrain Light"
+  "basemap.eox": "EOX Terrain Light",
+  "a.raster.opacity": "Непрозрачность",
+  "a.raster.opacityTip": "Начальная непрозрачность на карте (0-1; пусто = 1)"
 }

@@ -484,5 +484,7 @@
   "a.lg.keepTwo": "Los cortes personalizados necesitan al menos dos clases.",
   "a.lg.tabRamp": "Rampa de colores",
   "a.lg.tabCustom": "Cortes de clase personalizados",
-  "basemap.eox": "EOX Terrain Light"
+  "basemap.eox": "EOX Terrain Light",
+  "a.raster.opacity": "Opacidad",
+  "a.raster.opacityTip": "Opacidad inicial en la vista del mapa (0-1; vacío = 1)"
 }

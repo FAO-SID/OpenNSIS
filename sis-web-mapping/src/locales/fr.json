@@ -484,5 +484,7 @@
   "a.lg.keepTwo": "Les seuils personnalisés nécessitent au moins deux classes.",
   "a.lg.tabRamp": "Rampe de couleurs",
   "a.lg.tabCustom": "Seuils de classes personnalisés",
-  "basemap.eox": "EOX Terrain Light"
+  "basemap.eox": "EOX Terrain Light",
+  "a.raster.opacity": "Opacité",
+  "a.raster.opacityTip": "Opacité initiale dans la vue cartographique (0-1 ; vide = 1)"
 }

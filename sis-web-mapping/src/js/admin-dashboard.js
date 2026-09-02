@@ -710,6 +710,7 @@ class AdminDashboard {
                         <th style="width:120px;">${t('a.raster.group')}</th>
                         <th>${t('a.raster.name')}</th>
                         <th style="width:90px;">${t('legend.alt')}</th>
+                        <th style="width:70px;" title="${t('a.raster.opacityTip')}">${t('a.raster.opacity')}</th>
                         <th>${t('a.published')}</th>
                         <th>${t('a.default')}</th>
                         <th>WMS</th>
@@ -3119,6 +3120,9 @@ class AdminDashboard {
         <td style="width:120px;"><input class="layer-edit" data-layer-id="${id}" data-field="project_name" value="${this.escapeHtml(layer.project_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editGroupTip')}"></td>
         <td><input class="layer-edit" data-layer-id="${id}" data-field="property_name" value="${this.escapeHtml(layer.property_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editNameTip')}"></td>
         <td>${this._legendSwatchHtml(layer, id)}</td>
+        <td><input type="number" class="layer-edit" data-layer-id="${id}" data-field="default_opacity"
+                   value="${layer.default_opacity == null ? '' : layer.default_opacity}" min="0" max="1" step="0.05"
+                   placeholder="1" style="${editStyle}width:60px;" title="${t('a.raster.opacityTip')}"></td>
         <td>
           <button class="btn ${layer.publish ? 'btn-secondary' : 'btn-success'}"
                   onclick="adminDashboard.toggleLayerPublish('${idJs}', ${!layer.publish})">
@@ -3150,7 +3154,9 @@ class AdminDashboard {
         const newValue = el.value.trim() || null;
         const layer = this.layers.find(l => l.layer_id === layerId);
         if (!layer) return;
-        if ((layer[field] || null) === newValue) return;
+        // String-normalise: default_opacity arrives as a number from the API.
+        const oldValue = layer[field] == null || layer[field] === '' ? null : String(layer[field]);
+        if (oldValue === newValue) return;
         try {
           await api.updateLayerCustom(layerId, { [field]: newValue });
           layer[field] = newValue;

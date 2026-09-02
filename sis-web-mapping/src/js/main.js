@@ -534,6 +534,12 @@ function switchLayer(layerConfig) {
   map.addLayer(layer);
   activeLayer = layer;
 
+  // Reflect the layer's starting opacity on the slider.
+  const opacitySlider = document.getElementById('opacity');
+  if (opacitySlider) {
+    opacitySlider.value = layerConfig.default_opacity == null ? 1 : Number(layerConfig.default_opacity);
+  }
+
   // Show legend (dynamic when the layer ships legend classes).
   showLegend(layerConfig);
 
@@ -586,7 +592,9 @@ function createWMSLayer(layerConfig) {
 
   layer.set('layerId', layerConfig.layer_id);
   layer.set('featureInfoUrl', layerConfig.get_feature_info_url);
-  
+  // Admin-set initial opacity (the visitor's slider still overrides it).
+  layer.setOpacity(layerConfig.default_opacity == null ? 1 : Number(layerConfig.default_opacity));
+
   return layer;
 }
 
