@@ -87,6 +87,28 @@ def _recover_orphaned_dst_runs():
         log.exception("startup: failed to recover orphaned DST runs")
 
 
+# Every generated .map declares TEMPLATE "getfeatureinfo.tmpl" (relative to the
+# mapfile dir), but the volume directory is gitignored, so fresh installs have
+# no template and raster GetFeatureInfo fails with "Unable to access file".
+# The SPA needs it for the click popup and the dynamic-legend hover probe.
+GFI_TEMPLATE = """<!-- MapServer Template -->
+Value: [value_list]
+Coords: [x], [y]
+"""
+
+
+@app.on_event("startup")
+def _ensure_getfeatureinfo_template():
+    path = "/srv/rasters/getfeatureinfo.tmpl"
+    try:
+        if not os.path.exists(path):
+            with open(path, "w") as f:
+                f.write(GFI_TEMPLATE)
+            log.info("startup: wrote %s", path)
+    except Exception:
+        log.exception("startup: could not ensure %s", path)
+
+
 # ==================== Authentication ====================
 
 LOGIN_MAX_ATTEMPTS = 5
@@ -888,6 +910,8 @@ async def get_published_layers(
                   l.dimension_stats,
                   EXTRACT(YEAR FROM m.creation_date)::int AS year,
                   l.is_default,
+                  l.stats_minimum, l.stats_maximum, l.no_data_value,
+                  mp.property_type,
                   m.unit_of_measure_id,
                   m.keyword_theme      AS keywords,
                   -- DST outputs get a richer click popup (per-input breakdown).
@@ -900,11 +924,32 @@ async def get_published_layers(
                       COALESCE(l.map,''))::text AS cache_token
                 FROM soil_data.layer l
                 LEFT JOIN soil_data.mapset m ON m.mapset_id = l.mapset_id
+                LEFT JOIN soil_data.mapped_property mp
+                       ON mp.mapped_property_id = m.mapped_property_id
                 WHERE l.is_published = TRUE
                   AND m.spatial_representation_type_code = 'grid'
                 ORDER BY l.layer_id
             """)
             rows = cur.fetchall()
+
+            # Legend classes (soil_data.class) for every mapset in one query —
+            # the same rows the SLD/mapfile colours come from, so the SPA's
+            # dynamic legend always matches what MapServer renders.
+            classes_by_mapset = {}
+            mapset_ids = [r["mapset_id"] for r in rows if r.get("mapset_id")]
+            if mapset_ids:
+                cur.execute("""
+                    SELECT mapset_id, value, label, color
+                    FROM soil_data.class
+                    WHERE publish IS TRUE AND mapset_id = ANY(%s)
+                    ORDER BY mapset_id, value
+                """, (mapset_ids,))
+                for c in cur.fetchall():
+                    classes_by_mapset.setdefault(c["mapset_id"], []).append({
+                        "value": float(c["value"]),
+                        "label": c["label"],
+                        "color": c["color"],
+                    })
 
     out = []
     for r in rows:
@@ -931,6 +976,11 @@ async def get_published_layers(
             "unit_of_measure_id": r.get("unit_of_measure_id"),
             "keywords": r.get("keywords"),
             "is_dst": bool(r.get("is_dst")),
+            "stats_minimum": r.get("stats_minimum"),
+            "stats_maximum": r.get("stats_maximum"),
+            "no_data_value": r.get("no_data_value"),
+            "property_type": r.get("property_type"),
+            "legend_classes": classes_by_mapset.get(r.get("mapset_id")) or None,
             "metadata_url": metadata_url,
             "download_url": f"{download_base}{layer_id}.tif",
             "get_map_url": get_map,

@@ -75,6 +75,11 @@ class UserSelfUpdate(BaseModel):
     new_user_id: Optional[str] = None
     new_password: Optional[str] = None
 
+class LegendClass(BaseModel):
+    value: float                        # lower bound (quantitative) / category value
+    label: str
+    color: str                          # #rrggbb, same row the SLD/mapfile uses
+
 class Layer(BaseModel):
     project_id: Optional[str] = None
     project_name: Optional[str] = None
@@ -84,6 +89,11 @@ class Layer(BaseModel):
     dimension: Optional[str] = None
     dimension_stats: Optional[str] = None
     year: Optional[int] = None          # EXTRACT(YEAR FROM mapset.creation_date)
+    stats_minimum: Optional[float] = None
+    stats_maximum: Optional[float] = None
+    no_data_value: Optional[float] = None
+    property_type: Optional[str] = None  # quantitative | categorical
+    legend_classes: Optional[List[LegendClass]] = None  # soil_data.class rows
     version: Optional[str] = None
     unit_of_measure_id: Optional[str] = None
     metadata_url: Optional[str] = None

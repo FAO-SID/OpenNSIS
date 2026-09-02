@@ -519,10 +519,8 @@ function switchLayer(layerConfig) {
   map.addLayer(layer);
   activeLayer = layer;
 
-  // Show legend if available
-  if (layerConfig.get_legend_url) {
-    showLegend(layerConfig.get_legend_url);
-  }
+  // Show legend (dynamic when the layer ships legend classes).
+  showLegend(layerConfig);
 
   // Store current layer config
   currentLayers[layerConfig.layer_id] = layerConfig;
@@ -1371,6 +1369,14 @@ function setupPopup() {
     popup.setPosition(undefined);
   });
 
+  // Dynamic-legend hover: track the raster value under the pointer.
+  map.on('pointermove', (evt) => {
+    if (evt.dragging) return;
+    if (!activeLayer || !legendState) return;
+    scheduleLegendProbe(evt.coordinate);
+  });
+  map.getViewport().addEventListener('pointerleave', () => setLegendCursor(null));
+
   // Handle map clicks
   map.on('singleclick', async (evt) => {
     const features = map.getFeaturesAtPixel(evt.pixel, {
@@ -1438,13 +1444,139 @@ async function showProfileObservations(feature, popup, coordinate) {
   popup.setPosition(coordinate);
 }
 
-function showLegend(legendUrl) {
+// ==================== Dynamic legend ====================
+// Built from soil_data.class rows shipped on each layer (legend_classes) —
+// the exact colours MapServer renders — with a cursor that tracks the pixel
+// value under the pointer via throttled WMS GetFeatureInfo probes.
+
+let legendState = null;
+let legendProbeCoord = null;
+let legendProbeTimer = null;
+let legendProbeSeq = 0;
+
+function showLegend(layerConfig) {
   const legendContainer = document.getElementById('legend');
   const legendContent = legendContainer.querySelector('.legend-content');
-  // get_legend_url is emitted as http://localhost/mapserver/… — relativize it
-  // so the legend image loads from the SIS host, not the visitor's machine.
-  legendContent.innerHTML = `<img src="${relMapserverUrl(legendUrl)}" alt="${t('legend.alt')}">`;
+  legendState = null;
+  const classes = (layerConfig && layerConfig.legend_classes) || [];
+  if (classes.length) {
+    buildDynamicLegend(legendContent, layerConfig, classes);
+  } else if (layerConfig && layerConfig.get_legend_url) {
+    // Fallback: the static MapServer legend image.
+    // get_legend_url is emitted as http://localhost/mapserver/… — relativize it
+    // so the legend image loads from the SIS host, not the visitor's machine.
+    legendContent.innerHTML = `<img src="${relMapserverUrl(layerConfig.get_legend_url)}" alt="${t('legend.alt')}">`;
+  } else {
+    legendContainer.style.display = 'none';
+    return;
+  }
   legendContainer.style.display = 'block';
+}
+
+function buildDynamicLegend(container, layerConfig, classes) {
+  const categorical = layerConfig.property_type === 'categorical';
+  const min = layerConfig.stats_minimum != null ? layerConfig.stats_minimum : classes[0].value;
+  let max = layerConfig.stats_maximum;
+  if (max == null) {
+    const iv = classes.length > 1 ? (classes[1].value - classes[0].value) : 1;
+    max = classes[classes.length - 1].value + iv;
+  }
+  const unit = layerConfig.unit_of_measure_id || '';
+  const range = max - min;
+  // escapeHtml() covers text nodes; attributes also need quotes neutralised.
+  const attr = (x) => escapeHtml(x).replace(/"/g, '&quot;');
+
+  // Highest class on top; the value axis runs bottom (min) → top (max).
+  const blocks = classes.slice().reverse().map(c =>
+    `<div class="dyn-legend-block" style="background:${attr(c.color)};" title="${attr(c.label)}"></div>`
+  ).join('');
+
+  const labels = categorical
+    ? classes.slice().reverse().map(c =>
+        `<span class="dyn-legend-cat">${escapeHtml(c.label)}</span>`).join('')
+    : `<span>${fmtLegendVal(max, range)}</span><span>${fmtLegendVal(min, range)}</span>`;
+
+  container.innerHTML = `
+    <div class="dyn-legend">
+      ${unit ? `<div class="dyn-legend-unit">${escapeHtml(unit)}</div>` : ''}
+      <div class="dyn-legend-body">
+        <div class="dyn-legend-bar">
+          ${blocks}
+          <div class="dyn-legend-cursor" hidden>
+            <span class="dyn-legend-chip"></span>
+          </div>
+        </div>
+        <div class="dyn-legend-labels${categorical ? ' categorical' : ''}">${labels}</div>
+      </div>
+    </div>`;
+
+  legendState = {
+    min, max, categorical, classes,
+    cursorEl: container.querySelector('.dyn-legend-cursor'),
+    chipEl: container.querySelector('.dyn-legend-chip'),
+  };
+}
+
+// Decimals proportional to the value range: fine ranges get more precision.
+function fmtLegendVal(v, range) {
+  if (v == null || !isFinite(v)) return '';
+  const r = Math.abs(range) || 1;
+  const dp = r < 1 ? 3 : r < 10 ? 2 : r < 100 ? 1 : 0;
+  return Number(v).toFixed(dp);
+}
+
+function setLegendCursor(value) {
+  if (!legendState || !legendState.cursorEl) return;
+  const st = legendState;
+  if (value == null || !isFinite(value)) { st.cursorEl.hidden = true; return; }
+  const span = st.max - st.min;
+  if (!(span > 0)) { st.cursorEl.hidden = true; return; }
+  let frac;
+  if (st.categorical) {
+    // Snap to the centre of the matching class block.
+    let idx = 0;
+    for (let i = 0; i < st.classes.length; i++) {
+      if (value >= st.classes[i].value) idx = i; else break;
+    }
+    frac = (idx + 0.5) / st.classes.length;
+    st.chipEl.textContent = st.classes[idx] ? st.classes[idx].label : fmtLegendVal(value, span);
+  } else {
+    frac = Math.max(0, Math.min(1, (value - st.min) / span));
+    st.chipEl.textContent = fmtLegendVal(value, span);
+  }
+  st.cursorEl.style.bottom = `${(frac * 100).toFixed(2)}%`;
+  st.cursorEl.hidden = false;
+}
+
+// Trailing throttle (~150 ms) so panning the pointer does not flood MapServer.
+function scheduleLegendProbe(coordinate) {
+  legendProbeCoord = coordinate;
+  if (legendProbeTimer) return;
+  legendProbeTimer = setTimeout(async () => {
+    legendProbeTimer = null;
+    const coord = legendProbeCoord;
+    if (!coord || !activeLayer || !legendState) return;
+    const source = activeLayer.getSource();
+    if (!source || !source.getFeatureInfoUrl) return;
+    const url = source.getFeatureInfoUrl(
+      coord, map.getView().getResolution(), 'EPSG:3857',
+      { 'INFO_FORMAT': 'text/html' });
+    if (!url) return;
+    const seq = ++legendProbeSeq;
+    try {
+      const text = await (await fetch(url)).text();
+      if (seq !== legendProbeSeq || !legendState) return;   // stale response
+      const m = text && text.match(/Value:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/);
+      let v = m ? parseFloat(m[1]) : null;
+      // Suppress NoData: the layer's declared sentinel, or the common ones.
+      const cfg = currentLayers[activeLayer.get('layerId')];
+      if (v != null && cfg && cfg.no_data_value != null && v === cfg.no_data_value) v = null;
+      if (v != null && v <= -9998) v = null;
+      setLegendCursor(v);
+    } catch (e) {
+      if (seq === legendProbeSeq) setLegendCursor(null);
+    }
+  }, 150);
 }
 
 

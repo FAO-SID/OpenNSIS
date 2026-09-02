@@ -610,6 +610,79 @@ h1, h2, h3, h4, h5 {
     opacity: 0.9;
 }
 
+/* Dynamic legend: colour bar from soil_data.class + a value cursor that
+   follows the pixel under the pointer. */
+.dyn-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 80px;
+}
+
+.dyn-legend-unit {
+    text-align: center;
+    font-weight: 600;
+    font-size: var(--fs-sm);
+}
+
+.dyn-legend-body {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.dyn-legend-bar {
+    position: relative;
+    width: 34px;
+    height: 220px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.dyn-legend-block { flex: 1; }
+.dyn-legend-block:first-child { border-radius: 3px 3px 0 0; }
+.dyn-legend-block:last-child { border-radius: 0 0 3px 3px; }
+
+.dyn-legend-labels {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-size: var(--fs-xs);
+    color: #444;
+}
+
+.dyn-legend-labels.categorical { justify-content: space-around; }
+.dyn-legend-cat { line-height: 1.15; max-width: 110px; }
+
+/* The cursor: a line across the bar with the value riding on it,
+   like a thermometer marker. */
+.dyn-legend-cursor {
+    position: absolute;
+    left: -3px;
+    right: -3px;
+    height: 0;
+    border-top: 2px solid #1f2a1f;
+    pointer-events: none;
+}
+
+.dyn-legend-chip {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border: 1px solid #999;
+    border-radius: 4px;
+    padding: 0 5px;
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
 /* =====================================================================
    Login button (floating top-right before dashboard opens)
    ===================================================================== */
