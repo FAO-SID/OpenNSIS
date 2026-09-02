@@ -36,6 +36,18 @@ const BASE_MAP_OPTIONS = {
         crossOrigin: 'anonymous'
       })
     })
+  },
+  // Keep in sync with the map view's baseLayers in main.js.
+  'eox-terrain-light': {
+    label: 'EOX Terrain Light',
+    factory: () => new TileLayer({
+      source: new XYZ({
+        url: 'https://tiles.maps.eox.at/wmts/1.0.0/terrain-light_3857/default/g/{z}/{y}/{x}.jpg',
+        attributions: 'Terrain Light © EOX (CC-BY 4.0)',
+        crossOrigin: 'anonymous',
+        maxZoom: 16
+      })
+    })
   }
 };
 
