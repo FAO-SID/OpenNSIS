@@ -465,5 +465,11 @@
   "a.val.r.lowerDepth": "must be a whole number ≥ 0 (and greater than upper depth); layers within the same profile must be contiguous",
   "a.val.r.elementType": "must be 'Horizon' or 'Layer'",
   "a.val.r.horizon": "free-text horizon designation (e.g. A, Bw, C); no format check",
-  "a.val.r.resultNum": "must be a number; converted to canonical unit"
+  "a.val.r.resultNum": "must be a number; converted to canonical unit",
+  "a.lg.title": "Legend colours — ",
+  "a.lg.start": "Start colour (min)",
+  "a.lg.end": "End colour (max)",
+  "a.lg.intervals": "Intervals",
+  "a.lg.scope": "Applies to every raster of this soil property on this instance; the map, legend and catalogue styling all update.",
+  "a.lg.editTip": "Click to customise the legend colours"
 }

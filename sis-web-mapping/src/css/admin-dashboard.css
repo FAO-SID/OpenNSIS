@@ -1014,3 +1014,16 @@ input:checked + .toggle-slider:before {
         padding: var(--sp-2) var(--sp-3);
     }
 }
+
+/* Legend colour swatch in the GeoTIFF's table — click to edit the ramp. */
+.legend-swatch {
+    display: block;
+    width: 78px;
+    height: 20px;
+    border: 1px solid rgba(0, 0, 0, 0.25);
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0;
+}
+
+.legend-swatch:hover { box-shadow: 0 0 0 2px var(--color-primary); }

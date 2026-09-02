@@ -199,6 +199,13 @@ class SISApiClient {
     return this.authenticatedRequest('/api/layer/all');
   }
 
+  async updatePropertyColours(propertyId, body) {
+    return this.authenticatedRequest(`/api/mapped-property/${encodeURIComponent(propertyId)}/colours`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  }
+
   async updateLayerCustom(layerId, fields) {
     return this.authenticatedRequest(`/api/layer/${encodeURIComponent(layerId)}/custom`, {
       method: 'PATCH',

@@ -465,5 +465,11 @@
   "a.val.r.lowerDepth": "deve ser um número inteiro ≥ 0 (e maior do que a profundidade superior); as camadas de um mesmo perfil devem ser contíguas",
   "a.val.r.elementType": "deve ser 'Horizon' ou 'Layer'",
   "a.val.r.horizon": "designação do horizonte em texto livre (p. ex. A, Bw, C); sem verificação de formato",
-  "a.val.r.resultNum": "deve ser um número; convertido para a unidade canónica"
+  "a.val.r.resultNum": "deve ser um número; convertido para a unidade canónica",
+  "a.lg.title": "Cores da legenda — ",
+  "a.lg.start": "Cor inicial (mín)",
+  "a.lg.end": "Cor final (máx)",
+  "a.lg.intervals": "Intervalos",
+  "a.lg.scope": "Aplica-se a todos os rasters desta propriedade do solo nesta instância; o mapa, a legenda e o estilo do catálogo são atualizados.",
+  "a.lg.editTip": "Clique para personalizar as cores da legenda"
 }

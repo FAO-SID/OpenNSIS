@@ -465,5 +465,11 @@
   "a.val.r.lowerDepth": "debe ser un número entero ≥ 0 (y mayor que la profundidad superior); las capas de un mismo perfil deben ser contiguas",
   "a.val.r.elementType": "debe ser 'Horizon' o 'Layer'",
   "a.val.r.horizon": "designación de horizonte en texto libre (p. ej. A, Bw, C); sin comprobación de formato",
-  "a.val.r.resultNum": "debe ser un número; se convierte a la unidad canónica"
+  "a.val.r.resultNum": "debe ser un número; se convierte a la unidad canónica",
+  "a.lg.title": "Colores de la leyenda — ",
+  "a.lg.start": "Color inicial (mín)",
+  "a.lg.end": "Color final (máx)",
+  "a.lg.intervals": "Intervalos",
+  "a.lg.scope": "Se aplica a todos los rásteres de esta propiedad del suelo en esta instancia; se actualizan el mapa, la leyenda y el estilo del catálogo.",
+  "a.lg.editTip": "Haga clic para personalizar los colores de la leyenda"
 }

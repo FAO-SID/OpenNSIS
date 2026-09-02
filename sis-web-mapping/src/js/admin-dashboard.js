@@ -697,6 +697,7 @@ class AdminDashboard {
                         <th>${t('a.raster.origFile')}</th>
                         <th style="width:120px;">${t('a.raster.group')}</th>
                         <th>${t('a.raster.name')}</th>
+                        <th style="width:90px;">${t('legend.alt')}</th>
                         <th>${t('a.published')}</th>
                         <th>${t('a.default')}</th>
                         <th>WMS</th>
@@ -3105,6 +3106,10 @@ class AdminDashboard {
         <td title="${this.escapeHtml(layer.file_orig_name || '')}" style="font-size:var(--fs-sm);color:#555;">${this.escapeHtml(layer.file_orig_name || '-')}</td>
         <td style="width:120px;"><input class="layer-edit" data-layer-id="${id}" data-field="project_name" value="${this.escapeHtml(layer.project_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editGroupTip')}"></td>
         <td><input class="layer-edit" data-layer-id="${id}" data-field="property_name" value="${this.escapeHtml(layer.property_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editNameTip')}"></td>
+        <td>${layer.mapped_property_id && layer.start_color && layer.end_color
+          ? `<button type="button" class="legend-swatch" data-layer-id="${id}" title="${t('a.lg.editTip')}"
+                     style="background:linear-gradient(to right, ${this._rampCss(layer.start_color, layer.end_color, layer.num_intervals || 10)});"></button>`
+          : '-'}</td>
         <td>
           <button class="btn ${layer.publish ? 'btn-secondary' : 'btn-success'}"
                   onclick="adminDashboard.toggleLayerPublish('${idJs}', ${!layer.publish})">
@@ -3117,6 +3122,13 @@ class AdminDashboard {
       </tr>
     `;
     }).join('');
+
+    tbody.querySelectorAll('.legend-swatch').forEach(el => {
+      el.addEventListener('click', (e) => {
+        const layer = this.layers.find(l => l.layer_id === e.currentTarget.dataset.layerId);
+        if (layer) this.openLegendColoursModal(layer);
+      });
+    });
 
     tbody.querySelectorAll('.layer-edit').forEach(el => {
       el.addEventListener('focus', () => { el.style.border = '1px solid #ccc'; el.style.background = '#fff'; });
@@ -3138,6 +3150,94 @@ class AdminDashboard {
           el.value = layer[field] || '';
         }
       });
+    });
+  }
+
+  // HSV short-arc interpolation — the exact maths of soil_data._ramp_color,
+  // so swatches and previews match what MapServer renders.
+  _rampColor(startHex, endHex, n, i) {
+    const toRgb = (h) => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16) / 255);
+    const toHsv = ([r, g, b]) => {
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+      let h = 0;
+      if (d !== 0) {
+        if (mx === r) h = 60 * (((g - b) / d) % 6);
+        else if (mx === g) h = 60 * (((b - r) / d) + 2);
+        else h = 60 * (((r - g) / d) + 4);
+      }
+      if (h < 0) h += 360;
+      return [h, mx === 0 ? 0 : d / mx, mx];
+    };
+    const [sh, ss, sv] = toHsv(toRgb(startHex));
+    const [eh, es, ev] = toHsv(toRgb(endHex));
+    const t_ = n <= 1 ? 0 : (i - 1) / (n - 1);
+    let dh = eh - sh;
+    if (dh > 180) dh -= 360;
+    if (dh < -180) dh += 360;
+    let h = sh + t_ * dh;
+    if (h < 0) h += 360;
+    if (h >= 360) h -= 360;
+    const sVal = ss + (es - ss) * t_, v = sv + (ev - sv) * t_;
+    const c = v * sVal, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
+    let rp, gp, bp;
+    if (h < 60) [rp, gp, bp] = [c, x, 0];
+    else if (h < 120) [rp, gp, bp] = [x, c, 0];
+    else if (h < 180) [rp, gp, bp] = [0, c, x];
+    else if (h < 240) [rp, gp, bp] = [0, x, c];
+    else if (h < 300) [rp, gp, bp] = [x, 0, c];
+    else [rp, gp, bp] = [c, 0, x];
+    return '#' + [rp, gp, bp].map(u =>
+      Math.max(0, Math.min(255, Math.round((u + m) * 255))).toString(16).padStart(2, '0')).join('');
+  }
+
+  _rampCss(startHex, endHex, n) {
+    const stops = [];
+    for (let i = 1; i <= n; i++) stops.push(this._rampColor(startHex, endHex, n, i));
+    return stops.join(', ');
+  }
+
+  openLegendColoursModal(layer) {
+    const propId = layer.mapped_property_id;
+    const { body } = this._openModal(t('a.lg.title') + propId, `
+      <div style="display:flex;gap:18px;align-items:center;margin-bottom:12px;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.lg.start')}
+          <input type="color" class="lg-start" value="${this.escapeHtml(layer.start_color)}"></label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.lg.end')}
+          <input type="color" class="lg-end" value="${this.escapeHtml(layer.end_color)}"></label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.lg.intervals')}
+          <input type="number" class="lg-n" min="2" max="20" step="1" value="${layer.num_intervals || 10}" style="width:70px;"></label>
+      </div>
+      <div class="lg-preview" style="height:26px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);margin-bottom:10px;"></div>
+      <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${t('a.lg.scope')}</p>
+      <div class="pm-status" style="font-size:12px;"></div>
+      <div style="margin-top:10px;text-align:right;">
+        <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
+        <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
+      </div>`, 480);
+    const startEl = body.querySelector('.lg-start');
+    const endEl = body.querySelector('.lg-end');
+    const nEl = body.querySelector('.lg-n');
+    const preview = body.querySelector('.lg-preview');
+    const paint = () => {
+      const n = Math.max(2, Math.min(20, parseInt(nEl.value, 10) || 10));
+      preview.style.background = `linear-gradient(to right, ${this._rampCss(startEl.value, endEl.value, n)})`;
+    };
+    [startEl, endEl, nEl].forEach(el => el.addEventListener('input', paint));
+    paint();
+    body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
+    body.querySelector('.lg-save').addEventListener('click', async () => {
+      const status = body.querySelector('.pm-status');
+      status.style.color = '#666'; status.textContent = t('a.st.saving2');
+      try {
+        await api.updatePropertyColours(propId, {
+          start_color: startEl.value, end_color: endEl.value,
+          num_intervals: Math.max(2, Math.min(20, parseInt(nEl.value, 10) || 10)),
+        });
+        document.getElementById('project-modal-overlay').remove();
+        await this.loadLayers(); this.renderLayers();
+      } catch (e) {
+        status.style.color = '#dc3545'; status.textContent = t('a.err.saveFailed') + e.message;
+      }
     });
   }
 

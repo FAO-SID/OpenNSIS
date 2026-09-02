@@ -804,6 +804,84 @@ async def delete_layer(layer_id: str, current_user: dict = Depends(get_current_a
     """Admin endpoint — defers to the shared _delete_layer_full helper."""
     return _delete_layer_full(layer_id, current_user["user_id"])
 
+MAPFILE_DST_DATA_RE = re.compile(r'^(\s*DATA ".*\.r[0-9a-f]+\.tif")\s*$', re.M)
+
+def _export_mapfile_from_db(cur, layer_id: str) -> bool:
+    """Dump soil_data.layer.map to /srv/rasters/<id>.map, preserving a
+    DST-versioned DATA line already present on disk (the DB text only knows
+    the canonical filename; see _dst_version_map_data)."""
+    cur.execute("SELECT map FROM soil_data.layer WHERE layer_id = %s", (layer_id,))
+    row = cur.fetchone()
+    text = (row or {}).get("map") if isinstance(row, dict) else (row[0] if row else None)
+    if not text:
+        return False
+    path = os.path.join("/srv/rasters", f"{layer_id}.map")
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                m = MAPFILE_DST_DATA_RE.search(f.read())
+            if m:
+                text = re.sub(r'^\s*DATA ".*"\s*$', m.group(1), text, count=1, flags=re.M)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text)
+        return True
+    except Exception:
+        log.exception("mapfile export failed for %s", layer_id)
+        return False
+
+
+@app.put("/api/mapped-property/{property_id}/colours")
+async def update_property_colours(
+    property_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Change a mapped property's legend colours (start/end of the ramp and
+    the number of intervals). Applies to every raster of this property on the
+    instance: regenerates soil_data.class, the SLD and the .map text via the
+    DB triggers, then re-exports the on-disk mapfiles."""
+    start = (payload.get("start_color") or "").strip()
+    end = (payload.get("end_color") or "").strip()
+    try:
+        n = int(payload.get("num_intervals") or 0)
+    except (TypeError, ValueError):
+        n = 0
+    hexre = re.compile(r"^#[0-9a-fA-F]{6}$")
+    if not hexre.match(start) or not hexre.match(end):
+        raise HTTPException(status_code=400, detail="Colours must be #rrggbb")
+    if not 2 <= n <= 20:
+        raise HTTPException(status_code=400, detail="num_intervals must be 2-20")
+
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                UPDATE soil_data.mapped_property
+                   SET start_color = %s, end_color = %s, num_intervals = %s
+                 WHERE mapped_property_id = %s
+            """, (start, end, n, property_id))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Mapped property not found")
+            # Touch every layer of the property: fires class() (class rows +
+            # SLD) and map() (stored .map text) per row.
+            cur.execute("""
+                UPDATE soil_data.layer l
+                   SET stats_minimum = l.stats_minimum
+                  FROM soil_data.mapset m
+                 WHERE m.mapset_id = l.mapset_id
+                   AND m.mapped_property_id = %s
+                RETURNING l.layer_id
+            """, (property_id,))
+            layer_ids = [r["layer_id"] for r in cur.fetchall()]
+            exported = sum(1 for lid in layer_ids if _export_mapfile_from_db(cur, lid))
+        conn.commit()
+
+    log_audit(current_user["user_id"], None, "property_colours_updated",
+              {"mapped_property_id": property_id, "start": start, "end": end,
+               "num_intervals": n, "layers": len(layer_ids)}, None)
+    return {"mapped_property_id": property_id, "layers_updated": len(layer_ids),
+            "mapfiles_exported": exported}
+
+
 @app.get("/api/layer/all")
 async def get_all_layers(current_user: dict = Depends(get_current_user)):
     """Raster layers for the admin Rasters tab.
@@ -831,6 +909,9 @@ async def get_all_layers(current_user: dict = Depends(get_current_user)):
                       m.title, m.unit_of_measure_id,
                       l.dimension_depth, l.dimension_stats), '')
                   ) AS property_name,
+                  m.mapped_property_id,
+                  mp.start_color, mp.end_color,
+                  COALESCE(mp.num_intervals, 10) AS num_intervals,
                   -- A short token that mutates whenever the engine writes
                   -- new pixels: stats_min/max + the embedded MapServer .map
                   -- text hash. Used as the WMS cache-buster.
@@ -839,6 +920,8 @@ async def get_all_layers(current_user: dict = Depends(get_current_user)):
                       COALESCE(l.map,''))::text AS cache_token
                 FROM soil_data.layer l
                 LEFT JOIN soil_data.mapset       m  ON m.mapset_id          = l.mapset_id
+                LEFT JOIN soil_data.mapped_property mp
+                       ON mp.mapped_property_id = m.mapped_property_id
                 WHERE m.spatial_representation_type_code = 'grid'
                 ORDER BY l.layer_id
             """)

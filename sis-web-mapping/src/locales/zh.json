@@ -465,5 +465,11 @@
   "a.val.r.lowerDepth": "必须为 ≥ 0 的整数（且大于上界深度）；同一剖面内的层必须连续",
   "a.val.r.elementType": "必须为 'Horizon' 或 'Layer'",
   "a.val.r.horizon": "自由文本的发生层代号（例如 A、Bw、C）；不做格式检查",
-  "a.val.r.resultNum": "必须为数字；转换为标准单位"
+  "a.val.r.resultNum": "必须为数字；转换为标准单位",
+  "a.lg.title": "图例颜色 — ",
+  "a.lg.start": "起始颜色（最小）",
+  "a.lg.end": "结束颜色（最大）",
+  "a.lg.intervals": "分级数",
+  "a.lg.scope": "应用于本系统中该土壤属性的所有栅格；地图、图例和目录样式都会更新。",
+  "a.lg.editTip": "点击自定义图例颜色"
 }

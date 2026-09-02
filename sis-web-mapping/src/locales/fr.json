@@ -465,5 +465,11 @@
   "a.val.r.lowerDepth": "doit être un nombre entier ≥ 0 (et supérieur à la profondeur supérieure) ; les couches d'un même profil doivent être contiguës",
   "a.val.r.elementType": "doit être 'Horizon' ou 'Layer'",
   "a.val.r.horizon": "désignation d'horizon en texte libre (p. ex. A, Bw, C) ; pas de contrôle de format",
-  "a.val.r.resultNum": "doit être un nombre ; converti dans l'unité canonique"
+  "a.val.r.resultNum": "doit être un nombre ; converti dans l'unité canonique",
+  "a.lg.title": "Couleurs de la légende — ",
+  "a.lg.start": "Couleur de départ (min)",
+  "a.lg.end": "Couleur de fin (max)",
+  "a.lg.intervals": "Intervalles",
+  "a.lg.scope": "S'applique à tous les rasters de cette propriété du sol sur cette instance ; la carte, la légende et le style du catalogue sont mis à jour.",
+  "a.lg.editTip": "Cliquez pour personnaliser les couleurs de la légende"
 }
