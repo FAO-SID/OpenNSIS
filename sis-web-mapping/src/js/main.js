@@ -1492,21 +1492,30 @@ function buildDynamicLegend(container, layerConfig, classes) {
     `<div class="dyn-legend-block" style="background:${attr(c.color)};" title="${attr(c.label)}"></div>`
   ).join('');
 
-  const labels = categorical
-    ? classes.slice().reverse().map(c =>
-        `<span class="dyn-legend-cat">${escapeHtml(c.label)}</span>`).join('')
-    : `<span>${fmtLegendVal(max, range)}</span><span>${fmtLegendVal(min, range)}</span>`;
-
-  container.innerHTML = `
-    <div class="dyn-legend">
-      ${unit ? `<div class="dyn-legend-unit">${escapeHtml(unit)}</div>` : ''}
+  const bar = `
       <div class="dyn-legend-bar">
         ${blocks}
         <div class="dyn-legend-cursor" hidden>
           <span class="dyn-legend-chip"></span>
         </div>
-      </div>
-      <div class="dyn-legend-labels${categorical ? ' categorical' : ''}">${labels}</div>
+      </div>`;
+
+  // Quantitative: one centred stack — unit, max, bar, min.
+  // Categorical: unit + bar with the class labels beside their blocks.
+  container.innerHTML = categorical
+    ? `
+    <div class="dyn-legend">
+      ${unit ? `<div class="dyn-legend-unit">${escapeHtml(unit)}</div>` : ''}
+      ${bar}
+      <div class="dyn-legend-labels categorical">${classes.slice().reverse().map(c =>
+        `<span class="dyn-legend-cat">${escapeHtml(c.label)}</span>`).join('')}</div>
+    </div>`
+    : `
+    <div class="dyn-legend stacked">
+      ${unit ? `<div class="dyn-legend-unit">${escapeHtml(unit)}</div>` : ''}
+      <span class="dyn-legend-minmax">${fmtLegendVal(max, range)}</span>
+      ${bar}
+      <span class="dyn-legend-minmax">${fmtLegendVal(min, range)}</span>
     </div>`;
 
   legendState = {

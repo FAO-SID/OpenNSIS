@@ -627,10 +627,30 @@ h1, h2, h3, h4, h5 {
     gap: 4px 8px;
 }
 
+/* Quantitative layout: a single centred column — unit, max, bar, min. */
+.dyn-legend.stacked {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.dyn-legend-minmax {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: #1f2a1f;
+    background: rgba(255, 255, 255, 0.88);
+    border-radius: 4px;
+    padding: 0 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
+}
+
 .dyn-legend-unit {
     grid-column: 1;
     grid-row: 1;
     justify-self: center;
+    align-self: center;
     font-weight: 700;
     font-size: var(--fs-sm);
     color: #1f2a1f;
