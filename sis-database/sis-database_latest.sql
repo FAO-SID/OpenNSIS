@@ -649,6 +649,9 @@ DECLARE
   k INT; c_lo TEXT; c_hi TEXT; d_lo FLOAT; d_hi FLOAT;
   tol_m INT;
   cell_m FLOAT;
+  rec_cls RECORD;
+  n_cls INT;
+  v_mapset TEXT;
 BEGIN
   SELECT l.layer_id,
     CASE
@@ -658,12 +661,14 @@ BEGIN
     END distance_uom,
     l.reference_system_identifier_code,
     l.extent, l.file_extension, l.stats_minimum, l.stats_maximum,
-    l.distance AS cell_size, l.distance_uom AS cell_uom
+    l.distance AS cell_size, l.distance_uom AS cell_uom,
+    l.mapset_id
   INTO rec_layer
   FROM soil_data.layer l
   WHERE l.layer_id = NEW.layer_id;
 
-  SELECT p.start_color, p.end_color, COALESCE(p.num_intervals, 10) AS num_intervals
+  SELECT p.start_color, p.end_color, COALESCE(p.num_intervals, 10) AS num_intervals,
+         p.property_type
   INTO rec_property
   FROM soil_data.layer l
   JOIN soil_data.mapset m         ON m.mapset_id = l.mapset_id
@@ -685,8 +690,27 @@ BEGIN
   n := GREATEST(rec_property.num_intervals, 2);
   v_min := rec_layer.stats_minimum;
   v_max := rec_layer.stats_maximum;
+  v_mapset := rec_layer.mapset_id;
 
-  IF v_min IS NULL OR v_max IS NULL OR v_max <= v_min THEN
+  SELECT count(*) INTO n_cls
+  FROM soil_data.class WHERE mapset_id = v_mapset AND publish IS TRUE;
+
+  IF rec_property.property_type = 'categorical' AND n_cls BETWEEN 1 AND 60 THEN
+    -- Categorical: one flat-colour STYLE per class value, driven by
+    -- soil_data.class — the rows the SLD and the web legend already use, so
+    -- editing a class colour recolours everything coherently. (Ramps make no
+    -- sense for categories; >60 classes falls back to the ramp below.)
+    FOR rec_cls IN SELECT value, color FROM soil_data.class
+                   WHERE mapset_id = v_mapset AND publish IS TRUE
+                   ORDER BY value LOOP
+      styles := styles || 'STYLE
+              COLORRANGE "'||rec_cls.color||'" "'||rec_cls.color||'"
+              DATARANGE '||(rec_cls.value - 0.5)||' '||(rec_cls.value + 0.5)||'
+              RANGEITEM "pixel"
+            END # STYLE
+            ';
+    END LOOP;
+  ELSIF v_min IS NULL OR v_max IS NULL OR v_max <= v_min THEN
     styles := 'STYLE
               COLORRANGE "'||rec_property.start_color||'" "'||rec_property.end_color||'"
               DATARANGE '||COALESCE(v_min,0)||' '||COALESCE(NULLIF(v_max,v_min),COALESCE(v_min,0)+1)||'

@@ -471,5 +471,6 @@
   "a.lg.end": "Color final (máx)",
   "a.lg.intervals": "Intervalos",
   "a.lg.scope": "Se aplica a todos los rásteres de esta propiedad del suelo en esta instancia; se actualizan el mapa, la leyenda y el estilo del catálogo.",
-  "a.lg.editTip": "Haga clic para personalizar los colores de la leyenda"
+  "a.lg.editTip": "Haga clic para personalizar los colores de la leyenda",
+  "a.lg.scopeCat": "Se aplica a las clases de leyenda de este ráster; se actualizan el mapa, la leyenda y el estilo del catálogo."
 }

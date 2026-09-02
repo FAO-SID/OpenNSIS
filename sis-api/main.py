@@ -882,6 +882,57 @@ async def update_property_colours(
             "mapfiles_exported": exported}
 
 
+@app.put("/api/mapset/{mapset_id}/class-colours")
+async def update_class_colours(
+    mapset_id: str,
+    payload: dict,
+    current_user: dict = Depends(get_current_admin_user),
+):
+    """Change the colour of individual legend classes (categorical rasters).
+    Updates soil_data.class (which re-renders the SLD via its trigger), then
+    touches the mapset's layers so map() rebuilds the class-driven styles,
+    and re-exports the on-disk mapfiles."""
+    classes = payload.get("classes") or []
+    hexre = re.compile(r"^#[0-9a-fA-F]{6}$")
+    cleaned = []
+    for c in classes:
+        try:
+            v = float(c.get("value"))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Class value must be numeric")
+        col = (c.get("color") or "").strip()
+        if not hexre.match(col):
+            raise HTTPException(status_code=400, detail="Colours must be #rrggbb")
+        cleaned.append((v, col))
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="No classes given")
+
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            updated = 0
+            for v, col in cleaned:
+                cur.execute("""
+                    UPDATE soil_data.class SET color = %s
+                     WHERE mapset_id = %s AND value = %s
+                """, (col, mapset_id, v))
+                updated += cur.rowcount
+            if updated == 0:
+                raise HTTPException(status_code=404, detail="No matching classes")
+            cur.execute("""
+                UPDATE soil_data.layer SET stats_minimum = stats_minimum
+                 WHERE mapset_id = %s
+                RETURNING layer_id
+            """, (mapset_id,))
+            layer_ids = [r["layer_id"] for r in cur.fetchall()]
+            exported = sum(1 for lid in layer_ids if _export_mapfile_from_db(cur, lid))
+        conn.commit()
+
+    log_audit(current_user["user_id"], None, "class_colours_updated",
+              {"mapset_id": mapset_id, "classes": updated, "layers": len(layer_ids)}, None)
+    return {"mapset_id": mapset_id, "classes_updated": updated,
+            "layers_updated": len(layer_ids), "mapfiles_exported": exported}
+
+
 @app.get("/api/layer/all")
 async def get_all_layers(current_user: dict = Depends(get_current_user)):
     """Raster layers for the admin Rasters tab.
@@ -912,6 +963,7 @@ async def get_all_layers(current_user: dict = Depends(get_current_user)):
                   m.mapped_property_id,
                   mp.start_color, mp.end_color,
                   COALESCE(mp.num_intervals, 10) AS num_intervals,
+                  mp.property_type,
                   -- A short token that mutates whenever the engine writes
                   -- new pixels: stats_min/max + the embedded MapServer .map
                   -- text hash. Used as the WMS cache-buster.
@@ -926,6 +978,25 @@ async def get_all_layers(current_user: dict = Depends(get_current_user)):
                 ORDER BY l.layer_id
             """)
             rows = cur.fetchall()
+
+            # Class rows for categorical swatches / the per-class editor.
+            classes_by_mapset = {}
+            mapset_ids = [r["mapset_id"] for r in rows if r.get("mapset_id")]
+            if mapset_ids:
+                cur.execute("""
+                    SELECT mapset_id, value, label, color
+                    FROM soil_data.class
+                    WHERE publish IS TRUE AND mapset_id = ANY(%s)
+                    ORDER BY mapset_id, value
+                """, (mapset_ids,))
+                for c in cur.fetchall():
+                    classes_by_mapset.setdefault(c["mapset_id"], []).append({
+                        "value": float(c["value"]),
+                        "label": c["label"],
+                        "color": c["color"],
+                    })
+            for r in rows:
+                r["legend_classes"] = classes_by_mapset.get(r.get("mapset_id")) or None
 
     map_dir = "/etc/mapserver"
     for r in rows:

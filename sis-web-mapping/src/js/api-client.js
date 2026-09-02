@@ -206,6 +206,13 @@ class SISApiClient {
     });
   }
 
+  async updateClassColours(mapsetId, body) {
+    return this.authenticatedRequest(`/api/mapset/${encodeURIComponent(mapsetId)}/class-colours`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  }
+
   async updateLayerCustom(layerId, fields) {
     return this.authenticatedRequest(`/api/layer/${encodeURIComponent(layerId)}/custom`, {
       method: 'PATCH',

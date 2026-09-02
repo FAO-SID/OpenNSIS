@@ -3106,10 +3106,7 @@ class AdminDashboard {
         <td title="${this.escapeHtml(layer.file_orig_name || '')}" style="font-size:var(--fs-sm);color:#555;">${this.escapeHtml(layer.file_orig_name || '-')}</td>
         <td style="width:120px;"><input class="layer-edit" data-layer-id="${id}" data-field="project_name" value="${this.escapeHtml(layer.project_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editGroupTip')}"></td>
         <td><input class="layer-edit" data-layer-id="${id}" data-field="property_name" value="${this.escapeHtml(layer.property_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editNameTip')}"></td>
-        <td>${layer.mapped_property_id && layer.start_color && layer.end_color
-          ? `<button type="button" class="legend-swatch" data-layer-id="${id}" title="${t('a.lg.editTip')}"
-                     style="background:linear-gradient(to right, ${this._rampCss(layer.start_color, layer.end_color, layer.num_intervals || 10)});"></button>`
-          : '-'}</td>
+        <td>${this._legendSwatchHtml(layer, id)}</td>
         <td>
           <button class="btn ${layer.publish ? 'btn-secondary' : 'btn-success'}"
                   onclick="adminDashboard.toggleLayerPublish('${idJs}', ${!layer.publish})">
@@ -3196,7 +3193,27 @@ class AdminDashboard {
     return stops.join(', ');
   }
 
+  _legendSwatchHtml(layer, id) {
+    const cat = layer.property_type === 'categorical';
+    if (cat && layer.legend_classes && layer.legend_classes.length) {
+      const n = layer.legend_classes.length;
+      const stops = layer.legend_classes.map((c, i) =>
+        `${c.color} ${(i / n * 100).toFixed(1)}%, ${c.color} ${((i + 1) / n * 100).toFixed(1)}%`).join(', ');
+      return `<button type="button" class="legend-swatch" data-layer-id="${id}" title="${t('a.lg.editTip')}"
+                      style="background:linear-gradient(to right, ${stops});"></button>`;
+    }
+    if (!cat && layer.mapped_property_id && layer.start_color && layer.end_color) {
+      return `<button type="button" class="legend-swatch" data-layer-id="${id}" title="${t('a.lg.editTip')}"
+                      style="background:linear-gradient(to right, ${this._rampCss(layer.start_color, layer.end_color, layer.num_intervals || 10)});"></button>`;
+    }
+    return '-';
+  }
+
   openLegendColoursModal(layer) {
+    if (layer.property_type === 'categorical') {
+      this.openClassColoursModal(layer);
+      return;
+    }
     const propId = layer.mapped_property_id;
     const { body } = this._openModal(t('a.lg.title') + propId, `
       <div style="display:flex;gap:18px;align-items:center;margin-bottom:12px;">
@@ -3233,6 +3250,42 @@ class AdminDashboard {
           start_color: startEl.value, end_color: endEl.value,
           num_intervals: Math.max(2, Math.min(20, parseInt(nEl.value, 10) || 10)),
         });
+        document.getElementById('project-modal-overlay').remove();
+        await this.loadLayers(); this.renderLayers();
+      } catch (e) {
+        status.style.color = '#dc3545'; status.textContent = t('a.err.saveFailed') + e.message;
+      }
+    });
+  }
+
+  openClassColoursModal(layer) {
+    const classes = (layer.legend_classes || []).slice();
+    if (!classes.length) return;
+    const rows = classes.map((c, i) => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <input type="color" class="lg-cls" data-i="${i}" value="${this.escapeHtml(c.color)}">
+        <span style="font-size:var(--fs-sm);">${this.escapeHtml(c.label)}</span>
+      </div>`).join('');
+    const { body } = this._openModal(t('a.lg.title') + layer.layer_id, `
+      <div style="max-height:52vh;overflow:auto;margin-bottom:10px;">${rows}</div>
+      <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${t('a.lg.scopeCat')}</p>
+      <div class="pm-status" style="font-size:12px;"></div>
+      <div style="margin-top:10px;text-align:right;">
+        <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
+        <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
+      </div>`, 420);
+    body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
+    body.querySelector('.lg-save').addEventListener('click', async () => {
+      const status = body.querySelector('.pm-status');
+      status.style.color = '#666'; status.textContent = t('a.st.saving2');
+      const payload = { classes: [] };
+      body.querySelectorAll('.lg-cls').forEach(inp => {
+        const c = classes[Number(inp.dataset.i)];
+        if (c && inp.value !== c.color) payload.classes.push({ value: c.value, color: inp.value });
+      });
+      if (!payload.classes.length) { document.getElementById('project-modal-overlay').remove(); return; }
+      try {
+        await api.updateClassColours(layer.mapset_id, payload);
         document.getElementById('project-modal-overlay').remove();
         await this.loadLayers(); this.renderLayers();
       } catch (e) {

@@ -471,5 +471,6 @@
   "a.lg.end": "Cor final (máx)",
   "a.lg.intervals": "Intervalos",
   "a.lg.scope": "Aplica-se a todos os rasters desta propriedade do solo nesta instância; o mapa, a legenda e o estilo do catálogo são atualizados.",
-  "a.lg.editTip": "Clique para personalizar as cores da legenda"
+  "a.lg.editTip": "Clique para personalizar as cores da legenda",
+  "a.lg.scopeCat": "Aplica-se às classes de legenda deste raster; o mapa, a legenda e o estilo do catálogo são atualizados."
 }
