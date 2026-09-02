@@ -903,18 +903,29 @@ async def update_class_colours(
         col = (c.get("color") or "").strip()
         if not hexre.match(col):
             raise HTTPException(status_code=400, detail="Colours must be #rrggbb")
-        cleaned.append((v, col))
+        label = c.get("label")
+        if label is not None:
+            label = str(label).strip()[:120]
+            if not label:
+                label = None
+        cleaned.append((v, col, label))
     if not cleaned:
         raise HTTPException(status_code=400, detail="No classes given")
 
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             updated = 0
-            for v, col in cleaned:
-                cur.execute("""
-                    UPDATE soil_data.class SET color = %s
-                     WHERE mapset_id = %s AND value = %s
-                """, (col, mapset_id, v))
+            for v, col, label in cleaned:
+                if label is not None:
+                    cur.execute("""
+                        UPDATE soil_data.class SET color = %s, label = %s
+                         WHERE mapset_id = %s AND value = %s
+                    """, (col, label, mapset_id, v))
+                else:
+                    cur.execute("""
+                        UPDATE soil_data.class SET color = %s
+                         WHERE mapset_id = %s AND value = %s
+                    """, (col, mapset_id, v))
                 updated += cur.rowcount
             if updated == 0:
                 raise HTTPException(status_code=404, detail="No matching classes")

@@ -3261,10 +3261,12 @@ class AdminDashboard {
   openClassColoursModal(layer) {
     const classes = (layer.legend_classes || []).slice();
     if (!classes.length) return;
+    const attr = (x) => this.escapeHtml(x).replace(/"/g, '&quot;');
     const rows = classes.map((c, i) => `
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
-        <input type="color" class="lg-cls" data-i="${i}" value="${this.escapeHtml(c.color)}">
-        <span style="font-size:var(--fs-sm);">${this.escapeHtml(c.label)}</span>
+        <input type="color" class="lg-cls" data-i="${i}" value="${attr(c.color)}">
+        <input type="text" class="lg-lbl" data-i="${i}" value="${attr(c.label)}" maxlength="120"
+               placeholder="${t('a.lg.labelPh')}" style="flex:1;min-width:0;padding:3px 6px;font-size:var(--fs-sm);">
       </div>`).join('');
     const { body } = this._openModal(t('a.lg.title') + layer.layer_id, `
       <div style="max-height:52vh;overflow:auto;margin-bottom:10px;">${rows}</div>
@@ -3280,8 +3282,17 @@ class AdminDashboard {
       status.style.color = '#666'; status.textContent = t('a.st.saving2');
       const payload = { classes: [] };
       body.querySelectorAll('.lg-cls').forEach(inp => {
-        const c = classes[Number(inp.dataset.i)];
-        if (c && inp.value !== c.color) payload.classes.push({ value: c.value, color: inp.value });
+        const i = Number(inp.dataset.i);
+        const c = classes[i];
+        if (!c) return;
+        const lblEl = body.querySelector(`.lg-lbl[data-i="${i}"]`);
+        const label = lblEl ? lblEl.value.trim() : '';
+        const labelChanged = label && label !== c.label;
+        if (inp.value !== c.color || labelChanged) {
+          const entry = { value: c.value, color: inp.value };
+          if (labelChanged) entry.label = label;
+          payload.classes.push(entry);
+        }
       });
       if (!payload.classes.length) { document.getElementById('project-modal-overlay').remove(); return; }
       try {

@@ -472,5 +472,6 @@
   "a.lg.intervals": "Intervals",
   "a.lg.scope": "Applies to every raster of this soil property on this instance; the map, legend and catalogue styling all update.",
   "a.lg.editTip": "Click to customise the legend colours",
-  "a.lg.scopeCat": "Applies to this raster's legend classes; the map, legend and catalogue styling all update."
+  "a.lg.scopeCat": "Applies to this raster's legend classes; the map, legend and catalogue styling all update.",
+  "a.lg.labelPh": "Class label"
 }
