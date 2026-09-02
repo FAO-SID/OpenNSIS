@@ -1459,6 +1459,7 @@ function showLegend(layerConfig) {
   const legendContent = legendContainer.querySelector('.legend-content');
   legendState = null;
   const classes = (layerConfig && layerConfig.legend_classes) || [];
+  legendContainer.classList.toggle('bare', classes.length > 0);
   if (classes.length) {
     buildDynamicLegend(legendContent, layerConfig, classes);
   } else if (layerConfig && layerConfig.get_legend_url) {
@@ -1499,15 +1500,13 @@ function buildDynamicLegend(container, layerConfig, classes) {
   container.innerHTML = `
     <div class="dyn-legend">
       ${unit ? `<div class="dyn-legend-unit">${escapeHtml(unit)}</div>` : ''}
-      <div class="dyn-legend-body">
-        <div class="dyn-legend-bar">
-          ${blocks}
-          <div class="dyn-legend-cursor" hidden>
-            <span class="dyn-legend-chip"></span>
-          </div>
+      <div class="dyn-legend-bar">
+        ${blocks}
+        <div class="dyn-legend-cursor" hidden>
+          <span class="dyn-legend-chip"></span>
         </div>
-        <div class="dyn-legend-labels${categorical ? ' categorical' : ''}">${labels}</div>
       </div>
+      <div class="dyn-legend-labels${categorical ? ' categorical' : ''}">${labels}</div>
     </div>`;
 
   legendState = {

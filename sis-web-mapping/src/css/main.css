@@ -611,34 +611,43 @@ h1, h2, h3, h4, h5 {
 }
 
 /* Dynamic legend: colour bar from soil_data.class + a value cursor that
-   follows the pixel under the pointer. */
+   follows the pixel under the pointer. Floats directly on the map (the
+   container goes .bare), so all text carries a white halo. */
+.legend-container.bare {
+    background: none;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+}
+
 .dyn-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 80px;
+    display: grid;
+    grid-template-columns: auto auto;
+    grid-template-rows: auto auto;
+    gap: 4px 8px;
 }
 
 .dyn-legend-unit {
+    grid-column: 1;
+    grid-row: 1;
     text-align: center;
-    font-weight: 600;
+    font-weight: 700;
     font-size: var(--fs-sm);
-}
-
-.dyn-legend-body {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
+    color: #1f2a1f;
+    text-shadow: 0 0 3px #fff, 0 0 6px #fff, 0 1px 2px #fff;
 }
 
 .dyn-legend-bar {
+    grid-column: 1;
+    grid-row: 2;
     position: relative;
     width: 34px;
     height: 220px;
     display: flex;
     flex-direction: column;
     border-radius: 3px;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15),
+                0 1px 5px rgba(0, 0, 0, 0.35);
 }
 
 .dyn-legend-block { flex: 1; }
@@ -646,11 +655,15 @@ h1, h2, h3, h4, h5 {
 .dyn-legend-block:last-child { border-radius: 0 0 3px 3px; }
 
 .dyn-legend-labels {
+    grid-column: 2;
+    grid-row: 2;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     font-size: var(--fs-xs);
-    color: #444;
+    font-weight: 600;
+    color: #1f2a1f;
+    text-shadow: 0 0 3px #fff, 0 0 6px #fff, 0 1px 2px #fff;
 }
 
 .dyn-legend-labels.categorical { justify-content: space-around; }
