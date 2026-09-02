@@ -22,6 +22,7 @@ DECLARE
   styles TEXT := '';
   k INT; c_lo TEXT; c_hi TEXT; d_lo FLOAT; d_hi FLOAT;
   tol_m INT;
+  cell_m FLOAT;
 BEGIN
   SELECT l.layer_id,
     CASE
@@ -44,12 +45,15 @@ BEGIN
   WHERE l.layer_id = NEW.layer_id;
 
   -- Query tolerance: one native cell, expressed in metres (floor 100 m,
-  -- default 1000 m when the resolution is unknown).
+  -- default 1000 m when the resolution is unknown). layer.distance is TEXT —
+  -- cast defensively.
+  cell_m := CASE WHEN rec_layer.cell_size ~ '^[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$'
+                 THEN rec_layer.cell_size::float END;
   tol_m := COALESCE(CEIL(GREATEST(
              CASE rec_layer.cell_uom
-               WHEN 'deg' THEN rec_layer.cell_size * 111320
-               WHEN 'km'  THEN rec_layer.cell_size * 1000
-               ELSE            rec_layer.cell_size
+               WHEN 'deg' THEN cell_m * 111320
+               WHEN 'km'  THEN cell_m * 1000
+               ELSE            cell_m
              END, 100)), 1000);
 
   n := GREATEST(rec_property.num_intervals, 2);

@@ -123,15 +123,21 @@ def _ensure_raster_query_tolerance():
     try:
         with get_db() as conn:
             with conn.cursor() as cur:
-                cur.execute("""
+                cur.execute(r"""
                     SELECT layer_id,
                            COALESCE(CEIL(GREATEST(
                              CASE distance_uom
-                               WHEN 'deg' THEN distance * 111320
-                               WHEN 'km'  THEN distance * 1000
-                               ELSE            distance
+                               WHEN 'deg' THEN d * 111320
+                               WHEN 'km'  THEN d * 1000
+                               ELSE            d
                              END, 100)), 1000)::int AS tol_m
-                    FROM soil_data.layer WHERE map IS NOT NULL
+                    FROM (
+                      SELECT layer_id, distance_uom,
+                             -- layer.distance is TEXT; cast defensively.
+                             CASE WHEN distance ~ '^[0-9]*\.?[0-9]+([eE][+-]?[0-9]+)?$'
+                                  THEN distance::float END AS d
+                      FROM soil_data.layer WHERE map IS NOT NULL
+                    ) t
                 """)
                 tol = {r[0]: r[1] for r in cur.fetchall()}
         patched = 0
