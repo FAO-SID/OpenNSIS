@@ -3292,12 +3292,21 @@ class AdminDashboard {
       <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${custom ? t('a.lg.scopeCustom') : t('a.lg.scopeCat')}</p>
       <div class="pm-status" style="font-size:12px;"></div>
       <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        ${custom && layer.custom_classes ? `<button type="button" class="btn btn-secondary btn-sm lg-reset">${t('a.lg.resetAuto')}</button>` : '<span></span>'}
+        ${custom && layer.custom_classes
+          ? `<button type="button" class="btn btn-secondary btn-sm lg-reset">${t('a.lg.resetAuto')}</button>`
+          : custom
+            ? `<button type="button" class="btn btn-secondary btn-sm lg-back">${t('a.lg.backToRamp')}</button>`
+            : '<span></span>'}
         <span>
           <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
           <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
         </span>
       </div>`, 520);
+    const backBtn = body.querySelector('.lg-back');
+    if (backBtn) backBtn.addEventListener('click', () => {
+      document.getElementById('project-modal-overlay').remove();
+      this.openLegendColoursModal(layer);   // not yet custom → routes to the ramp editor
+    });
     const resetBtn = body.querySelector('.lg-reset');
     if (resetBtn) resetBtn.addEventListener('click', async () => {
       if (!confirm(t('a.lg.resetConfirm'))) return;

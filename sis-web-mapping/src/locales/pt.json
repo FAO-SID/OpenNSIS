@@ -483,5 +483,6 @@
   "a.lg.resetAuto": "Voltar à rampa automática",
   "a.lg.resetConfirm": "Descartar as classes personalizadas e voltar à rampa automática de intervalos iguais?",
   "a.lg.scopeCustom": "Cortes de classe personalizados: cada valor é o limite inferior do seu intervalo; o último intervalo vai até ao máximo da camada. Aplica-se apenas ao mapset deste raster.",
-  "a.lg.keepTwo": "Os cortes personalizados precisam de pelo menos duas classes."
+  "a.lg.keepTwo": "Os cortes personalizados precisam de pelo menos duas classes.",
+  "a.lg.backToRamp": "← Voltar à rampa de cores"
 }
