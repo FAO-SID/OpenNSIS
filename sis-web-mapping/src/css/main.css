@@ -630,11 +630,14 @@ h1, h2, h3, h4, h5 {
 .dyn-legend-unit {
     grid-column: 1;
     grid-row: 1;
-    text-align: center;
+    justify-self: center;
     font-weight: 700;
     font-size: var(--fs-sm);
     color: #1f2a1f;
-    text-shadow: 0 0 3px #fff, 0 0 6px #fff, 0 1px 2px #fff;
+    background: rgba(255, 255, 255, 0.88);
+    border-radius: 4px;
+    padding: 0 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .dyn-legend-bar {
@@ -660,10 +663,20 @@ h1, h2, h3, h4, h5 {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    align-items: flex-start;
     font-size: var(--fs-xs);
     font-weight: 600;
     color: #1f2a1f;
-    text-shadow: 0 0 3px #fff, 0 0 6px #fff, 0 1px 2px #fff;
+}
+
+/* Each floating label sits on its own small white pill — a halo alone is
+   not enough over dark basemaps. */
+.dyn-legend-labels > span {
+    background: rgba(255, 255, 255, 0.88);
+    border-radius: 4px;
+    padding: 0 5px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    white-space: nowrap;
 }
 
 .dyn-legend-labels.categorical { justify-content: space-around; }
