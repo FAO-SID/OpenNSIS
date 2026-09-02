@@ -48,6 +48,21 @@ OLD=$(git rev-parse --short HEAD)
 echo "Install dir : $(pwd)"
 echo "Branch      : $BRANCH   (at $OLD)"
 
+# ---- 0. canonical remote ---------------------------------------------------
+# Installs from before the repository moved (FAO-SID/SIS-dev →
+# FAO-SID/OpenNSIS → un-fao/OpenNSIS) still point at the old names and ride
+# GitHub's redirects — which only survive until a new repository ever claims
+# an old name. Re-point such remotes to the official URL, preserving any
+# embedded credentials. Forks and custom remotes are left untouched.
+CUR_URL=$(git remote get-url origin 2>/dev/null || echo "")
+case "$CUR_URL" in
+  *github.com/FAO-SID/SIS-dev*|*github.com/FAO-SID/OpenNSIS*|*github.com:FAO-SID/SIS-dev*|*github.com:FAO-SID/OpenNSIS*)
+    NEW_URL=$(printf '%s' "$CUR_URL" | sed -E 's#(github\.com[/:])FAO-SID/(SIS-dev|OpenNSIS)#\1un-fao/OpenNSIS#')
+    git remote set-url origin "$NEW_URL"
+    echo "### 0/4  origin re-pointed to the official repository: $NEW_URL"
+    ;;
+esac
+
 # ---- 1. pull latest (auto-stash generated files like pycsw.yml) ------------
 echo "### 1/4  git pull --ff-only origin/$BRANCH"
 git fetch --quiet --tags origin
