@@ -1547,7 +1547,14 @@ function setLegendCursor(value) {
   st.cursorEl.hidden = false;
 }
 
-// Trailing throttle (~150 ms) so panning the pointer does not flood MapServer.
+// Trailing throttle (~100 ms) so panning the pointer does not flood MapServer.
+// One request in flight at a time: a newer probe aborts the older request, and
+// whichever response lands is applied as long as no later one already has —
+// discarding every "stale" reply outright made the cursor update only when
+// the pointer stopped moving.
+let legendProbeAbort = null;
+let legendProbeApplied = 0;
+
 function scheduleLegendProbe(coordinate) {
   legendProbeCoord = coordinate;
   if (legendProbeTimer) return;
@@ -1562,9 +1569,13 @@ function scheduleLegendProbe(coordinate) {
       { 'INFO_FORMAT': 'text/html' });
     if (!url) return;
     const seq = ++legendProbeSeq;
+    if (legendProbeAbort) legendProbeAbort.abort();
+    const ctrl = new AbortController();
+    legendProbeAbort = ctrl;
     try {
-      const text = await (await fetch(url)).text();
-      if (seq !== legendProbeSeq || !legendState) return;   // stale response
+      const text = await (await fetch(url, { signal: ctrl.signal })).text();
+      if (seq <= legendProbeApplied || !legendState) return; // an even newer reply already landed
+      legendProbeApplied = seq;
       const m = text && text.match(/Value:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/);
       let v = m ? parseFloat(m[1]) : null;
       // Suppress NoData: the layer's declared sentinel, or the common ones.
@@ -1573,9 +1584,10 @@ function scheduleLegendProbe(coordinate) {
       if (v != null && v <= -9998) v = null;
       setLegendCursor(v);
     } catch (e) {
-      if (seq === legendProbeSeq) setLegendCursor(null);
+      // Aborted by a newer probe → keep the current cursor; real errors hide it.
+      if (!(e && e.name === 'AbortError') && seq === legendProbeSeq) setLegendCursor(null);
     }
-  }, 150);
+  }, 100);
 }
 
 
