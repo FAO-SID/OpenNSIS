@@ -486,5 +486,5 @@
   "a.lg.tabCustom": "Cortes de classe personalizados",
   "basemap.eox": "EOX Terrain Light",
   "a.raster.opacity": "Opacidade",
-  "a.raster.opacityTip": "Opacidade inicial na vista do mapa (0-1; vazio = 1)"
+  "a.raster.opacityTip": "Opacidade inicial na vista do mapa (0-1)"
 }

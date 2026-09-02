@@ -486,5 +486,5 @@
   "a.lg.tabCustom": "Свои границы классов",
   "basemap.eox": "EOX Terrain Light",
   "a.raster.opacity": "Непрозрачность",
-  "a.raster.opacityTip": "Начальная непрозрачность на карте (0-1; пусто = 1)"
+  "a.raster.opacityTip": "Начальная непрозрачность на карте (0-1)"
 }

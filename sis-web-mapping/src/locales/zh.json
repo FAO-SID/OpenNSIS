@@ -486,5 +486,5 @@
   "a.lg.tabCustom": "自定义分级",
   "basemap.eox": "EOX Terrain Light",
   "a.raster.opacity": "不透明度",
-  "a.raster.opacityTip": "地图视图中的初始不透明度（0-1；留空 = 1）"
+  "a.raster.opacityTip": "地图视图中的初始不透明度（0-1）"
 }

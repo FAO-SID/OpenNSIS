@@ -486,5 +486,5 @@
   "a.lg.tabCustom": "Custom class breaks",
   "basemap.eox": "EOX Terrain Light",
   "a.raster.opacity": "Opacity",
-  "a.raster.opacityTip": "Initial opacity in the map view (0-1; blank = 1)"
+  "a.raster.opacityTip": "Initial opacity in the map view (0-1)"
 }

@@ -3120,9 +3120,12 @@ class AdminDashboard {
         <td style="width:120px;"><input class="layer-edit" data-layer-id="${id}" data-field="project_name" value="${this.escapeHtml(layer.project_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editGroupTip')}"></td>
         <td><input class="layer-edit" data-layer-id="${id}" data-field="property_name" value="${this.escapeHtml(layer.property_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editNameTip')}"></td>
         <td>${this._legendSwatchHtml(layer, id)}</td>
-        <td><input type="number" class="layer-edit" data-layer-id="${id}" data-field="default_opacity"
-                   value="${layer.default_opacity == null ? '' : layer.default_opacity}" min="0" max="1" step="0.05"
-                   placeholder="1" style="${editStyle}width:60px;" title="${t('a.raster.opacityTip')}"></td>
+        <td><div style="display:flex;align-items:center;gap:6px;">
+          <input type="range" class="layer-opacity" data-layer-id="${id}" min="0" max="1" step="0.05"
+                 value="${layer.default_opacity == null ? 1 : layer.default_opacity}"
+                 style="width:70px;" title="${t('a.raster.opacityTip')}">
+          <span class="layer-opacity-val" style="font-size:var(--fs-xs);color:#555;min-width:26px;">${layer.default_opacity == null ? '1' : layer.default_opacity}</span>
+        </div></td>
         <td>
           <button class="btn ${layer.publish ? 'btn-secondary' : 'btn-success'}"
                   onclick="adminDashboard.toggleLayerPublish('${idJs}', ${!layer.publish})">
@@ -3135,6 +3138,26 @@ class AdminDashboard {
       </tr>
     `;
     }).join('');
+
+    // Default-opacity sliders: live value label, save on release.
+    tbody.querySelectorAll('.layer-opacity').forEach(el => {
+      const label = el.parentElement.querySelector('.layer-opacity-val');
+      el.addEventListener('input', () => { if (label) label.textContent = el.value; });
+      el.addEventListener('change', async () => {
+        const layerId = el.dataset.layerId;
+        const layer = this.layers.find(l => l.layer_id === layerId);
+        if (!layer) return;
+        const v = parseFloat(el.value);
+        try {
+          await api.updateLayerCustom(layerId, { default_opacity: v });
+          layer.default_opacity = v;
+        } catch (e) {
+          alert(t('a.err.saveFailed') + e.message);
+          el.value = layer.default_opacity == null ? 1 : layer.default_opacity;
+          if (label) label.textContent = el.value;
+        }
+      });
+    });
 
     tbody.querySelectorAll('.legend-swatch').forEach(el => {
       el.addEventListener('click', (e) => {
