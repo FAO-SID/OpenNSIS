@@ -476,5 +476,7 @@
   "a.lg.labelPh": "Etiqueta de la clase",
   "a.lg.addClass": "+ Añadir clase",
   "a.lg.valuePh": "Valor de píxel",
-  "a.lg.valueRequired": "Cada clase nueva necesita un valor de píxel numérico que no esté ya en uso."
+  "a.lg.valueRequired": "Cada clase nueva necesita un valor de píxel numérico que no esté ya en uso.",
+  "a.lg.removeTip": "Eliminar la clase",
+  "a.lg.keepOne": "Debe quedar al menos una clase."
 }

@@ -888,61 +888,107 @@ async def update_class_colours(
     payload: dict,
     current_user: dict = Depends(get_current_admin_user),
 ):
-    """Change the colour of individual legend classes (categorical rasters).
-    Updates soil_data.class (which re-renders the SLD via its trigger), then
-    touches the mapset's layers so map() rebuilds the class-driven styles,
-    and re-exports the on-disk mapfiles."""
-    classes = payload.get("classes") or []
+    """Edit a categorical raster's legend classes: colour, label and pixel
+    value per class, plus adding and removing classes. Updates
+    soil_data.class (re-rendering the SLD via its trigger), touches the
+    mapset's layers so map() rebuilds the class-driven styles, and
+    re-exports the on-disk mapfiles."""
     hexre = re.compile(r"^#[0-9a-fA-F]{6}$")
-    cleaned = []
-    for c in classes:
+
+    def _num(x, what):
         try:
-            v = float(c.get("value"))
+            return float(x)
         except (TypeError, ValueError):
-            raise HTTPException(status_code=400, detail="Class value must be numeric")
+            raise HTTPException(status_code=400, detail=f"{what} must be numeric")
+
+    cleaned = []
+    for c in (payload.get("classes") or []):
+        v = _num(c.get("value"), "Class value")
+        nv = c.get("new_value")
+        nv = _num(nv, "New class value") if nv is not None else None
         col = (c.get("color") or "").strip()
         if not hexre.match(col):
             raise HTTPException(status_code=400, detail="Colours must be #rrggbb")
         label = c.get("label")
         if label is not None:
-            label = str(label).strip()[:120]
-            if not label:
-                label = None
-        cleaned.append((v, col, label))
-    if not cleaned:
+            label = str(label).strip()[:120] or None
+        cleaned.append((v, nv, col, label))
+    removals = [_num(rv, "Removal value") for rv in (payload.get("remove") or [])]
+    if not cleaned and not removals:
         raise HTTPException(status_code=400, detail="No classes given")
 
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            updated = 0
-            inserted = 0
-            for v, col, label in cleaned:
-                if label is not None:
-                    cur.execute("""
-                        UPDATE soil_data.class SET color = %s, label = %s
-                         WHERE mapset_id = %s AND value = %s
-                    """, (col, label, mapset_id, v))
+            cur.execute("SELECT value FROM soil_data.class WHERE mapset_id = %s",
+                        (mapset_id,))
+            existing = {float(r["value"]) for r in cur.fetchall()}
+
+            # Dry-run the final value set so renames/additions can never
+            # collide (the DB PK would abort the whole transaction).
+            final = existing - set(removals)
+            for v, nv, col, label in cleaned:
+                if v in existing:
+                    if nv is not None and nv != v:
+                        if nv in final:
+                            raise HTTPException(status_code=400,
+                                                detail=f"Value {nv} is already used")
+                        final.discard(v)
+                        final.add(nv)
                 else:
-                    cur.execute("""
-                        UPDATE soil_data.class SET color = %s
-                         WHERE mapset_id = %s AND value = %s
-                    """, (col, mapset_id, v))
-                if cur.rowcount:
-                    updated += cur.rowcount
-                    continue
-                # No such class yet — add it (the editor lets admins define
-                # classes for pixel values the registration never described).
-                lbl = label or str(int(v) if float(v).is_integer() else v)
+                    target = v
+                    if target in final:
+                        raise HTTPException(status_code=400,
+                                            detail=f"Value {target} is already used")
+                    final.add(target)
+            if not final:
+                raise HTTPException(status_code=400,
+                                    detail="At least one class must remain")
+
+            removed = 0
+            if removals:
                 cur.execute("""
-                    INSERT INTO soil_data.class
-                        (mapset_id, value, code, label, color, opacity, publish)
-                    VALUES (%s, %s, %s, %s, %s, 1, TRUE)
-                    ON CONFLICT (mapset_id, value) DO UPDATE
-                        SET color = EXCLUDED.color, label = EXCLUDED.label
-                """, (mapset_id, v, lbl[:40], lbl, col))
-                inserted += 1
-            if updated == 0 and inserted == 0:
+                    DELETE FROM soil_data.class
+                     WHERE mapset_id = %s AND value = ANY(%s)
+                """, (mapset_id, removals))
+                removed = cur.rowcount
+
+            updated = inserted = 0
+            for v, nv, col, label in cleaned:
+                if v in existing:
+                    sets, args = ["color = %s"], [col]
+                    if label is not None:
+                        sets.append("label = %s"); args.append(label)
+                    if nv is not None and nv != v:
+                        sets.append("value = %s"); args.append(nv)
+                    args += [mapset_id, v]
+                    cur.execute(f"""
+                        UPDATE soil_data.class SET {', '.join(sets)}
+                         WHERE mapset_id = %s AND value = %s
+                    """, args)
+                    updated += cur.rowcount
+                else:
+                    lbl = label or str(int(v) if float(v).is_integer() else v)
+                    cur.execute("""
+                        INSERT INTO soil_data.class
+                            (mapset_id, value, code, label, color, opacity, publish)
+                        VALUES (%s, %s, %s, %s, %s, 1, TRUE)
+                        ON CONFLICT (mapset_id, value) DO UPDATE
+                            SET color = EXCLUDED.color, label = EXCLUDED.label
+                    """, (mapset_id, v, lbl[:40], lbl, col))
+                    inserted += 1
+
+            if removed and not (updated or inserted):
+                # The SLD trigger fires on INSERT/UPDATE only — touch a
+                # surviving row so a removal-only save re-renders the SLD.
+                cur.execute("""
+                    UPDATE soil_data.class SET color = color
+                     WHERE mapset_id = %s
+                       AND value = (SELECT min(value) FROM soil_data.class
+                                     WHERE mapset_id = %s)
+                """, (mapset_id, mapset_id))
+            if not (updated or inserted or removed):
                 raise HTTPException(status_code=404, detail="No matching classes")
+
             cur.execute("""
                 UPDATE soil_data.layer SET stats_minimum = stats_minimum
                  WHERE mapset_id = %s
@@ -954,9 +1000,9 @@ async def update_class_colours(
 
     log_audit(current_user["user_id"], None, "class_colours_updated",
               {"mapset_id": mapset_id, "classes": updated, "added": inserted,
-               "layers": len(layer_ids)}, None)
+               "removed": removed, "layers": len(layer_ids)}, None)
     return {"mapset_id": mapset_id, "classes_updated": updated,
-            "classes_added": inserted,
+            "classes_added": inserted, "classes_removed": removed,
             "layers_updated": len(layer_ids), "mapfiles_exported": exported}
 
 

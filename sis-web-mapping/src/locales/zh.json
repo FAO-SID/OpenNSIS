@@ -476,5 +476,7 @@
   "a.lg.labelPh": "类别标签",
   "a.lg.addClass": "+ 添加类别",
   "a.lg.valuePh": "像元值",
-  "a.lg.valueRequired": "每个新类别都需要一个尚未使用的数字像元值。"
+  "a.lg.valueRequired": "每个新类别都需要一个尚未使用的数字像元值。",
+  "a.lg.removeTip": "删除类别",
+  "a.lg.keepOne": "至少必须保留一个类别。"
 }

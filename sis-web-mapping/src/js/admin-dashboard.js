@@ -3262,11 +3262,16 @@ class AdminDashboard {
     const classes = (layer.legend_classes || []).slice();
     if (!classes.length) return;
     const attr = (x) => this.escapeHtml(x).replace(/"/g, '&quot;');
+    const fmtV = (v) => Number.isInteger(v) ? String(v) : String(v);
     const rows = classes.map((c, i) => `
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
         <input type="color" class="lg-cls" data-i="${i}" value="${attr(c.color)}">
+        <input type="number" class="lg-val" data-i="${i}" step="any" value="${attr(fmtV(c.value))}"
+               title="${t('a.lg.valuePh')}" style="width:90px;padding:3px 6px;font-size:var(--fs-sm);">
         <input type="text" class="lg-lbl" data-i="${i}" value="${attr(c.label)}" maxlength="120"
                placeholder="${t('a.lg.labelPh')}" style="flex:1;min-width:0;padding:3px 6px;font-size:var(--fs-sm);">
+        <button type="button" class="btn btn-danger btn-sm lg-del" data-i="${i}" title="${t('a.lg.removeTip')}"
+                style="width:26px;padding:0;">&times;</button>
       </div>`).join('');
     const { body } = this._openModal(t('a.lg.title') + layer.layer_id, `
       <div class="lg-rows" style="max-height:52vh;overflow:auto;margin-bottom:6px;">${rows}</div>
@@ -3276,58 +3281,88 @@ class AdminDashboard {
       <div style="margin-top:10px;text-align:right;">
         <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
         <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
-      </div>`, 420);
+      </div>`, 480);
     body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
-    // "+ Add class": a new row with an editable pixel value.
+
+    // "+ Add class": a new row — same fields, empty value.
     body.querySelector('.lg-add').addEventListener('click', () => {
       const div = document.createElement('div');
-      div.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:6px;';
+      div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
       div.innerHTML = `
         <input type="color" class="lg-new-cls" value="#999999">
         <input type="number" class="lg-new-val" step="any" placeholder="${t('a.lg.valuePh')}"
-               style="width:110px;padding:3px 6px;font-size:var(--fs-sm);">
+               style="width:90px;padding:3px 6px;font-size:var(--fs-sm);">
         <input type="text" class="lg-new-lbl" maxlength="120" placeholder="${t('a.lg.labelPh')}"
-               style="flex:1;min-width:0;padding:3px 6px;font-size:var(--fs-sm);">`;
+               style="flex:1;min-width:0;padding:3px 6px;font-size:var(--fs-sm);">
+        <button type="button" class="btn btn-danger btn-sm" title="${t('a.lg.removeTip')}"
+                style="width:26px;padding:0;" onclick="this.parentElement.remove()">&times;</button>`;
       body.querySelector('.lg-rows').appendChild(div);
       div.querySelector('.lg-new-val').focus();
     });
+
+    // Removing an existing class: drop the row, queue the value for delete.
+    const removedValues = new Set();
+    body.querySelectorAll('.lg-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const c = classes[Number(btn.dataset.i)];
+        if (!c) return;
+        removedValues.add(c.value);
+        btn.closest('div').remove();
+      });
+    });
+
     body.querySelector('.lg-save').addEventListener('click', async () => {
       const status = body.querySelector('.pm-status');
       status.style.color = '#666'; status.textContent = t('a.st.saving2');
-      const payload = { classes: [] };
+      const payload = { classes: [], remove: Array.from(removedValues) };
+      const finalValues = new Set();
+      let invalid = false;
+
+      // Existing rows: colour / label / pixel-value edits.
       body.querySelectorAll('.lg-cls').forEach(inp => {
         const i = Number(inp.dataset.i);
         const c = classes[i];
-        if (!c) return;
+        if (!c || removedValues.has(c.value)) return;
+        const valEl = body.querySelector(`.lg-val[data-i="${i}"]`);
         const lblEl = body.querySelector(`.lg-lbl[data-i="${i}"]`);
+        const raw = valEl ? valEl.value.trim() : String(c.value);
+        const nv = Number(raw);
+        if (raw === '' || !isFinite(nv) || finalValues.has(nv)) { invalid = true; return; }
+        finalValues.add(nv);
         const label = lblEl ? lblEl.value.trim() : '';
-        const labelChanged = label && label !== c.label;
-        if (inp.value !== c.color || labelChanged) {
-          const entry = { value: c.value, color: inp.value };
-          if (labelChanged) entry.label = label;
+        const entry = { value: c.value, color: inp.value };
+        if (nv !== Number(c.value)) entry.new_value = nv;
+        if (label && label !== c.label) entry.label = label;
+        if (entry.new_value !== undefined || entry.label !== undefined || inp.value !== c.color) {
           payload.classes.push(entry);
         }
       });
-      // New rows: pixel value required, must not duplicate an existing class.
-      const seen = new Set(classes.map(c => Number(c.value)));
-      let invalid = false;
+
+      // New rows: pixel value required and unique.
       body.querySelectorAll('.lg-rows > div').forEach(div => {
         const valEl = div.querySelector('.lg-new-val');
-        if (!valEl) return;                       // an existing-class row
+        if (!valEl) return;
         const raw = valEl.value.trim();
         const lbl = div.querySelector('.lg-new-lbl').value.trim();
         if (raw === '' && !lbl) return;           // untouched blank row
         const v = Number(raw);
-        if (raw === '' || !isFinite(v) || seen.has(v)) { invalid = true; return; }
-        seen.add(v);
+        if (raw === '' || !isFinite(v) || finalValues.has(v)) { invalid = true; return; }
+        finalValues.add(v);
         payload.classes.push({ value: v, color: div.querySelector('.lg-new-cls').value,
                                label: lbl || String(v) });
       });
+
       if (invalid) {
         status.style.color = '#dc3545'; status.textContent = t('a.lg.valueRequired');
         return;
       }
-      if (!payload.classes.length) { document.getElementById('project-modal-overlay').remove(); return; }
+      if (!finalValues.size) {
+        status.style.color = '#dc3545'; status.textContent = t('a.lg.keepOne');
+        return;
+      }
+      if (!payload.classes.length && !payload.remove.length) {
+        document.getElementById('project-modal-overlay').remove(); return;
+      }
       try {
         await api.updateClassColours(layer.mapset_id, payload);
         document.getElementById('project-modal-overlay').remove();

@@ -476,5 +476,7 @@
   "a.lg.labelPh": "Libellé de la classe",
   "a.lg.addClass": "+ Ajouter une classe",
   "a.lg.valuePh": "Valeur de pixel",
-  "a.lg.valueRequired": "Chaque nouvelle classe nécessite une valeur de pixel numérique non déjà utilisée."
+  "a.lg.valueRequired": "Chaque nouvelle classe nécessite une valeur de pixel numérique non déjà utilisée.",
+  "a.lg.removeTip": "Supprimer la classe",
+  "a.lg.keepOne": "Au moins une classe doit rester."
 }
