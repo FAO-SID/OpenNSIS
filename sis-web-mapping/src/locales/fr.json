@@ -473,5 +473,8 @@
   "a.lg.scope": "S'applique à tous les rasters de cette propriété du sol sur cette instance ; la carte, la légende et le style du catalogue sont mis à jour.",
   "a.lg.editTip": "Cliquez pour personnaliser les couleurs de la légende",
   "a.lg.scopeCat": "S'applique aux classes de légende de ce raster ; la carte, la légende et le style du catalogue sont mis à jour.",
-  "a.lg.labelPh": "Libellé de la classe"
+  "a.lg.labelPh": "Libellé de la classe",
+  "a.lg.addClass": "+ Ajouter une classe",
+  "a.lg.valuePh": "Valeur de pixel",
+  "a.lg.valueRequired": "Chaque nouvelle classe nécessite une valeur de pixel numérique non déjà utilisée."
 }

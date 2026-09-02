@@ -473,5 +473,8 @@
   "a.lg.scope": "应用于本系统中该土壤属性的所有栅格；地图、图例和目录样式都会更新。",
   "a.lg.editTip": "点击自定义图例颜色",
   "a.lg.scopeCat": "应用于该栅格的图例分类；地图、图例和目录样式都会更新。",
-  "a.lg.labelPh": "类别标签"
+  "a.lg.labelPh": "类别标签",
+  "a.lg.addClass": "+ 添加类别",
+  "a.lg.valuePh": "像元值",
+  "a.lg.valueRequired": "每个新类别都需要一个尚未使用的数字像元值。"
 }

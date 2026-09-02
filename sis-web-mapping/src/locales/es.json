@@ -473,5 +473,8 @@
   "a.lg.scope": "Se aplica a todos los rásteres de esta propiedad del suelo en esta instancia; se actualizan el mapa, la leyenda y el estilo del catálogo.",
   "a.lg.editTip": "Haga clic para personalizar los colores de la leyenda",
   "a.lg.scopeCat": "Se aplica a las clases de leyenda de este ráster; se actualizan el mapa, la leyenda y el estilo del catálogo.",
-  "a.lg.labelPh": "Etiqueta de la clase"
+  "a.lg.labelPh": "Etiqueta de la clase",
+  "a.lg.addClass": "+ Añadir clase",
+  "a.lg.valuePh": "Valor de píxel",
+  "a.lg.valueRequired": "Cada clase nueva necesita un valor de píxel numérico que no esté ya en uso."
 }

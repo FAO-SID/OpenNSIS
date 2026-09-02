@@ -473,5 +473,8 @@
   "a.lg.scope": "Applies to every raster of this soil property on this instance; the map, legend and catalogue styling all update.",
   "a.lg.editTip": "Click to customise the legend colours",
   "a.lg.scopeCat": "Applies to this raster's legend classes; the map, legend and catalogue styling all update.",
-  "a.lg.labelPh": "Class label"
+  "a.lg.labelPh": "Class label",
+  "a.lg.addClass": "+ Add class",
+  "a.lg.valuePh": "Pixel value",
+  "a.lg.valueRequired": "Each new class needs a numeric pixel value that is not already used."
 }

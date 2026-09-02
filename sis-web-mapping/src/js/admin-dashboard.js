@@ -3269,7 +3269,8 @@ class AdminDashboard {
                placeholder="${t('a.lg.labelPh')}" style="flex:1;min-width:0;padding:3px 6px;font-size:var(--fs-sm);">
       </div>`).join('');
     const { body } = this._openModal(t('a.lg.title') + layer.layer_id, `
-      <div style="max-height:52vh;overflow:auto;margin-bottom:10px;">${rows}</div>
+      <div class="lg-rows" style="max-height:52vh;overflow:auto;margin-bottom:6px;">${rows}</div>
+      <button type="button" class="btn btn-secondary btn-sm lg-add" style="margin-bottom:10px;">${t('a.lg.addClass')}</button>
       <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${t('a.lg.scopeCat')}</p>
       <div class="pm-status" style="font-size:12px;"></div>
       <div style="margin-top:10px;text-align:right;">
@@ -3277,6 +3278,19 @@ class AdminDashboard {
         <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
       </div>`, 420);
     body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
+    // "+ Add class": a new row with an editable pixel value.
+    body.querySelector('.lg-add').addEventListener('click', () => {
+      const div = document.createElement('div');
+      div.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:6px;';
+      div.innerHTML = `
+        <input type="color" class="lg-new-cls" value="#999999">
+        <input type="number" class="lg-new-val" step="any" placeholder="${t('a.lg.valuePh')}"
+               style="width:110px;padding:3px 6px;font-size:var(--fs-sm);">
+        <input type="text" class="lg-new-lbl" maxlength="120" placeholder="${t('a.lg.labelPh')}"
+               style="flex:1;min-width:0;padding:3px 6px;font-size:var(--fs-sm);">`;
+      body.querySelector('.lg-rows').appendChild(div);
+      div.querySelector('.lg-new-val').focus();
+    });
     body.querySelector('.lg-save').addEventListener('click', async () => {
       const status = body.querySelector('.pm-status');
       status.style.color = '#666'; status.textContent = t('a.st.saving2');
@@ -3294,6 +3308,25 @@ class AdminDashboard {
           payload.classes.push(entry);
         }
       });
+      // New rows: pixel value required, must not duplicate an existing class.
+      const seen = new Set(classes.map(c => Number(c.value)));
+      let invalid = false;
+      body.querySelectorAll('.lg-rows > div').forEach(div => {
+        const valEl = div.querySelector('.lg-new-val');
+        if (!valEl) return;                       // an existing-class row
+        const raw = valEl.value.trim();
+        const lbl = div.querySelector('.lg-new-lbl').value.trim();
+        if (raw === '' && !lbl) return;           // untouched blank row
+        const v = Number(raw);
+        if (raw === '' || !isFinite(v) || seen.has(v)) { invalid = true; return; }
+        seen.add(v);
+        payload.classes.push({ value: v, color: div.querySelector('.lg-new-cls').value,
+                               label: lbl || String(v) });
+      });
+      if (invalid) {
+        status.style.color = '#dc3545'; status.textContent = t('a.lg.valueRequired');
+        return;
+      }
       if (!payload.classes.length) { document.getElementById('project-modal-overlay').remove(); return; }
       try {
         await api.updateClassColours(layer.mapset_id, payload);

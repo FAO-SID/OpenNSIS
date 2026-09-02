@@ -915,6 +915,7 @@ async def update_class_colours(
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             updated = 0
+            inserted = 0
             for v, col, label in cleaned:
                 if label is not None:
                     cur.execute("""
@@ -926,8 +927,21 @@ async def update_class_colours(
                         UPDATE soil_data.class SET color = %s
                          WHERE mapset_id = %s AND value = %s
                     """, (col, mapset_id, v))
-                updated += cur.rowcount
-            if updated == 0:
+                if cur.rowcount:
+                    updated += cur.rowcount
+                    continue
+                # No such class yet — add it (the editor lets admins define
+                # classes for pixel values the registration never described).
+                lbl = label or str(int(v) if float(v).is_integer() else v)
+                cur.execute("""
+                    INSERT INTO soil_data.class
+                        (mapset_id, value, code, label, color, opacity, publish)
+                    VALUES (%s, %s, %s, %s, %s, 1, TRUE)
+                    ON CONFLICT (mapset_id, value) DO UPDATE
+                        SET color = EXCLUDED.color, label = EXCLUDED.label
+                """, (mapset_id, v, lbl[:40], lbl, col))
+                inserted += 1
+            if updated == 0 and inserted == 0:
                 raise HTTPException(status_code=404, detail="No matching classes")
             cur.execute("""
                 UPDATE soil_data.layer SET stats_minimum = stats_minimum
@@ -939,8 +953,10 @@ async def update_class_colours(
         conn.commit()
 
     log_audit(current_user["user_id"], None, "class_colours_updated",
-              {"mapset_id": mapset_id, "classes": updated, "layers": len(layer_ids)}, None)
+              {"mapset_id": mapset_id, "classes": updated, "added": inserted,
+               "layers": len(layer_ids)}, None)
     return {"mapset_id": mapset_id, "classes_updated": updated,
+            "classes_added": inserted,
             "layers_updated": len(layer_ids), "mapfiles_exported": exported}
 
 
