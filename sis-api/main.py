@@ -914,11 +914,57 @@ async def update_class_colours(
             label = str(label).strip()[:120] or None
         cleaned.append((v, nv, col, label))
     removals = [_num(rv, "Removal value") for rv in (payload.get("remove") or [])]
-    if not cleaned and not removals:
+    reset_auto = bool(payload.get("reset_auto"))
+    replace_all = bool(payload.get("replace_all"))
+    custom = payload.get("custom")
+    if not cleaned and not removals and not reset_auto:
         raise HTTPException(status_code=400, detail="No classes given")
+
+    if reset_auto:
+        # Back to the automatic ramp: clear the flag; touching the layers
+        # below makes class() regenerate the uniform rows and map()/sld()
+        # re-render from them.
+        with get_db() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute("""
+                    UPDATE soil_data.mapset SET custom_classes = FALSE
+                     WHERE mapset_id = %s
+                """, (mapset_id,))
+                if cur.rowcount == 0:
+                    raise HTTPException(status_code=404, detail="Mapset not found")
+                cur.execute("""
+                    UPDATE soil_data.layer SET stats_minimum = stats_minimum
+                     WHERE mapset_id = %s
+                    RETURNING layer_id
+                """, (mapset_id,))
+                layer_ids = [r["layer_id"] for r in cur.fetchall()]
+                exported = sum(1 for lid in layer_ids if _export_mapfile_from_db(cur, lid))
+            conn.commit()
+        log_audit(current_user["user_id"], None, "class_breaks_reset",
+                  {"mapset_id": mapset_id, "layers": len(layer_ids)}, None)
+        return {"mapset_id": mapset_id, "reset": True,
+                "layers_updated": len(layer_ids), "mapfiles_exported": exported}
+
+    if replace_all:
+        if len(cleaned) < 2 or len(cleaned) > 60:
+            raise HTTPException(status_code=400,
+                                detail="Custom breaks need 2-60 classes")
+        vals = [v for v, nv, col, label in cleaned]
+        if len(set(vals)) != len(vals):
+            raise HTTPException(status_code=400, detail="Class values must be unique")
 
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            if custom is not None:
+                cur.execute("""
+                    UPDATE soil_data.mapset SET custom_classes = %s
+                     WHERE mapset_id = %s
+                """, (bool(custom), mapset_id))
+                if cur.rowcount == 0:
+                    raise HTTPException(status_code=404, detail="Mapset not found")
+            if replace_all:
+                cur.execute("DELETE FROM soil_data.class WHERE mapset_id = %s",
+                            (mapset_id,))
             cur.execute("SELECT value FROM soil_data.class WHERE mapset_id = %s",
                         (mapset_id,))
             existing = {float(r["value"]) for r in cur.fetchall()}
@@ -1037,6 +1083,7 @@ async def get_all_layers(current_user: dict = Depends(get_current_user)):
                   mp.start_color, mp.end_color,
                   COALESCE(mp.num_intervals, 10) AS num_intervals,
                   mp.property_type,
+                  COALESCE(m.custom_classes, FALSE) AS custom_classes,
                   -- A short token that mutates whenever the engine writes
                   -- new pixels: stats_min/max + the embedded MapServer .map
                   -- text hash. Used as the WMS cache-buster.
@@ -1192,6 +1239,7 @@ async def get_published_layers(
                   l.is_default,
                   l.stats_minimum, l.stats_maximum, l.no_data_value,
                   mp.property_type,
+                  COALESCE(m.custom_classes, FALSE) AS custom_classes,
                   m.unit_of_measure_id,
                   m.keyword_theme      AS keywords,
                   -- DST outputs get a richer click popup (per-input breakdown).
@@ -1259,6 +1307,7 @@ async def get_published_layers(
             "stats_minimum": r.get("stats_minimum"),
             "stats_maximum": r.get("stats_maximum"),
             "no_data_value": r.get("no_data_value"),
+            "custom_classes": bool(r.get("custom_classes")),
             "property_type": r.get("property_type"),
             "legend_classes": classes_by_mapset.get(r.get("mapset_id")) or None,
             "metadata_url": metadata_url,

@@ -478,5 +478,10 @@
   "a.lg.valuePh": "Valor de píxel",
   "a.lg.valueRequired": "Cada clase nueva necesita un valor de píxel numérico que no esté ya en uso.",
   "a.lg.removeTip": "Eliminar la clase",
-  "a.lg.keepOne": "Debe quedar al menos una clase."
+  "a.lg.keepOne": "Debe quedar al menos una clase.",
+  "a.lg.useCustom": "Usar cortes de clase personalizados",
+  "a.lg.resetAuto": "Volver a la rampa automática",
+  "a.lg.resetConfirm": "¿Descartar las clases personalizadas y volver a la rampa automática de intervalos iguales?",
+  "a.lg.scopeCustom": "Cortes de clase personalizados: cada valor es el límite inferior de su intervalo; el último intervalo llega hasta el máximo de la capa. Se aplica solo al mapset de este ráster.",
+  "a.lg.keepTwo": "Los cortes personalizados necesitan al menos dos clases."
 }

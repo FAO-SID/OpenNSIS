@@ -1476,6 +1476,9 @@ function showLegend(layerConfig) {
 
 function buildDynamicLegend(container, layerConfig, classes) {
   const categorical = layerConfig.property_type === 'categorical';
+  // Custom class breaks: non-uniform intervals — render like a classed map
+  // (labels beside the blocks) rather than a linear ramp scale.
+  const classed = categorical || (layerConfig.custom_classes && classes.length > 1);
   const min = layerConfig.stats_minimum != null ? layerConfig.stats_minimum : classes[0].value;
   let max = layerConfig.stats_maximum;
   if (max == null) {
@@ -1504,9 +1507,9 @@ function buildDynamicLegend(container, layerConfig, classes) {
         </div>
       </div>`;
 
-  // Quantitative: one centred stack — unit, max, bar, min.
-  // Categorical: unit + bar with the class labels beside their blocks.
-  container.innerHTML = categorical
+  // Plain quantitative: one centred stack — unit, max, bar, min.
+  // Categorical / custom breaks: unit + bar with labels beside the blocks.
+  container.innerHTML = classed
     ? `
     <div class="dyn-legend">
       ${unit ? `<div class="dyn-legend-unit${unitLong ? ' long' : ''}">${escapeHtml(unit)}</div>` : ''}
@@ -1523,7 +1526,7 @@ function buildDynamicLegend(container, layerConfig, classes) {
     </div>`;
 
   legendState = {
-    min, max, categorical, classes,
+    min, max, categorical, classed, classes,
     cursorEl: container.querySelector('.dyn-legend-cursor'),
     chipEl: container.querySelector('.dyn-legend-chip'),
   };
@@ -1544,14 +1547,16 @@ function setLegendCursor(value) {
   const span = st.max - st.min;
   if (!(span > 0)) { st.cursorEl.hidden = true; return; }
   let frac;
-  if (st.categorical) {
-    // Snap to the centre of the matching class block.
+  if (st.classed) {
+    // Snap to the centre of the matching class block. Categorical shows the
+    // class label; custom breaks show the actual pixel value.
     let idx = 0;
     for (let i = 0; i < st.classes.length; i++) {
       if (value >= st.classes[i].value) idx = i; else break;
     }
     frac = (idx + 0.5) / st.classes.length;
-    st.chipEl.textContent = st.classes[idx] ? st.classes[idx].label : fmtLegendVal(value, span);
+    st.chipEl.textContent = st.categorical && st.classes[idx]
+      ? st.classes[idx].label : fmtLegendVal(value, span);
   } else {
     frac = Math.max(0, Math.min(1, (value - st.min) / span));
     st.chipEl.textContent = fmtLegendVal(value, span);

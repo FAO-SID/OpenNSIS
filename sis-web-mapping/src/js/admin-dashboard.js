@@ -3194,7 +3194,7 @@ class AdminDashboard {
   }
 
   _legendSwatchHtml(layer, id) {
-    const cat = layer.property_type === 'categorical';
+    const cat = layer.property_type === 'categorical' || layer.custom_classes;
     if (cat && layer.legend_classes && layer.legend_classes.length) {
       const n = layer.legend_classes.length;
       const stops = layer.legend_classes.map((c, i) =>
@@ -3211,7 +3211,11 @@ class AdminDashboard {
 
   openLegendColoursModal(layer) {
     if (layer.property_type === 'categorical') {
-      this.openClassColoursModal(layer);
+      this.openClassColoursModal(layer, false);
+      return;
+    }
+    if (layer.custom_classes && layer.legend_classes && layer.legend_classes.length) {
+      this.openClassColoursModal(layer, true);
       return;
     }
     const propId = layer.mapped_property_id;
@@ -3227,10 +3231,17 @@ class AdminDashboard {
       <div class="lg-preview" style="height:26px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);margin-bottom:10px;"></div>
       <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${t('a.lg.scope')}</p>
       <div class="pm-status" style="font-size:12px;"></div>
-      <div style="margin-top:10px;text-align:right;">
-        <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
-        <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
-      </div>`, 480);
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <button type="button" class="btn btn-secondary btn-sm lg-custom">${t('a.lg.useCustom')}</button>
+        <span>
+          <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
+          <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
+        </span>
+      </div>`, 520);
+    body.querySelector('.lg-custom').addEventListener('click', () => {
+      document.getElementById('project-modal-overlay').remove();
+      this.openClassColoursModal(layer, true);
+    });
     const startEl = body.querySelector('.lg-start');
     const endEl = body.querySelector('.lg-end');
     const nEl = body.querySelector('.lg-n');
@@ -3258,7 +3269,9 @@ class AdminDashboard {
     });
   }
 
-  openClassColoursModal(layer) {
+  // custom=true → quantitative custom breaks: rows are interval lower
+  // bounds, saving replaces the whole class set and flags the mapset.
+  openClassColoursModal(layer, custom) {
     const classes = (layer.legend_classes || []).slice();
     if (!classes.length) return;
     const attr = (x) => this.escapeHtml(x).replace(/"/g, '&quot;');
@@ -3276,12 +3289,28 @@ class AdminDashboard {
     const { body } = this._openModal(t('a.lg.title') + layer.layer_id, `
       <div class="lg-rows" style="max-height:52vh;overflow:auto;margin-bottom:6px;">${rows}</div>
       <button type="button" class="btn btn-secondary btn-sm lg-add" style="margin-bottom:10px;">${t('a.lg.addClass')}</button>
-      <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${t('a.lg.scopeCat')}</p>
+      <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${custom ? t('a.lg.scopeCustom') : t('a.lg.scopeCat')}</p>
       <div class="pm-status" style="font-size:12px;"></div>
-      <div style="margin-top:10px;text-align:right;">
-        <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
-        <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
-      </div>`, 480);
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        ${custom && layer.custom_classes ? `<button type="button" class="btn btn-secondary btn-sm lg-reset">${t('a.lg.resetAuto')}</button>` : '<span></span>'}
+        <span>
+          <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
+          <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
+        </span>
+      </div>`, 520);
+    const resetBtn = body.querySelector('.lg-reset');
+    if (resetBtn) resetBtn.addEventListener('click', async () => {
+      if (!confirm(t('a.lg.resetConfirm'))) return;
+      const status = body.querySelector('.pm-status');
+      status.style.color = '#666'; status.textContent = t('a.st.working');
+      try {
+        await api.updateClassColours(layer.mapset_id, { reset_auto: true });
+        document.getElementById('project-modal-overlay').remove();
+        await this.loadLayers(); this.renderLayers();
+      } catch (e) {
+        status.style.color = '#dc3545'; status.textContent = t('a.err.saveFailed') + e.message;
+      }
+    });
     body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
 
     // "+ Add class": a new row — same fields, empty value.
@@ -3359,6 +3388,37 @@ class AdminDashboard {
       if (!finalValues.size) {
         status.style.color = '#dc3545'; status.textContent = t('a.lg.keepOne');
         return;
+      }
+      if (custom) {
+        // Custom breaks replace the whole class set: collect EVERY surviving
+        // row (edited or not) and flag the mapset.
+        const full = [];
+        let bad = false;
+        body.querySelectorAll('.lg-rows > div').forEach(div => {
+          const colEl = div.querySelector('.lg-cls, .lg-new-cls');
+          const valEl = div.querySelector('.lg-val, .lg-new-val');
+          const lblEl = div.querySelector('.lg-lbl, .lg-new-lbl');
+          if (!colEl || !valEl) return;
+          const raw = valEl.value.trim();
+          const lbl = (lblEl ? lblEl.value.trim() : '');
+          if (raw === '' && !lbl) return;         // untouched blank row
+          const v = Number(raw);
+          if (raw === '' || !isFinite(v)) { bad = true; return; }
+          full.push({ value: v, color: colEl.value, label: lbl || String(v) });
+        });
+        const uniq = new Set(full.map(c => c.value));
+        if (bad || uniq.size !== full.length) {
+          status.style.color = '#dc3545'; status.textContent = t('a.lg.valueRequired');
+          return;
+        }
+        if (full.length < 2) {
+          status.style.color = '#dc3545'; status.textContent = t('a.lg.keepTwo');
+          return;
+        }
+        payload.classes = full;
+        payload.remove = [];
+        payload.replace_all = true;
+        payload.custom = true;
       }
       if (!payload.classes.length && !payload.remove.length) {
         document.getElementById('project-modal-overlay').remove(); return;

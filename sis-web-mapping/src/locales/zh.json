@@ -478,5 +478,10 @@
   "a.lg.valuePh": "像元值",
   "a.lg.valueRequired": "每个新类别都需要一个尚未使用的数字像元值。",
   "a.lg.removeTip": "删除类别",
-  "a.lg.keepOne": "至少必须保留一个类别。"
+  "a.lg.keepOne": "至少必须保留一个类别。",
+  "a.lg.useCustom": "使用自定义分级",
+  "a.lg.resetAuto": "恢复自动色带",
+  "a.lg.resetConfirm": "放弃自定义分级并恢复等间隔的自动色带？",
+  "a.lg.scopeCustom": "自定义分级：每个值是其区间的下限；最后一个区间延伸到图层最大值。仅应用于该栅格的图集。",
+  "a.lg.keepTwo": "自定义分级至少需要两个类别。"
 }

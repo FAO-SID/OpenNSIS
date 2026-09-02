@@ -93,6 +93,7 @@ class Layer(BaseModel):
     stats_maximum: Optional[float] = None
     no_data_value: Optional[float] = None
     property_type: Optional[str] = None  # quantitative | categorical
+    custom_classes: Optional[bool] = False  # mapset uses hand-defined class breaks
     legend_classes: Optional[List[LegendClass]] = None  # soil_data.class rows
     version: Optional[str] = None
     unit_of_measure_id: Optional[str] = None

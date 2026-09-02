@@ -478,5 +478,10 @@
   "a.lg.valuePh": "Valeur de pixel",
   "a.lg.valueRequired": "Chaque nouvelle classe nécessite une valeur de pixel numérique non déjà utilisée.",
   "a.lg.removeTip": "Supprimer la classe",
-  "a.lg.keepOne": "Au moins une classe doit rester."
+  "a.lg.keepOne": "Au moins une classe doit rester.",
+  "a.lg.useCustom": "Utiliser des seuils de classes personnalisés",
+  "a.lg.resetAuto": "Revenir à la rampe automatique",
+  "a.lg.resetConfirm": "Abandonner les classes personnalisées et revenir à la rampe automatique à intervalles égaux ?",
+  "a.lg.scopeCustom": "Seuils personnalisés : chaque valeur est la borne inférieure de son intervalle ; le dernier intervalle va jusqu'au maximum de la couche. S'applique uniquement au mapset de ce raster.",
+  "a.lg.keepTwo": "Les seuils personnalisés nécessitent au moins deux classes."
 }

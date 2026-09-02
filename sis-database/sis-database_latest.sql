@@ -566,6 +566,7 @@ DECLARE
   current_max FLOAT;
   i INT := 1;
   color TEXT;
+  v_custom BOOLEAN := FALSE;
 BEGIN
   SELECT mapset_id, min(stats_minimum) min, max(stats_maximum) max
   INTO rec_layer
@@ -577,6 +578,14 @@ BEGIN
   INTO rec_property
   FROM soil_data.mapped_property
   WHERE mapped_property_id = split_part(NEW.mapset_id,'-',3);
+
+  SELECT COALESCE(m.custom_classes, FALSE) INTO v_custom
+  FROM soil_data.mapset m WHERE m.mapset_id = NEW.mapset_id;
+
+  -- Custom class breaks: the admin's rows ARE the legend — never regenerate.
+  IF v_custom THEN
+    RETURN NEW;
+  END IF;
 
   IF rec_property.property_type = 'quantitative' THEN
     IF rec_property.num_intervals <= 0 THEN
@@ -652,6 +661,8 @@ DECLARE
   rec_cls RECORD;
   n_cls INT;
   v_mapset TEXT;
+  v_custom BOOLEAN := FALSE;
+  d_next FLOAT;
 BEGIN
   SELECT l.layer_id,
     CASE
@@ -695,6 +706,9 @@ BEGIN
   SELECT count(*) INTO n_cls
   FROM soil_data.class WHERE mapset_id = v_mapset AND publish IS TRUE;
 
+  SELECT COALESCE(m.custom_classes, FALSE) INTO v_custom
+  FROM soil_data.mapset m WHERE m.mapset_id = v_mapset;
+
   IF rec_property.property_type = 'categorical' AND n_cls BETWEEN 1 AND 60 THEN
     -- Categorical: one flat-colour STYLE per class value, driven by
     -- soil_data.class — the rows the SLD and the web legend already use, so
@@ -706,6 +720,25 @@ BEGIN
       styles := styles || 'STYLE
               COLORRANGE "'||rec_cls.color||'" "'||rec_cls.color||'"
               DATARANGE '||(rec_cls.value - 0.5)||' '||(rec_cls.value + 0.5)||'
+              RANGEITEM "pixel"
+            END # STYLE
+            ';
+    END LOOP;
+  ELSIF v_custom AND n_cls BETWEEN 2 AND 60 THEN
+    -- Custom class breaks (quantitative): each class row's value is the
+    -- LOWER BOUND of its interval; the next row's value closes it, and the
+    -- last interval runs to the layer maximum. Flat colour per interval —
+    -- QGIS-style classed rendering with arbitrary (non-uniform) breaks.
+    FOR rec_cls IN SELECT value, color,
+                          LEAD(value) OVER (ORDER BY value) AS next_value
+                   FROM soil_data.class
+                   WHERE mapset_id = v_mapset AND publish IS TRUE
+                   ORDER BY value LOOP
+      d_next := COALESCE(rec_cls.next_value::float,
+                         GREATEST(COALESCE(v_max, rec_cls.value + 1), rec_cls.value + 0.000001));
+      styles := styles || 'STYLE
+              COLORRANGE "'||rec_cls.color||'" "'||rec_cls.color||'"
+              DATARANGE '||rec_cls.value||' '||d_next||'
               RANGEITEM "pixel"
             END # STYLE
             ';
@@ -2019,6 +2052,7 @@ COMMENT ON COLUMN soil_data.layer.map IS 'Generated MapServer MAP file content';
 --
 
 CREATE TABLE soil_data.mapset (
+    custom_classes boolean DEFAULT false NOT NULL,
     country_id text NOT NULL,
     project_id text NOT NULL,
     mapped_property_id text,
