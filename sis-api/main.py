@@ -141,13 +141,26 @@ def _ensure_raster_query_tolerance():
                 """)
                 tol = {r[0]: r[1] for r in cur.fetchall()}
         patched = 0
+        exported = 0
         for path in _glob.glob("/srv/rasters/*.map"):
             layer_id = os.path.splitext(os.path.basename(path))[0]
             if layer_id not in tol:
                 continue
             with open(path, "r", encoding="utf-8") as f:
                 content = f.read()
-            if "TOLERANCE" in content or "      TYPE RASTER\n" not in content:
+            if "TOLERANCE" in content:
+                continue
+            # A pre-migration file: prefer a full re-export from the DB text
+            # (brings tolerance AND any regenerated styles, e.g. the
+            # class-driven categorical rendering; DST-versioned DATA lines
+            # survive via the helper). Fall back to inserting the two
+            # tolerance lines in place.
+            with get_db() as conn2:
+                with conn2.cursor() as cur2:
+                    if _export_mapfile_from_db(cur2, layer_id):
+                        exported += 1
+                        continue
+            if "      TYPE RASTER\n" not in content:
                 continue
             content = content.replace(
                 "      TYPE RASTER\n",
@@ -156,8 +169,9 @@ def _ensure_raster_query_tolerance():
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
             patched += 1
-        if patched:
-            log.info("startup: added query TOLERANCE to %d .map file(s)", patched)
+        if patched or exported:
+            log.info("startup: mapfiles synced — %d re-exported from DB, %d patched in place",
+                     exported, patched)
     except Exception:
         log.exception("startup: could not patch .map query tolerances")
 
