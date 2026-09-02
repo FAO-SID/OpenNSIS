@@ -483,5 +483,6 @@
   "a.lg.scopeCustom": "Custom class breaks: each value is the lower bound of its interval; the last interval runs to the layer maximum. Applies only to this raster's mapset.",
   "a.lg.keepTwo": "Custom breaks need at least two classes.",
   "a.lg.tabRamp": "Colour ramp",
-  "a.lg.tabCustom": "Custom class breaks"
+  "a.lg.tabCustom": "Custom class breaks",
+  "basemap.eox": "EOX Terrain Light"
 }

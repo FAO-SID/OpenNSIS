@@ -131,6 +131,16 @@ function initializeMap() {
         attributions: '© OpenTopoMap'
       }),
       visible: appConfig.BASE_MAP_DEFAULT === 'terrain'
+    }),
+    // Neutral hillshade backdrop — EOX::Maps Terrain Light (WMTS via the
+    // XYZ-compatible REST endpoint; rendering CC-BY 4.0).
+    'eox-terrain-light': new TileLayer({
+      source: new XYZ({
+        url: 'https://tiles.maps.eox.at/wmts/1.0.0/terrain-light_3857/default/g/{z}/{y}/{x}.jpg',
+        attributions: 'Terrain Light © EOX (CC-BY 4.0), data © OpenStreetMap contributors and others',
+        maxZoom: 16
+      }),
+      visible: appConfig.BASE_MAP_DEFAULT === 'eox-terrain-light'
     })
   };
 
@@ -330,6 +340,11 @@ function addBaseMapsGroup(container) {
         <input type="radio" name="basemap" id="basemap-terrain" value="terrain"
                ${appConfig.BASE_MAP_DEFAULT === 'terrain' ? 'checked' : ''}>
         <label for="basemap-terrain">${t('basemap.terrain')}</label>
+      </div>
+      <div class="layer-item">
+        <input type="radio" name="basemap" id="basemap-eox" value="eox-terrain-light"
+               ${appConfig.BASE_MAP_DEFAULT === 'eox-terrain-light' ? 'checked' : ''}>
+        <label for="basemap-eox">${t('basemap.eox')}</label>
       </div>
     </div>
   `;

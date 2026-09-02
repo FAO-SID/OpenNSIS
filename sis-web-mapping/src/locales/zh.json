@@ -483,5 +483,6 @@
   "a.lg.scopeCustom": "自定义分级：每个值是其区间的下限；最后一个区间延伸到图层最大值。仅应用于该栅格的图集。",
   "a.lg.keepTwo": "自定义分级至少需要两个类别。",
   "a.lg.tabRamp": "色带",
-  "a.lg.tabCustom": "自定义分级"
+  "a.lg.tabCustom": "自定义分级",
+  "basemap.eox": "EOX Terrain Light"
 }
