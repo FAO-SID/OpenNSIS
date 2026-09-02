@@ -627,24 +627,50 @@ h1, h2, h3, h4, h5 {
     gap: 4px 8px;
 }
 
-/* Quantitative layout: a single centred column — unit, max, bar, min. */
+/* Quantitative layout: one solid body — unit, max, colour bar, min fully
+   attached, everything the same width (the widest element stretches the
+   rest). Corners rounded only at the very top and bottom. */
 .dyn-legend.stacked {
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
-    align-items: center;
-    gap: 5px;
+    align-items: stretch;
+    gap: 0;
+    border-radius: 5px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
 }
 
 .dyn-legend-minmax {
     font-size: var(--fs-xs);
     font-weight: 600;
     color: #1f2a1f;
-    background: rgba(255, 255, 255, 0.88);
-    border-radius: 4px;
-    padding: 0 5px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    background: rgba(255, 255, 255, 0.92);
+    text-align: center;
+    padding: 2px 6px;
     white-space: nowrap;
 }
+
+.dyn-legend.stacked .dyn-legend-unit {
+    background: rgba(255, 255, 255, 0.92);
+    padding: 2px 6px;
+    border-radius: 0;
+    box-shadow: none;
+    border-bottom: 1px solid #e4e4e4;
+    justify-self: auto;
+}
+
+.dyn-legend.stacked .dyn-legend-bar {
+    width: auto;
+    min-width: 34px;
+    align-self: stretch;
+    border-radius: 0;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.dyn-legend.stacked .dyn-legend-block:first-child,
+.dyn-legend.stacked .dyn-legend-block:last-child { border-radius: 0; }
+
+.dyn-legend.stacked > :first-child { border-radius: 5px 5px 0 0; }
+.dyn-legend.stacked > :last-child { border-radius: 0 0 5px 5px; }
 
 .dyn-legend-unit {
     grid-column: 1;
