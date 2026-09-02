@@ -479,10 +479,9 @@
   "a.lg.valueRequired": "Each new class needs a numeric pixel value that is not already used.",
   "a.lg.removeTip": "Remove class",
   "a.lg.keepOne": "At least one class must remain.",
-  "a.lg.useCustom": "Use custom class breaks",
-  "a.lg.resetAuto": "Back to automatic ramp",
   "a.lg.resetConfirm": "Discard the custom classes and return to the automatic equal-interval ramp?",
   "a.lg.scopeCustom": "Custom class breaks: each value is the lower bound of its interval; the last interval runs to the layer maximum. Applies only to this raster's mapset.",
   "a.lg.keepTwo": "Custom breaks need at least two classes.",
-  "a.lg.backToRamp": "← Back to colour ramp"
+  "a.lg.tabRamp": "Colour ramp",
+  "a.lg.tabCustom": "Custom class breaks"
 }

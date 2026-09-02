@@ -3211,37 +3211,76 @@ class AdminDashboard {
 
   openLegendColoursModal(layer) {
     if (layer.property_type === 'categorical') {
-      this.openClassColoursModal(layer, false);
-      return;
+      this.openClassColoursModal(layer);
+    } else {
+      this.openQuantLegendModal(layer);
     }
-    if (layer.custom_classes && layer.legend_classes && layer.legend_classes.length) {
-      this.openClassColoursModal(layer, true);
-      return;
-    }
+  }
+
+  // Quantitative layers: one modal, two tabs — the property-wide colour ramp
+  // and per-mapset custom class breaks. Save acts on the active tab.
+  openQuantLegendModal(layer) {
     const propId = layer.mapped_property_id;
-    const { body } = this._openModal(t('a.lg.title') + propId, `
-      <div style="display:flex;gap:18px;align-items:center;margin-bottom:12px;">
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.lg.start')}
-          <input type="color" class="lg-start" value="${this.escapeHtml(layer.start_color)}"></label>
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.lg.end')}
-          <input type="color" class="lg-end" value="${this.escapeHtml(layer.end_color)}"></label>
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.lg.intervals')}
-          <input type="number" class="lg-n" min="2" max="20" step="1" value="${layer.num_intervals || 10}" style="width:70px;"></label>
+    const classes = (layer.legend_classes || []).slice();
+    const attr = (x) => this.escapeHtml(x).replace(/"/g, '&quot;');
+    const tabStyle = (on) =>
+      `padding:7px 14px;border:none;background:none;cursor:pointer;font-weight:600;` +
+      `font-size:var(--fs-sm);border-bottom:2px solid ${on ? 'var(--color-primary)' : 'transparent'};` +
+      `color:${on ? 'var(--color-primary)' : '#666'};`;
+
+    const classRows = classes.map((c, i) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <input type="color" class="lg-c-cls" data-i="${i}" value="${attr(c.color)}">
+        <input type="number" class="lg-c-val" data-i="${i}" step="any" value="${attr(String(c.value))}"
+               title="${t('a.lg.valuePh')}" style="width:90px;padding:3px 6px;font-size:var(--fs-sm);">
+        <input type="text" class="lg-c-lbl" data-i="${i}" value="${attr(c.label)}" maxlength="120"
+               placeholder="${t('a.lg.labelPh')}" style="flex:1;min-width:0;padding:3px 6px;font-size:var(--fs-sm);">
+        <button type="button" class="btn btn-danger btn-sm lg-c-del" title="${t('a.lg.removeTip')}"
+                style="width:26px;padding:0;">&times;</button>
+      </div>`).join('');
+
+    const { body } = this._openModal(t('a.lg.title') + layer.layer_id, `
+      <div style="display:flex;gap:2px;border-bottom:1px solid #ddd;margin-bottom:14px;">
+        <button type="button" class="lg-tab" data-pane="ramp" style="${tabStyle(!layer.custom_classes)}">${t('a.lg.tabRamp')}</button>
+        <button type="button" class="lg-tab" data-pane="custom" style="${tabStyle(!!layer.custom_classes)}">${t('a.lg.tabCustom')}</button>
       </div>
-      <div class="lg-preview" style="height:26px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);margin-bottom:10px;"></div>
-      <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${t('a.lg.scope')}</p>
+
+      <div class="lg-pane" data-pane="ramp" ${layer.custom_classes ? 'hidden' : ''}>
+        <div style="display:flex;gap:18px;align-items:center;margin-bottom:12px;">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.lg.start')}
+            <input type="color" class="lg-start" value="${attr(layer.start_color || '#f4e7d3')}"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.lg.end')}
+            <input type="color" class="lg-end" value="${attr(layer.end_color || '#5c4033')}"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.lg.intervals')}
+            <input type="number" class="lg-n" min="2" max="20" step="1" value="${layer.num_intervals || 10}" style="width:70px;"></label>
+        </div>
+        <div class="lg-preview" style="height:26px;border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15);margin-bottom:10px;"></div>
+        <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${t('a.lg.scope')}</p>
+      </div>
+
+      <div class="lg-pane" data-pane="custom" ${layer.custom_classes ? '' : 'hidden'}>
+        <div class="lg-rows" style="max-height:46vh;overflow:auto;margin-bottom:6px;">${classRows}</div>
+        <button type="button" class="btn btn-secondary btn-sm lg-add" style="margin-bottom:10px;">${t('a.lg.addClass')}</button>
+        <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${t('a.lg.scopeCustom')}</p>
+      </div>
+
       <div class="pm-status" style="font-size:12px;"></div>
-      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        <button type="button" class="btn btn-secondary btn-sm lg-custom">${t('a.lg.useCustom')}</button>
-        <span>
-          <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
-          <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
-        </span>
-      </div>`, 520);
-    body.querySelector('.lg-custom').addEventListener('click', () => {
-      document.getElementById('project-modal-overlay').remove();
-      this.openClassColoursModal(layer, true);
-    });
+      <div style="margin-top:10px;text-align:right;">
+        <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
+        <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
+      </div>`, 540);
+
+    // Tabs.
+    let active = layer.custom_classes ? 'custom' : 'ramp';
+    const tabs = body.querySelectorAll('.lg-tab');
+    const panes = body.querySelectorAll('.lg-pane');
+    tabs.forEach(tab => tab.addEventListener('click', () => {
+      active = tab.dataset.pane;
+      tabs.forEach(b => b.style.cssText = tabStyle(b.dataset.pane === active));
+      panes.forEach(pn => { pn.hidden = pn.dataset.pane !== active; });
+    }));
+
+    // Ramp pane: live preview.
     const startEl = body.querySelector('.lg-start');
     const endEl = body.querySelector('.lg-end');
     const nEl = body.querySelector('.lg-n');
@@ -3252,15 +3291,60 @@ class AdminDashboard {
     };
     [startEl, endEl, nEl].forEach(el => el.addEventListener('input', paint));
     paint();
+
+    // Custom pane: add / remove rows.
+    body.querySelector('.lg-add').addEventListener('click', () => {
+      const div = document.createElement('div');
+      div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
+      div.innerHTML = `
+        <input type="color" class="lg-c-cls" value="#999999">
+        <input type="number" class="lg-c-val" step="any" placeholder="${t('a.lg.valuePh')}"
+               style="width:90px;padding:3px 6px;font-size:var(--fs-sm);">
+        <input type="text" class="lg-c-lbl" maxlength="120" placeholder="${t('a.lg.labelPh')}"
+               style="flex:1;min-width:0;padding:3px 6px;font-size:var(--fs-sm);">
+        <button type="button" class="btn btn-danger btn-sm lg-c-del" title="${t('a.lg.removeTip')}"
+                style="width:26px;padding:0;">&times;</button>`;
+      body.querySelector('.lg-rows').appendChild(div);
+      div.querySelector('.lg-c-val').focus();
+    });
+    body.querySelector('.lg-pane[data-pane="custom"]').addEventListener('click', (e) => {
+      if (e.target.classList && e.target.classList.contains('lg-c-del')) {
+        e.target.parentElement.remove();
+      }
+    });
+
     body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
     body.querySelector('.lg-save').addEventListener('click', async () => {
       const status = body.querySelector('.pm-status');
       status.style.color = '#666'; status.textContent = t('a.st.saving2');
       try {
-        await api.updatePropertyColours(propId, {
-          start_color: startEl.value, end_color: endEl.value,
-          num_intervals: Math.max(2, Math.min(20, parseInt(nEl.value, 10) || 10)),
-        });
+        if (active === 'ramp') {
+          // Returning to the ramp discards any saved custom breaks.
+          if (layer.custom_classes) {
+            if (!confirm(t('a.lg.resetConfirm'))) { status.textContent = ''; return; }
+            await api.updateClassColours(layer.mapset_id, { reset_auto: true });
+          }
+          await api.updatePropertyColours(propId, {
+            start_color: startEl.value, end_color: endEl.value,
+            num_intervals: Math.max(2, Math.min(20, parseInt(nEl.value, 10) || 10)),
+          });
+        } else {
+          const full = [];
+          let bad = false;
+          const uniq = new Set();
+          body.querySelectorAll('.lg-pane[data-pane="custom"] .lg-rows > div').forEach(div => {
+            const raw = div.querySelector('.lg-c-val').value.trim();
+            const lbl = div.querySelector('.lg-c-lbl').value.trim();
+            if (raw === '' && !lbl) return;       // untouched blank row
+            const v = Number(raw);
+            if (raw === '' || !isFinite(v) || uniq.has(v)) { bad = true; return; }
+            uniq.add(v);
+            full.push({ value: v, color: div.querySelector('.lg-c-cls').value, label: lbl || String(v) });
+          });
+          if (bad) { status.style.color = '#dc3545'; status.textContent = t('a.lg.valueRequired'); return; }
+          if (full.length < 2) { status.style.color = '#dc3545'; status.textContent = t('a.lg.keepTwo'); return; }
+          await api.updateClassColours(layer.mapset_id, { classes: full, replace_all: true, custom: true });
+        }
         document.getElementById('project-modal-overlay').remove();
         await this.loadLayers(); this.renderLayers();
       } catch (e) {
@@ -3269,17 +3353,15 @@ class AdminDashboard {
     });
   }
 
-  // custom=true → quantitative custom breaks: rows are interval lower
-  // bounds, saving replaces the whole class set and flags the mapset.
-  openClassColoursModal(layer, custom) {
+  // Categorical layers: edit/add/remove the value classes directly.
+  openClassColoursModal(layer) {
     const classes = (layer.legend_classes || []).slice();
     if (!classes.length) return;
     const attr = (x) => this.escapeHtml(x).replace(/"/g, '&quot;');
-    const fmtV = (v) => Number.isInteger(v) ? String(v) : String(v);
     const rows = classes.map((c, i) => `
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
         <input type="color" class="lg-cls" data-i="${i}" value="${attr(c.color)}">
-        <input type="number" class="lg-val" data-i="${i}" step="any" value="${attr(fmtV(c.value))}"
+        <input type="number" class="lg-val" data-i="${i}" step="any" value="${attr(String(c.value))}"
                title="${t('a.lg.valuePh')}" style="width:90px;padding:3px 6px;font-size:var(--fs-sm);">
         <input type="text" class="lg-lbl" data-i="${i}" value="${attr(c.label)}" maxlength="120"
                placeholder="${t('a.lg.labelPh')}" style="flex:1;min-width:0;padding:3px 6px;font-size:var(--fs-sm);">
@@ -3289,40 +3371,14 @@ class AdminDashboard {
     const { body } = this._openModal(t('a.lg.title') + layer.layer_id, `
       <div class="lg-rows" style="max-height:52vh;overflow:auto;margin-bottom:6px;">${rows}</div>
       <button type="button" class="btn btn-secondary btn-sm lg-add" style="margin-bottom:10px;">${t('a.lg.addClass')}</button>
-      <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${custom ? t('a.lg.scopeCustom') : t('a.lg.scopeCat')}</p>
+      <p style="font-size:var(--fs-xs);color:#777;margin:0 0 12px;">${t('a.lg.scopeCat')}</p>
       <div class="pm-status" style="font-size:12px;"></div>
-      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-        ${custom && layer.custom_classes
-          ? `<button type="button" class="btn btn-secondary btn-sm lg-reset">${t('a.lg.resetAuto')}</button>`
-          : custom
-            ? `<button type="button" class="btn btn-secondary btn-sm lg-back">${t('a.lg.backToRamp')}</button>`
-            : '<span></span>'}
-        <span>
-          <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
-          <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
-        </span>
-      </div>`, 520);
-    const backBtn = body.querySelector('.lg-back');
-    if (backBtn) backBtn.addEventListener('click', () => {
-      document.getElementById('project-modal-overlay').remove();
-      this.openLegendColoursModal(layer);   // not yet custom → routes to the ramp editor
-    });
-    const resetBtn = body.querySelector('.lg-reset');
-    if (resetBtn) resetBtn.addEventListener('click', async () => {
-      if (!confirm(t('a.lg.resetConfirm'))) return;
-      const status = body.querySelector('.pm-status');
-      status.style.color = '#666'; status.textContent = t('a.st.working');
-      try {
-        await api.updateClassColours(layer.mapset_id, { reset_auto: true });
-        document.getElementById('project-modal-overlay').remove();
-        await this.loadLayers(); this.renderLayers();
-      } catch (e) {
-        status.style.color = '#dc3545'; status.textContent = t('a.err.saveFailed') + e.message;
-      }
-    });
+      <div style="margin-top:10px;text-align:right;">
+        <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
+        <button type="button" class="btn btn-primary btn-sm lg-save">${t('a.save')}</button>
+      </div>`, 480);
     body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
 
-    // "+ Add class": a new row — same fields, empty value.
     body.querySelector('.lg-add').addEventListener('click', () => {
       const div = document.createElement('div');
       div.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:6px;';
@@ -3338,7 +3394,6 @@ class AdminDashboard {
       div.querySelector('.lg-new-val').focus();
     });
 
-    // Removing an existing class: drop the row, queue the value for delete.
     const removedValues = new Set();
     body.querySelectorAll('.lg-del').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -3356,7 +3411,6 @@ class AdminDashboard {
       const finalValues = new Set();
       let invalid = false;
 
-      // Existing rows: colour / label / pixel-value edits.
       body.querySelectorAll('.lg-cls').forEach(inp => {
         const i = Number(inp.dataset.i);
         const c = classes[i];
@@ -3376,13 +3430,12 @@ class AdminDashboard {
         }
       });
 
-      // New rows: pixel value required and unique.
       body.querySelectorAll('.lg-rows > div').forEach(div => {
         const valEl = div.querySelector('.lg-new-val');
         if (!valEl) return;
         const raw = valEl.value.trim();
         const lbl = div.querySelector('.lg-new-lbl').value.trim();
-        if (raw === '' && !lbl) return;           // untouched blank row
+        if (raw === '' && !lbl) return;
         const v = Number(raw);
         if (raw === '' || !isFinite(v) || finalValues.has(v)) { invalid = true; return; }
         finalValues.add(v);
@@ -3397,37 +3450,6 @@ class AdminDashboard {
       if (!finalValues.size) {
         status.style.color = '#dc3545'; status.textContent = t('a.lg.keepOne');
         return;
-      }
-      if (custom) {
-        // Custom breaks replace the whole class set: collect EVERY surviving
-        // row (edited or not) and flag the mapset.
-        const full = [];
-        let bad = false;
-        body.querySelectorAll('.lg-rows > div').forEach(div => {
-          const colEl = div.querySelector('.lg-cls, .lg-new-cls');
-          const valEl = div.querySelector('.lg-val, .lg-new-val');
-          const lblEl = div.querySelector('.lg-lbl, .lg-new-lbl');
-          if (!colEl || !valEl) return;
-          const raw = valEl.value.trim();
-          const lbl = (lblEl ? lblEl.value.trim() : '');
-          if (raw === '' && !lbl) return;         // untouched blank row
-          const v = Number(raw);
-          if (raw === '' || !isFinite(v)) { bad = true; return; }
-          full.push({ value: v, color: colEl.value, label: lbl || String(v) });
-        });
-        const uniq = new Set(full.map(c => c.value));
-        if (bad || uniq.size !== full.length) {
-          status.style.color = '#dc3545'; status.textContent = t('a.lg.valueRequired');
-          return;
-        }
-        if (full.length < 2) {
-          status.style.color = '#dc3545'; status.textContent = t('a.lg.keepTwo');
-          return;
-        }
-        payload.classes = full;
-        payload.remove = [];
-        payload.replace_all = true;
-        payload.custom = true;
       }
       if (!payload.classes.length && !payload.remove.length) {
         document.getElementById('project-modal-overlay').remove(); return;
