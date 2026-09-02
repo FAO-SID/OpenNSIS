@@ -109,6 +109,53 @@ def _ensure_getfeatureinfo_template():
         log.exception("startup: could not ensure %s", path)
 
 
+@app.on_event("startup")
+def _ensure_raster_query_tolerance():
+    """Patch pre-migration-011 .map files in place: without a LAYER TOLERANCE
+    the raster GetFeatureInfo query rectangle shrinks with the view scale and
+    returns nothing once zoomed past the raster's native resolution.
+
+    In-place insertion (not a regen from soil_data.layer.map) deliberately —
+    DST layers' on-disk DATA line points at a versioned hardlink the DB text
+    knows nothing about, and must survive.
+    """
+    import glob as _glob
+    try:
+        with get_db() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT layer_id,
+                           COALESCE(CEIL(GREATEST(
+                             CASE distance_uom
+                               WHEN 'deg' THEN distance * 111320
+                               WHEN 'km'  THEN distance * 1000
+                               ELSE            distance
+                             END, 100)), 1000)::int AS tol_m
+                    FROM soil_data.layer WHERE map IS NOT NULL
+                """)
+                tol = {r[0]: r[1] for r in cur.fetchall()}
+        patched = 0
+        for path in _glob.glob("/srv/rasters/*.map"):
+            layer_id = os.path.splitext(os.path.basename(path))[0]
+            if layer_id not in tol:
+                continue
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            if "TOLERANCE" in content or "      TYPE RASTER\n" not in content:
+                continue
+            content = content.replace(
+                "      TYPE RASTER\n",
+                "      TYPE RASTER\n      TOLERANCE %d\n      TOLERANCEUNITS METERS\n" % tol[layer_id],
+                1)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(content)
+            patched += 1
+        if patched:
+            log.info("startup: added query TOLERANCE to %d .map file(s)", patched)
+    except Exception:
+        log.exception("startup: could not patch .map query tolerances")
+
+
 # ==================== Authentication ====================
 
 LOGIN_MAX_ATTEMPTS = 5

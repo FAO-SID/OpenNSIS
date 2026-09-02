@@ -1548,11 +1548,11 @@ function setLegendCursor(value) {
 }
 
 // Trailing throttle (~100 ms) so panning the pointer does not flood MapServer.
-// One request in flight at a time: a newer probe aborts the older request, and
-// whichever response lands is applied as long as no later one already has —
-// discarding every "stale" reply outright made the cursor update only when
-// the pointer stopped moving.
-let legendProbeAbort = null;
+// Probes overlap freely — with a round-trip longer than the probe interval,
+// both discarding "stale" replies and aborting superseded requests starve the
+// cursor (nothing ever lands while the pointer moves). Instead every reply is
+// applied unless a NEWER one already has, so updates stream continuously with
+// one round-trip of latency.
 let legendProbeApplied = 0;
 
 function scheduleLegendProbe(coordinate) {
@@ -1569,12 +1569,9 @@ function scheduleLegendProbe(coordinate) {
       { 'INFO_FORMAT': 'text/html' });
     if (!url) return;
     const seq = ++legendProbeSeq;
-    if (legendProbeAbort) legendProbeAbort.abort();
-    const ctrl = new AbortController();
-    legendProbeAbort = ctrl;
     try {
-      const text = await (await fetch(url, { signal: ctrl.signal })).text();
-      if (seq <= legendProbeApplied || !legendState) return; // an even newer reply already landed
+      const text = await (await fetch(url)).text();
+      if (seq <= legendProbeApplied || !legendState) return; // a newer reply already landed
       legendProbeApplied = seq;
       const m = text && text.match(/Value:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/);
       let v = m ? parseFloat(m[1]) : null;
@@ -1584,8 +1581,7 @@ function scheduleLegendProbe(coordinate) {
       if (v != null && v <= -9998) v = null;
       setLegendCursor(v);
     } catch (e) {
-      // Aborted by a newer probe → keep the current cursor; real errors hide it.
-      if (!(e && e.name === 'AbortError') && seq === legendProbeSeq) setLegendCursor(null);
+      if (seq === legendProbeSeq) setLegendCursor(null);
     }
   }, 100);
 }

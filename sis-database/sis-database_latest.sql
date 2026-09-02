@@ -647,6 +647,7 @@ DECLARE
   v_min FLOAT; v_max FLOAT; step FLOAT;
   styles TEXT := '';
   k INT; c_lo TEXT; c_hi TEXT; d_lo FLOAT; d_hi FLOAT;
+  tol_m INT;
 BEGIN
   SELECT l.layer_id,
     CASE
@@ -655,7 +656,8 @@ BEGIN
       WHEN l.distance_uom='deg' THEN 'DD'
     END distance_uom,
     l.reference_system_identifier_code,
-    l.extent, l.file_extension, l.stats_minimum, l.stats_maximum
+    l.extent, l.file_extension, l.stats_minimum, l.stats_maximum,
+    l.distance AS cell_size, l.distance_uom AS cell_uom
   INTO rec_layer
   FROM soil_data.layer l
   WHERE l.layer_id = NEW.layer_id;
@@ -666,6 +668,15 @@ BEGIN
   JOIN soil_data.mapset m         ON m.mapset_id = l.mapset_id
   JOIN soil_data.mapped_property p ON p.mapped_property_id = m.mapped_property_id
   WHERE l.layer_id = NEW.layer_id;
+
+  -- Query tolerance: one native cell, expressed in metres (floor 100 m,
+  -- default 1000 m when the resolution is unknown).
+  tol_m := COALESCE(CEIL(GREATEST(
+             CASE rec_layer.cell_uom
+               WHEN 'deg' THEN rec_layer.cell_size * 111320
+               WHEN 'km'  THEN rec_layer.cell_size * 1000
+               ELSE            rec_layer.cell_size
+             END, 100)), 1000);
 
   n := GREATEST(rec_property.num_intervals, 2);
   v_min := rec_layer.stats_minimum;
@@ -717,6 +728,8 @@ BEGIN
       NAME "'||rec_layer.layer_id||'"
       DATA "'||rec_layer.layer_id||'.'||rec_layer.file_extension||'"
       TYPE RASTER
+      TOLERANCE '||tol_m||'
+      TOLERANCEUNITS METERS
       STATUS ON
       METADATA
         "wms_include_items" "all"
