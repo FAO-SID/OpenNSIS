@@ -1482,7 +1482,11 @@ function buildDynamicLegend(container, layerConfig, classes) {
     const iv = classes.length > 1 ? (classes[1].value - classes[0].value) : 1;
     max = classes[classes.length - 1].value + iv;
   }
-  const unit = layerConfig.unit_of_measure_id || '';
+  // Unit exceptions: no-unit markers show nothing; long unit names render
+  // smaller (and may wrap) so they don't widen the whole stack.
+  let unit = layerConfig.unit_of_measure_id || '';
+  if (/^(dimensionless|no.?unit|unitless|none|-+)$/i.test(unit.trim())) unit = '';
+  const unitLong = unit.length > 8;
   const range = max - min;
   // escapeHtml() covers text nodes; attributes also need quotes neutralised.
   const attr = (x) => escapeHtml(x).replace(/"/g, '&quot;');
@@ -1505,14 +1509,14 @@ function buildDynamicLegend(container, layerConfig, classes) {
   container.innerHTML = categorical
     ? `
     <div class="dyn-legend">
-      ${unit ? `<div class="dyn-legend-unit">${escapeHtml(unit)}</div>` : ''}
+      ${unit ? `<div class="dyn-legend-unit${unitLong ? ' long' : ''}">${escapeHtml(unit)}</div>` : ''}
       ${bar}
       <div class="dyn-legend-labels categorical">${classes.slice().reverse().map(c =>
         `<span class="dyn-legend-cat">${escapeHtml(c.label)}</span>`).join('')}</div>
     </div>`
     : `
     <div class="dyn-legend stacked">
-      ${unit ? `<div class="dyn-legend-unit">${escapeHtml(unit)}</div>` : ''}
+      ${unit ? `<div class="dyn-legend-unit${unitLong ? ' long' : ''}">${escapeHtml(unit)}</div>` : ''}
       <span class="dyn-legend-minmax">${fmtLegendVal(max, range)}</span>
       ${bar}
       <span class="dyn-legend-minmax">${fmtLegendVal(min, range)}</span>

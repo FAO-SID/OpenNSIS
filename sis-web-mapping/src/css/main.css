@@ -649,6 +649,15 @@ h1, h2, h3, h4, h5 {
     white-space: nowrap;
 }
 
+.dyn-legend-unit.long {
+    font-size: 10px;
+    font-weight: 600;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.15;
+    max-width: 76px;
+}
+
 .dyn-legend.stacked .dyn-legend-unit {
     background: rgba(255, 255, 255, 0.92);
     padding: 2px 6px;
