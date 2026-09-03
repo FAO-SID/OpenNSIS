@@ -164,6 +164,12 @@ function initializeMap() {
   map.set('baseLayers', baseLayers);
   updateControlTheme(appConfig.BASE_MAP_DEFAULT || 'esri-imagery');
 
+  // Instance preference: start with the layer panel collapsed (burger only).
+  if (appConfig.LAYER_PANEL_COLLAPSED === 'true') {
+    const ls = document.getElementById('layer-switcher');
+    if (ls) ls.classList.add('collapsed');
+  }
+
   // Setup popup
   setupPopup();
 }

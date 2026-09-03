@@ -147,6 +147,7 @@ INSERT INTO api.setting(key, value) VALUES
  ('COUNTRY_CODE', '$COUNTRY'),
  ('ORG_LOGO_URL','$ORG_LOGO_URL'),
  ('LANGUAGE','${LANGUAGE:-en}'),
+ ('LAYER_PANEL_COLLAPSED','false'),
  ('APP_TITLE', :'title'),
  ('LATITUDE', :'lat'),
  ('LONGITUDE', :'lon'),

@@ -2805,7 +2805,7 @@ class AdminDashboard {
   renderSettings() {
     const tbody = document.getElementById('settings-tbody');
     const mapKeys = ['LATITUDE', 'LONGITUDE', 'ZOOM'];
-    const keyOrder = ['APP_TITLE', 'LANGUAGE', 'ORG_LOGO_URL', 'BASE_MAP_DEFAULT', 'LATITUDE', 'LONGITUDE', 'ZOOM'];
+    const keyOrder = ['APP_TITLE', 'LANGUAGE', 'ORG_LOGO_URL', 'BASE_MAP_DEFAULT', 'LAYER_PANEL_COLLAPSED', 'LATITUDE', 'LONGITUDE', 'ZOOM'];
     // Infrastructure settings — kept in DB but hidden from the UI to avoid accidental edits
     const hiddenKeys = new Set(['DOWNLOAD_BASE_URL', 'GLOSIS_FEDERATION_ENABLED']);
 
@@ -2839,6 +2839,13 @@ class AdminDashboard {
           `<option value="${code}"${setting.value === code ? ' selected' : ''}>${label} (${code})</option>`
         ).join('');
         valueCell = `<select class="inline-edit" data-key="${key}" style="padding:2px 6px;font-size:var(--fs-sm);">${opts}</select>`;
+      } else if (setting.key === 'LAYER_PANEL_COLLAPSED') {
+        // Whether the map view's layer panel starts collapsed — Yes/No.
+        const truthy = setting.value === 'true';
+        valueCell = `<select class="inline-edit" data-key="${key}" style="padding:2px 6px;font-size:var(--fs-sm);">
+          <option value="true"${truthy ? ' selected' : ''}>${t('a.yes')}</option>
+          <option value="false"${truthy ? '' : ' selected'}>${t('a.no')}</option>
+        </select>`;
       } else if (isBaseMap) {
         const opts = Object.entries(BASE_MAP_OPTIONS).map(([k, v]) =>
           `<option value="${k}"${setting.value === k ? ' selected' : ''}>${v.label}</option>`
