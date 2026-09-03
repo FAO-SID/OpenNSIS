@@ -365,6 +365,25 @@ h1, h2, h3, h4, h5 {
     z-index: 1000;
 }
 
+/* Shared glyph family: white over dark basemaps, flipped dark over light
+   ones (body.light-basemap, toggled per active basemap). */
+.map-glyph {
+    color: #fff;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+body.light-basemap .map-glyph,
+body.light-basemap .north-arrow,
+body.light-basemap .zoom-controls button,
+body.light-basemap .scale-line .ol-scale-line-inner {
+    color: #2b2b2b;
+    filter: drop-shadow(0 1px 2px rgba(255, 255, 255, 0.9));
+}
+
+body.light-basemap .scale-line .ol-scale-line-inner { border-color: #2b2b2b; }
+body.light-basemap .scale-line .ol-scale-line-inner::before,
+body.light-basemap .scale-line .ol-scale-line-inner::after { background: #2b2b2b; }
+
 /* Borderless white stroke icons with a drop shadow — the same family as
    the login and language buttons top-right. */
 .north-arrow {

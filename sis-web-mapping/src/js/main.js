@@ -162,6 +162,7 @@ function initializeMap() {
 
   // Store base layers for later use
   map.set('baseLayers', baseLayers);
+  updateControlTheme(appConfig.BASE_MAP_DEFAULT || 'esri-imagery');
 
   // Setup popup
   setupPopup();
@@ -514,7 +515,15 @@ function createLayerItem(layer) {
   return itemDiv;
 }
 
+// The floating controls are white glyphs — unreadable over light basemaps.
+// Flip the family dark whenever a light basemap is active.
+const LIGHT_BASEMAPS = new Set(['osm', 'terrain', 'eox-terrain-light']);
+function updateControlTheme(basemapId) {
+  document.body.classList.toggle('light-basemap', LIGHT_BASEMAPS.has(basemapId));
+}
+
 function switchBasemap(basemapId) {
+  updateControlTheme(basemapId);
   const baseLayers = map.get('baseLayers');
   Object.entries(baseLayers).forEach(([id, layer]) => {
     layer.setVisible(id === basemapId);
@@ -1734,7 +1743,8 @@ function setAuthButtonIcon(btn, kind, label) {
 function addLoginButton() {
   const loginBtn = document.createElement('button');
   loginBtn.id = 'login-btn';
-  loginBtn.style.cssText = 'position: absolute; top: 20px; right: 58px; padding: 6px; background: none; border: none; cursor: pointer; z-index: 1001; color: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); line-height: 0;';
+  loginBtn.className = 'map-glyph';
+  loginBtn.style.cssText = 'position: absolute; top: 20px; right: 58px; padding: 6px; background: none; border: none; cursor: pointer; z-index: 1001; line-height: 0;';
   
   // Check if user is already logged in (restore session)
   if (api.restoreSession()) {
@@ -1759,7 +1769,8 @@ function addLoginButton() {
     + '<ellipse cx="12" cy="12" rx="4" ry="9"/>'
     + '<path d="M3.6 8.5h16.8M3.6 15.5h16.8"/></svg>';
   langBtn.title = t('lang.label');
-  langBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; padding: 6px; background: none; border: none; cursor: pointer; z-index: 1001; color: #fff; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6)); line-height: 0;';
+  langBtn.className = 'map-glyph';
+  langBtn.style.cssText = 'position: absolute; top: 20px; right: 20px; padding: 6px; background: none; border: none; cursor: pointer; z-index: 1001; line-height: 0;';
 
   const langMenu = document.createElement('div');
   langMenu.id = 'lang-menu';
