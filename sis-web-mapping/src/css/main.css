@@ -151,6 +151,37 @@ h1, h2, h3, h4, h5 {
     display: none;
 }
 
+/* Collapsed: the panel chrome disappears entirely — just the burger glyph,
+   styled like the rest of the floating map controls. */
+.layer-switcher.collapsed {
+    min-width: 0;
+    max-width: none;
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+}
+
+.layer-switcher.collapsed .layer-switcher-header {
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.layer-switcher.collapsed .collapse-btn {
+    color: #fff;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+    width: 34px;
+    height: 34px;
+}
+
+.layer-switcher.collapsed .collapse-btn:hover {
+    background: none;
+    opacity: 0.75;
+}
+
 .layer-switcher-header {
     display: flex;
     justify-content: space-between;
@@ -165,6 +196,7 @@ h1, h2, h3, h4, h5 {
 .collapse-btn {
     background: none;
     border: none;
+    color: var(--color-text);
     cursor: pointer;
     padding: var(--sp-1);
     border-radius: var(--radius-sm);
@@ -375,6 +407,7 @@ h1, h2, h3, h4, h5 {
 body.light-basemap .map-glyph,
 body.light-basemap .north-arrow,
 body.light-basemap .zoom-controls button,
+body.light-basemap .layer-switcher.collapsed .collapse-btn,
 body.light-basemap .scale-line .ol-scale-line-inner {
     color: #2b2b2b;
     filter: drop-shadow(0 1px 2px rgba(255, 255, 255, 0.9));
