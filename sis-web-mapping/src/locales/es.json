@@ -486,5 +486,15 @@
   "a.lg.tabCustom": "Cortes de clase personalizados",
   "basemap.eox": "EOX Terrain Light",
   "a.raster.opacity": "Opacidad",
-  "a.raster.opacityTip": "Opacidad inicial en la vista del mapa (0-1)"
+  "a.raster.opacityTip": "Opacidad inicial en la vista del mapa (0-1)",
+  "a.sp.symbology": "Simbología",
+  "a.sp.symbologyTip": "Forma, tamaño, color y opacidad del marcador en el mapa",
+  "a.sp.shape": "Forma",
+  "a.sp.size": "Tamaño",
+  "a.sp.colour": "Color",
+  "a.shape.circle": "Círculo",
+  "a.shape.square": "Cuadrado",
+  "a.shape.triangle": "Triángulo",
+  "a.shape.diamond": "Rombo",
+  "a.shape.star": "Estrella"
 }

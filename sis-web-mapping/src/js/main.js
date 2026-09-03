@@ -6,7 +6,7 @@ import { OSM, XYZ, ImageWMS, Vector as VectorSource, Cluster } from 'ol/source';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import { ScaleLine, defaults as defaultControls } from 'ol/control';
 import Overlay from 'ol/Overlay';
-import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style';
+import { Circle as CircleStyle, Fill, RegularShape, Stroke, Style, Text } from 'ol/style';
 import { GeoJSON } from 'ol/format';
 import { getCenter } from 'ol/extent';
 import api, { MAPSERVER_URL } from './api-client.js';
@@ -20,6 +20,7 @@ let currentLayers = {};
 let profileLayers = {};
 let profileColors = {};
 let profileMapsetIds = {};
+let profileSymbology = {};             // mapset_id -> {shape,size,color,opacity} (admin-set)
 let blurredMapsetIds = new Set();        // mapset_ids whose profile coords are blurred
 let locationsOnlyMapsetIds = new Set();  // mapset_ids sharing points only, no attribute data
 let hideDownloadMapsetIds = new Set();   // mapset_ids whose per-project download button is hidden
@@ -911,6 +912,19 @@ async function loadProfiles() {
         profileMapsetIds[name] = p.mapset_id;
       }
     });
+
+    // Admin-set marker symbology (shape/size/colour/opacity per project);
+    // a configured colour overrides the generated palette entry.
+    try {
+      profileSymbology = await api.getProfileSymbology() || {};
+    } catch (e) {
+      console.warn('profile symbology unavailable:', e.message);
+      profileSymbology = {};
+    }
+    Object.entries(profileMapsetIds).forEach(([name, mapsetId]) => {
+      const sym = profileSymbology[mapsetId];
+      if (sym && sym.color) profileColors[name] = sym.color;
+    });
     
     // Create GeoJSON format parser
     const geoJsonFormat = new GeoJSON();
@@ -1015,7 +1029,11 @@ function getUnifiedClusterStyle(feature) {
     });
     
     const color = profileColors[dominantProject] || '#63452C';
-    
+    const clusterOpacity = (() => {
+      const sym = projectSymbology(dominantProject);
+      return sym.opacity == null ? 0.8 : Number(sym.opacity);
+    })();
+
     // Convert hex to rgba
     const hexToRgba = (hex, alpha) => {
       const r = parseInt(hex.slice(1, 3), 16);
@@ -1027,7 +1045,7 @@ function getUnifiedClusterStyle(feature) {
     return new Style({
       image: new CircleStyle({
         radius: 15 + Math.min(size / 2, 10),
-        fill: new Fill({ color: hexToRgba(color, 0.8) }),
+        fill: new Fill({ color: hexToRgba(color, clusterOpacity) }),
         stroke: new Stroke({ color: color, width: 2 })
       }),
       text: new Text({
@@ -1048,16 +1066,41 @@ function getUnifiedClusterStyle(feature) {
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     };
     
+    const sym = projectSymbology(projectName);
     return new Style({
-      image: new CircleStyle({
-        radius: 8,
-        fill: new Fill({ color: hexToRgba(color, 0.8) }),
-        stroke: new Stroke({ color: '#fff', width: 2 })
-      })
+      image: markerImage(
+        sym.shape || 'circle',
+        sym.size == null ? 8 : Number(sym.size),
+        new Fill({ color: hexToRgba(color, sym.opacity == null ? 0.8 : Number(sym.opacity)) }),
+        new Stroke({ color: '#fff', width: 2 })
+      )
     });
   }
 }
 
+
+// Admin symbology for a project name (may be undefined).
+function projectSymbology(projectName) {
+  const mapsetId = profileMapsetIds[projectName];
+  return (mapsetId && profileSymbology[mapsetId]) || {};
+}
+
+// Build the marker image for a shape. Circle is the default; the rest use
+// RegularShape with the conventional point counts/angles.
+function markerImage(shape, radius, fill, stroke) {
+  switch (shape) {
+    case 'square':
+      return new RegularShape({ points: 4, radius, angle: Math.PI / 4, fill, stroke });
+    case 'triangle':
+      return new RegularShape({ points: 3, radius, angle: 0, fill, stroke });
+    case 'diamond':
+      return new RegularShape({ points: 4, radius, angle: 0, fill, stroke });
+    case 'star':
+      return new RegularShape({ points: 5, radius, radius2: radius * 0.45, angle: 0, fill, stroke });
+    default:
+      return new CircleStyle({ radius, fill, stroke });
+  }
+}
 
 function addProfileLayerControl() {
   const profileGroup = document.createElement('div');

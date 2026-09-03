@@ -486,5 +486,15 @@
   "a.lg.tabCustom": "Свои границы классов",
   "basemap.eox": "EOX Terrain Light",
   "a.raster.opacity": "Непрозрачность",
-  "a.raster.opacityTip": "Начальная непрозрачность на карте (0-1)"
+  "a.raster.opacityTip": "Начальная непрозрачность на карте (0-1)",
+  "a.sp.symbology": "Символика",
+  "a.sp.symbologyTip": "Форма, размер, цвет и непрозрачность маркера на карте",
+  "a.sp.shape": "Форма",
+  "a.sp.size": "Размер",
+  "a.sp.colour": "Цвет",
+  "a.shape.circle": "Круг",
+  "a.shape.square": "Квадрат",
+  "a.shape.triangle": "Треугольник",
+  "a.shape.diamond": "Ромб",
+  "a.shape.star": "Звезда"
 }

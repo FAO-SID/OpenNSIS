@@ -486,5 +486,15 @@
   "a.lg.tabCustom": "自定义分级",
   "basemap.eox": "EOX Terrain Light",
   "a.raster.opacity": "不透明度",
-  "a.raster.opacityTip": "地图视图中的初始不透明度（0-1）"
+  "a.raster.opacityTip": "地图视图中的初始不透明度（0-1）",
+  "a.sp.symbology": "符号",
+  "a.sp.symbologyTip": "地图上标记的形状、大小、颜色和不透明度",
+  "a.sp.shape": "形状",
+  "a.sp.size": "大小",
+  "a.sp.colour": "颜色",
+  "a.shape.circle": "圆形",
+  "a.shape.square": "方形",
+  "a.shape.triangle": "三角形",
+  "a.shape.diamond": "菱形",
+  "a.shape.star": "星形"
 }

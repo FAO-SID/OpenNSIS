@@ -250,6 +250,17 @@ class SISApiClient {
     return this.authenticatedRequest('/api/layer/soil_profiles');
   }
 
+  async getProfileSymbology() {
+    return this.request('/api/profile/symbology');
+  }
+
+  async setSoilProfileSymbology(projectId, body) {
+    return this.authenticatedRequest(`/api/layer/soil_profiles/${encodeURIComponent(projectId)}/symbology`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    });
+  }
+
   async setSoilProfilePublish(projectId, isPublished) {
     return this.authenticatedRequest(`/api/layer/soil_profiles/${encodeURIComponent(projectId)}/publish`, {
       method: 'PATCH',

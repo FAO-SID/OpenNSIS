@@ -486,5 +486,15 @@
   "a.lg.tabCustom": "Custom class breaks",
   "basemap.eox": "EOX Terrain Light",
   "a.raster.opacity": "Opacity",
-  "a.raster.opacityTip": "Initial opacity in the map view (0-1)"
+  "a.raster.opacityTip": "Initial opacity in the map view (0-1)",
+  "a.sp.symbology": "Symbology",
+  "a.sp.symbologyTip": "Marker shape, size, colour and opacity on the map",
+  "a.sp.shape": "Shape",
+  "a.sp.size": "Size",
+  "a.sp.colour": "Colour",
+  "a.shape.circle": "Circle",
+  "a.shape.square": "Square",
+  "a.shape.triangle": "Triangle",
+  "a.shape.diamond": "Diamond",
+  "a.shape.star": "Star"
 }

@@ -548,6 +548,7 @@ class AdminDashboard {
                         <th>${t('a.project')}</th>
                         <th>${t('a.sp.profiles')}</th>
                         <th>${t('a.sp.measurements')}</th>
+                        <th title="${t('a.sp.symbologyTip')}">${t('a.sp.symbology')}</th>
                         <th>${t('a.sp.publicLimit')}</th>
                         <th title="${t('a.sp.blurTip')}">${t('a.sp.blur')}</th>
                         <th title="${t('a.sp.shareAttrsTip')}">${t('a.sp.shareAttrs')}</th>
@@ -3573,7 +3574,7 @@ class AdminDashboard {
 
     const rows = this.soilProfileLayers || [];
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${t('a.sp.none')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="empty-state">${t('a.sp.none')}</td></tr>`;
       return;
     }
 
@@ -3610,6 +3611,12 @@ class AdminDashboard {
           <span class="sp-count-pub">${pubObs.toLocaleString()}</span>
           <span class="sp-count-sep">/</span>
           <span class="sp-count-total">${totalObs.toLocaleString()}</span>
+        </td>
+        <td>
+          <button type="button" class="sp-symbology-btn" data-project-id="${pid}" title="${t('a.sp.symbologyTip')}"
+                  style="background:none;border:1px solid #ccc;border-radius:4px;padding:3px 8px;cursor:pointer;line-height:0;">
+            ${this._markerSvg(r.marker_shape || 'circle', r.marker_color || '#63452C', r.marker_opacity == null ? 0.8 : r.marker_opacity)}
+          </button>
         </td>
         <td>
           <input type="number" min="1" step="1" class="sp-limit-input"
@@ -3668,6 +3675,13 @@ class AdminDashboard {
       });
     });
 
+    tbody.querySelectorAll('.sp-symbology-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const row = (this.soilProfileLayers || []).find(r => r.project_id === e.currentTarget.dataset.projectId);
+        if (row) this.openSymbologyModal(row);
+      });
+    });
+
     tbody.querySelectorAll('.sp-delete-btn').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         const projectId = e.currentTarget.dataset.projectId;
@@ -3703,6 +3717,85 @@ class AdminDashboard {
           this.pendingSoilProfileBlurs[projectId] = raw;
         }
       });
+    });
+  }
+
+  // Small inline-SVG preview of a marker (shared by the table swatch and
+  // the editor preview).
+  _markerSvg(shape, color, opacity, px = 18) {
+    const c = this.escapeHtml(color);
+    const o = opacity == null ? 0.8 : opacity;
+    const shapes = {
+      circle:   `<circle cx="9" cy="9" r="7"/>`,
+      square:   `<rect x="2.5" y="2.5" width="13" height="13"/>`,
+      triangle: `<polygon points="9,2 16,15.5 2,15.5"/>`,
+      diamond:  `<polygon points="9,1.5 16.5,9 9,16.5 1.5,9"/>`,
+      star:     `<polygon points="9,1.5 11.2,6.5 16.5,7 12.6,10.7 13.8,16 9,13.2 4.2,16 5.4,10.7 1.5,7 6.8,6.5"/>`,
+    };
+    return `<svg width="${px}" height="${px}" viewBox="0 0 18 18" aria-hidden="true">`
+      + `<g fill="${c}" fill-opacity="${o}" stroke="#666" stroke-width="1">${shapes[shape] || shapes.circle}</g></svg>`;
+  }
+
+  openSymbologyModal(row) {
+    const pid = row.project_id;
+    const cur = {
+      shape: row.marker_shape || 'circle',
+      size: row.marker_size == null ? 8 : Number(row.marker_size),
+      color: row.marker_color || '#63452C',
+      opacity: row.marker_opacity == null ? 0.8 : Number(row.marker_opacity),
+    };
+    const shapeOpts = ['circle', 'square', 'triangle', 'diamond', 'star'].map(sh =>
+      `<option value="${sh}"${cur.shape === sh ? ' selected' : ''}>${t('a.shape.' + sh)}</option>`).join('');
+    const { body } = this._openModal(t('a.sp.symbology') + ' — ' + (row.project_name || pid), `
+      <div style="display:flex;gap:16px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.sp.shape')}
+          <select class="sym-shape">${shapeOpts}</select></label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.sp.colour')}
+          <input type="color" class="sym-color" value="${this.escapeHtml(cur.color)}"></label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.sp.size')}
+          <span style="display:flex;align-items:center;gap:6px;">
+            <input type="range" class="sym-size" min="4" max="20" step="1" value="${cur.size}" style="width:90px;">
+            <span class="sym-size-val" style="font-size:var(--fs-xs);min-width:20px;">${cur.size}</span></span></label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.raster.opacity')}
+          <span style="display:flex;align-items:center;gap:6px;">
+            <input type="range" class="sym-opacity" min="0" max="1" step="0.05" value="${cur.opacity}" style="width:90px;">
+            <span class="sym-opacity-val" style="font-size:var(--fs-xs);min-width:26px;">${cur.opacity}</span></span></label>
+      </div>
+      <div class="sym-preview" style="display:flex;align-items:center;justify-content:center;height:64px;background:#eef3ee;border-radius:6px;margin-bottom:12px;"></div>
+      <div class="pm-status" style="font-size:12px;"></div>
+      <div style="margin-top:10px;text-align:right;">
+        <button type="button" class="btn btn-secondary btn-sm pm-cancel">${t('a.cancel')}</button>
+        <button type="button" class="btn btn-primary btn-sm sym-save">${t('a.save')}</button>
+      </div>`, 520);
+    const shapeEl = body.querySelector('.sym-shape');
+    const colorEl = body.querySelector('.sym-color');
+    const sizeEl = body.querySelector('.sym-size');
+    const opacEl = body.querySelector('.sym-opacity');
+    const preview = body.querySelector('.sym-preview');
+    const paint = () => {
+      body.querySelector('.sym-size-val').textContent = sizeEl.value;
+      body.querySelector('.sym-opacity-val').textContent = opacEl.value;
+      preview.innerHTML = this._markerSvg(shapeEl.value, colorEl.value, parseFloat(opacEl.value),
+                                          Math.round(Number(sizeEl.value) * 3));
+    };
+    [shapeEl, colorEl, sizeEl, opacEl].forEach(el => el.addEventListener('input', paint));
+    paint();
+    body.querySelector('.pm-cancel').addEventListener('click', () => document.getElementById('project-modal-overlay').remove());
+    body.querySelector('.sym-save').addEventListener('click', async () => {
+      const status = body.querySelector('.pm-status');
+      status.style.color = '#666'; status.textContent = t('a.st.saving2');
+      try {
+        await api.setSoilProfileSymbology(pid, {
+          marker_shape: shapeEl.value,
+          marker_size: parseFloat(sizeEl.value),
+          marker_color: colorEl.value,
+          marker_opacity: parseFloat(opacEl.value),
+        });
+        document.getElementById('project-modal-overlay').remove();
+        await this.loadSoilProfileLayers(); this.renderSoilProfileLayers();
+      } catch (e) {
+        status.style.color = '#dc3545'; status.textContent = t('a.err.saveFailed') + e.message;
+      }
     });
   }
 

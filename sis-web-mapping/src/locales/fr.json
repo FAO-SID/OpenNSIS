@@ -486,5 +486,15 @@
   "a.lg.tabCustom": "Seuils de classes personnalisés",
   "basemap.eox": "EOX Terrain Light",
   "a.raster.opacity": "Opacité",
-  "a.raster.opacityTip": "Opacité initiale dans la vue cartographique (0-1)"
+  "a.raster.opacityTip": "Opacité initiale dans la vue cartographique (0-1)",
+  "a.sp.symbology": "Symbologie",
+  "a.sp.symbologyTip": "Forme, taille, couleur et opacité du marqueur sur la carte",
+  "a.sp.shape": "Forme",
+  "a.sp.size": "Taille",
+  "a.sp.colour": "Couleur",
+  "a.shape.circle": "Cercle",
+  "a.shape.square": "Carré",
+  "a.shape.triangle": "Triangle",
+  "a.shape.diamond": "Losange",
+  "a.shape.star": "Étoile"
 }

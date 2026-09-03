@@ -1425,6 +1425,25 @@ async def get_profile_blur_flags(api_client: dict = Depends(verify_api_key)):
                 "hide_download_mapset_ids": [r[0] for r in rows if r[3]],
             }
 
+@app.get("/api/profile/symbology")
+async def get_profile_symbology(api_client: dict = Depends(verify_api_key)):
+    """Per-project marker symbology for the map view, keyed by the stub
+    mapset id. Only mapsets with at least one property set are returned."""
+    with get_db() as conn:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""
+                SELECT mapset_id, marker_shape, marker_size,
+                       marker_color, marker_opacity
+                FROM soil_data.mapset
+                WHERE marker_shape IS NOT NULL OR marker_size IS NOT NULL
+                   OR marker_color IS NOT NULL OR marker_opacity IS NOT NULL
+            """)
+            return {r["mapset_id"]: {
+                "shape": r["marker_shape"], "size": r["marker_size"],
+                "color": r["marker_color"], "opacity": r["marker_opacity"],
+            } for r in cur.fetchall()}
+
+
 @app.get("/api/observation")
 async def get_observations(
     request: Request,
@@ -4630,6 +4649,7 @@ async def list_soil_profile_layers(current_user: dict = Depends(get_current_user
           pm.spatial_blur_m,
           COALESCE(pm.locations_only, FALSE) AS locations_only,
           COALESCE(pm.hide_download, FALSE) AS hide_download,
+          pm.marker_shape, pm.marker_size, pm.marker_color, pm.marker_opacity,
           COALESCE(pt.total_profiles, 0) AS total_profile_count,
           COALESCE(ppc.published_profiles, 0) AS published_profile_count,
           COALESCE(tobs.total_observations, 0) AS total_observation_count,
@@ -4712,6 +4732,57 @@ async def set_soil_profile_limit(
                 raise HTTPException(status_code=404, detail="Project or stub mapset not found")
             conn.commit()
     return {"project_id": project_id, "profile_limit": body.profile_limit}
+
+
+class SoilProfileSymbologyUpdate(BaseModel):
+    marker_shape: Optional[str] = None
+    marker_size: Optional[float] = None
+    marker_color: Optional[str] = None
+    marker_opacity: Optional[float] = None
+
+
+MARKER_SHAPES = {"circle", "square", "triangle", "diamond", "star"}
+
+
+@app.patch("/api/layer/soil_profiles/{project_id}/symbology")
+async def set_soil_profile_symbology(
+    project_id: str,
+    body: SoilProfileSymbologyUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Per-project marker symbology for the map view (shape, size, colour,
+    opacity). NULLs reset a property to the app default."""
+    if body.marker_shape is not None and body.marker_shape not in MARKER_SHAPES:
+        raise HTTPException(status_code=400,
+                            detail=f"marker_shape must be one of {sorted(MARKER_SHAPES)}")
+    if body.marker_size is not None and not 2 <= body.marker_size <= 30:
+        raise HTTPException(status_code=400, detail="marker_size must be 2-30")
+    if body.marker_color is not None and not re.match(r"^#[0-9a-fA-F]{6}$", body.marker_color):
+        raise HTTPException(status_code=400, detail="marker_color must be #rrggbb")
+    if body.marker_opacity is not None and not 0 <= body.marker_opacity <= 1:
+        raise HTTPException(status_code=400, detail="marker_opacity must be 0-1")
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE soil_data.mapset m
+                SET marker_shape = %s, marker_size = %s,
+                    marker_color = %s, marker_opacity = %s
+                FROM soil_data.project p
+                WHERE m.mapset_id = p.country_id || '-' || p.project_id
+                  AND p.project_id = %s
+                """,
+                (body.marker_shape, body.marker_size,
+                 body.marker_color, body.marker_opacity, project_id),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Project or stub mapset not found")
+            conn.commit()
+    log_audit(current_user["user_id"], None, "soil_profile_symbology_updated",
+              {"project_id": project_id, "shape": body.marker_shape,
+               "size": body.marker_size, "color": body.marker_color,
+               "opacity": body.marker_opacity}, None)
+    return {"project_id": project_id}
 
 
 class SoilProfileBlurUpdate(BaseModel):
