@@ -528,6 +528,18 @@ function updateControlTheme(basemapId) {
   document.body.classList.toggle('light-basemap', LIGHT_BASEMAPS.has(basemapId));
 }
 
+// Keep the legend and scale bar visible when the attribute table covers the
+// bottom of the map: lift them above the panel by its current height.
+function updateBottomOverlays() {
+  const panel = document.getElementById('profiles-data-modal');
+  const open = panel && panel.style.display !== 'none';
+  const offset = open ? panel.getBoundingClientRect().height : 0;
+  const legend = document.getElementById('legend');
+  if (legend) legend.style.bottom = offset ? `${offset + 40}px` : '';
+  const scale = document.querySelector('.scale-line');
+  if (scale) scale.style.bottom = offset ? `${offset + 8}px` : '';
+}
+
 function switchBasemap(basemapId) {
   updateControlTheme(basemapId);
   const baseLayers = map.get('baseLayers');
@@ -1207,6 +1219,7 @@ function addProfileLayerControl() {
     const panel = document.getElementById('profiles-data-modal');
     if (panel && panel.style.display !== 'none') {
       panel.style.display = 'none';
+      updateBottomOverlays();
       selectedProfileCodes.clear();
       refreshHighlight();
       showDataBtn.textContent = t('profiles.data');
@@ -2038,6 +2051,7 @@ async function showVisibleProfilesData() {
   ensureProfilesDataModal();
   const modal = document.getElementById('profiles-data-modal');
   modal.style.display = 'flex';
+  updateBottomOverlays();
 
   if (!_profilesPanelMoveHooked) {
     map.on('moveend', () => {
@@ -2235,6 +2249,7 @@ function ensureProfilesDataModal() {
     </div>
   `;
   document.body.appendChild(modal);
+  updateBottomOverlays();
 
   const resizer = document.getElementById('profiles-data-resizer');
   let resizing = false;
@@ -2247,6 +2262,7 @@ function ensureProfilesDataModal() {
     if (!resizing) return;
     const newHeight = Math.max(80, Math.min(window.innerHeight - 60, window.innerHeight - e.clientY));
     modal.style.height = newHeight + 'px';
+    updateBottomOverlays();
   });
   window.addEventListener('mouseup', () => {
     if (resizing) {
