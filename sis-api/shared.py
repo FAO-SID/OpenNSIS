@@ -95,6 +95,7 @@ class Layer(BaseModel):
     property_type: Optional[str] = None  # quantitative | categorical
     custom_classes: Optional[bool] = False  # mapset uses hand-defined class breaks
     default_opacity: Optional[float] = None  # initial map-view opacity (0-1; None = 1)
+    display_order: Optional[int] = None    # map panel position (lower first, None last)
     legend_classes: Optional[List[LegendClass]] = None  # soil_data.class rows
     version: Optional[str] = None
     unit_of_measure_id: Optional[str] = None

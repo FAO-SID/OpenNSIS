@@ -545,6 +545,7 @@ class AdminDashboard {
                   <table class="admin-table" id="soil-profile-layers-table">
                     <thead>
                       <tr>
+                        <th style="width:64px;" title="${t('a.orderTip')}">${t('a.order')}</th>
                         <th>${t('a.project')}</th>
                         <th>${t('a.sp.profiles')}</th>
                         <th>${t('a.sp.measurements')}</th>
@@ -707,6 +708,7 @@ class AdminDashboard {
                   <table class="admin-table" id="layers-table">
                     <thead>
                       <tr>
+                        <th style="width:64px;" title="${t('a.orderTip')}">${t('a.order')}</th>
                         <th>${t('a.raster.id')}</th>
                         <th>${t('a.raster.origFile')}</th>
                         <th style="width:120px;">${t('a.raster.group')}</th>
@@ -3103,7 +3105,7 @@ class AdminDashboard {
     const tbody = document.getElementById('layers-tbody');
 
     if (this.layers.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" class="empty-state">${t('a.raster.none')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${t('a.raster.none')}</td></tr>`;
       return;
     }
 
@@ -3124,6 +3126,9 @@ class AdminDashboard {
         : `<td class="raster-delete-col"></td>`;
       return `
       <tr${layer.is_default ? ' style="background:#fff8d6;"' : ''}>
+        <td><input type="number" class="layer-edit" data-layer-id="${id}" data-field="display_order"
+                   value="${layer.display_order == null ? '' : layer.display_order}" min="0" max="999" step="1"
+                   style="${editStyle}width:52px;" title="${t('a.orderTip')}"></td>
         <td><strong>${id}</strong></td>
         <td title="${this.escapeHtml(layer.file_orig_name || '')}" style="font-size:var(--fs-sm);color:#555;">${this.escapeHtml(layer.file_orig_name || '-')}</td>
         <td style="width:120px;"><input class="layer-edit" data-layer-id="${id}" data-field="project_name" value="${this.escapeHtml(layer.project_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editGroupTip')}"></td>
@@ -3579,7 +3584,7 @@ class AdminDashboard {
 
     const rows = this.soilProfileLayers || [];
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="11" class="empty-state">${t('a.sp.none')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="12" class="empty-state">${t('a.sp.none')}</td></tr>`;
       return;
     }
 
@@ -3610,6 +3615,9 @@ class AdminDashboard {
       const pubObs = Number(r.published_observation_count || 0);
       return `
       <tr>
+        <td><input type="number" class="sp-order-input" data-project-id="${pid}"
+                   value="${r.display_order == null ? '' : r.display_order}" min="0" max="999" step="1"
+                   style="width:52px;" title="${t('a.orderTip')}"></td>
         <td><strong>${name}</strong></td>
         <td title="${t('a.sp.pubTotalTip')}">
           <span class="sp-count-pub">${pubProfiles.toLocaleString()}</span>
@@ -3679,6 +3687,21 @@ class AdminDashboard {
         const value = e.currentTarget.dataset.value === '1';
         await this.flushPendingSoilProfileEdits();
         this.toggleSoilProfileHideDownload(projectId, value);
+      });
+    });
+
+    tbody.querySelectorAll('.sp-order-input').forEach(el => {
+      el.addEventListener('change', async (e) => {
+        const projectId = e.currentTarget.dataset.projectId;
+        const raw = e.currentTarget.value.trim();
+        const order = raw === '' ? null : parseInt(raw, 10);
+        try {
+          await api.setSoilProfileOrder(projectId, order);
+          await this.loadSoilProfileLayers();
+          this.renderSoilProfileLayers();
+        } catch (err) {
+          alert(t('a.err.updateFailed') + err.message);
+        }
       });
     });
 

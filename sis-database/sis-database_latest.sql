@@ -1666,6 +1666,7 @@ COMMENT ON COLUMN soil_data.element.type IS 'Type of profile element, Horizon or
 --
 
 CREATE TABLE soil_data.layer (
+    display_order integer,
     default_opacity real,
     mapset_id text NOT NULL,
     dimension_depth text,
@@ -2053,6 +2054,7 @@ COMMENT ON COLUMN soil_data.layer.map IS 'Generated MapServer MAP file content';
 --
 
 CREATE TABLE soil_data.mapset (
+    display_order integer,
     active_default boolean,
     marker_shape text,
     marker_size real,

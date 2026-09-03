@@ -638,6 +638,17 @@ async def update_layer_custom(
     has_proj = "project_name" in payload
     has_prop = "property_name" in payload
     has_opac = "default_opacity" in payload
+    has_order = "display_order" in payload
+    order = None
+    if has_order:
+        raw = payload.get("display_order")
+        if raw is None or str(raw).strip() == "":
+            order = None
+        else:
+            try:
+                order = int(float(raw))
+            except (TypeError, ValueError):
+                raise HTTPException(status_code=400, detail="display_order must be an integer")
     opacity = None
     if has_opac:
         raw = payload.get("default_opacity")
@@ -650,7 +661,7 @@ async def update_layer_custom(
                 raise HTTPException(status_code=400, detail="default_opacity must be a number")
             if not 0 <= opacity <= 1:
                 raise HTTPException(status_code=400, detail="default_opacity must be between 0 and 1")
-    if not (has_proj or has_prop or has_opac):
+    if not (has_proj or has_prop or has_opac or has_order):
         raise HTTPException(status_code=400, detail="No editable field supplied")
 
     with get_db() as conn:
@@ -671,13 +682,18 @@ async def update_layer_custom(
                     "UPDATE soil_data.layer SET default_opacity = %s WHERE layer_id = %s",
                     (opacity, layer_id),
                 )
+            if has_order:
+                cur.execute(
+                    "UPDATE soil_data.layer SET display_order = %s WHERE layer_id = %s",
+                    (order, layer_id),
+                )
             if has_proj:
                 cur.execute(
                     "UPDATE soil_data.mapset SET costum_group = %s WHERE mapset_id = %s",
                     (_clean(payload.get("project_name")), mapset_id),
                 )
     log_audit(current_user["user_id"], None, "layer_custom_updated",
-              {"layer_id": layer_id, **{k: payload[k] for k in ("project_name", "property_name", "default_opacity") if k in payload}},
+              {"layer_id": layer_id, **{k: payload[k] for k in ("project_name", "property_name", "default_opacity", "display_order") if k in payload}},
               None)
     return {"layer_id": layer_id, "ok": True}
 
@@ -1117,6 +1133,7 @@ async def get_all_layers(current_user: dict = Depends(get_current_user)):
                   mp.property_type,
                   COALESCE(m.custom_classes, FALSE) AS custom_classes,
                   l.default_opacity,
+                  l.display_order,
                   -- A short token that mutates whenever the engine writes
                   -- new pixels: stats_min/max + the embedded MapServer .map
                   -- text hash. Used as the WMS cache-buster.
@@ -1128,7 +1145,7 @@ async def get_all_layers(current_user: dict = Depends(get_current_user)):
                 LEFT JOIN soil_data.mapped_property mp
                        ON mp.mapped_property_id = m.mapped_property_id
                 WHERE m.spatial_representation_type_code = 'grid'
-                ORDER BY l.layer_id
+                ORDER BY l.display_order NULLS LAST, l.layer_id
             """)
             rows = cur.fetchall()
 
@@ -1274,6 +1291,7 @@ async def get_published_layers(
                   mp.property_type,
                   COALESCE(m.custom_classes, FALSE) AS custom_classes,
                   l.default_opacity,
+                  l.display_order,
                   m.unit_of_measure_id,
                   m.keyword_theme      AS keywords,
                   -- DST outputs get a richer click popup (per-input breakdown).
@@ -1290,7 +1308,7 @@ async def get_published_layers(
                        ON mp.mapped_property_id = m.mapped_property_id
                 WHERE l.is_published = TRUE
                   AND m.spatial_representation_type_code = 'grid'
-                ORDER BY l.layer_id
+                ORDER BY l.display_order NULLS LAST, l.layer_id
             """)
             rows = cur.fetchall()
 
@@ -1343,6 +1361,7 @@ async def get_published_layers(
             "no_data_value": r.get("no_data_value"),
             "custom_classes": bool(r.get("custom_classes")),
             "default_opacity": r.get("default_opacity"),
+            "display_order": r.get("display_order"),
             "property_type": r.get("property_type"),
             "legend_classes": classes_by_mapset.get(r.get("mapset_id")) or None,
             "metadata_url": metadata_url,
@@ -1434,16 +1453,18 @@ async def get_profile_symbology(api_client: dict = Depends(verify_api_key)):
             cur.execute("""
                 SELECT mapset_id, marker_shape, marker_size,
                        marker_color, marker_opacity,
-                       COALESCE(active_default, TRUE) AS active_default
+                       COALESCE(active_default, TRUE) AS active_default,
+                       display_order
                 FROM soil_data.mapset
                 WHERE marker_shape IS NOT NULL OR marker_size IS NOT NULL
                    OR marker_color IS NOT NULL OR marker_opacity IS NOT NULL
-                   OR active_default IS FALSE
+                   OR active_default IS FALSE OR display_order IS NOT NULL
             """)
             return {r["mapset_id"]: {
                 "shape": r["marker_shape"], "size": r["marker_size"],
                 "color": r["marker_color"], "opacity": r["marker_opacity"],
                 "active": r["active_default"],
+                "order": r["display_order"],
             } for r in cur.fetchall()}
 
 
@@ -4654,6 +4675,7 @@ async def list_soil_profile_layers(current_user: dict = Depends(get_current_user
           COALESCE(pm.hide_download, FALSE) AS hide_download,
           pm.marker_shape, pm.marker_size, pm.marker_color, pm.marker_opacity,
           COALESCE(pm.active_default, TRUE) AS active_default,
+          pm.display_order,
           COALESCE(pt.total_profiles, 0) AS total_profile_count,
           COALESCE(ppc.published_profiles, 0) AS published_profile_count,
           COALESCE(tobs.total_observations, 0) AS total_observation_count,
@@ -4672,7 +4694,7 @@ async def list_soil_profile_layers(current_user: dict = Depends(get_current_user
         LEFT JOIN published_obs pobs
                ON pobs.country_id = p.country_id AND pobs.project_id = p.project_id
         WHERE COALESCE(pt.total_profiles, 0) > 0
-        ORDER BY p.name;
+        ORDER BY pm.display_order NULLS LAST, p.name;
     """
     with get_db() as conn:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
@@ -4736,6 +4758,36 @@ async def set_soil_profile_limit(
                 raise HTTPException(status_code=404, detail="Project or stub mapset not found")
             conn.commit()
     return {"project_id": project_id, "profile_limit": body.profile_limit}
+
+
+class SoilProfileOrderUpdate(BaseModel):
+    display_order: Optional[int] = None
+
+
+@app.patch("/api/layer/soil_profiles/{project_id}/order")
+async def set_soil_profile_order(
+    project_id: str,
+    body: SoilProfileOrderUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Position of the project in the map view's Soil profiles panel
+    (lower first, NULL last)."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE soil_data.mapset m
+                SET display_order = %s
+                FROM soil_data.project p
+                WHERE m.mapset_id = p.country_id || '-' || p.project_id
+                  AND p.project_id = %s
+                """,
+                (body.display_order, project_id),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Project or stub mapset not found")
+            conn.commit()
+    return {"project_id": project_id, "display_order": body.display_order}
 
 
 class SoilProfileActiveUpdate(BaseModel):
@@ -5245,7 +5297,7 @@ async def list_dst_inputs(current_user: dict = Depends(get_current_user)):
                 LEFT JOIN soil_data.mapset m ON m.mapset_id = l.mapset_id
                 WHERE l.is_published = TRUE
                   AND m.spatial_representation_type_code = 'grid'
-                ORDER BY l.layer_id
+                ORDER BY l.display_order NULLS LAST, l.layer_id
             """)
             return cur.fetchall()
 

@@ -928,6 +928,18 @@ async function loadProfiles() {
       const sym = profileSymbology[mapsetId];
       if (sym && sym.color) profileColors[name] = sym.color;
     });
+
+    // Admin-defined panel order (lower first, unset last, then by name).
+    projectNames.sort((a, b) => {
+      const oa = (profileSymbology[profileMapsetIds[a]] || {}).order;
+      const ob = (profileSymbology[profileMapsetIds[b]] || {}).order;
+      const na = oa == null ? Infinity : Number(oa);
+      const nb = ob == null ? Infinity : Number(ob);
+      return na - nb || a.localeCompare(b);
+    });
+    const orderedColors = {};
+    projectNames.forEach(n => { orderedColors[n] = profileColors[n]; });
+    profileColors = orderedColors;
     
     // Create GeoJSON format parser
     const geoJsonFormat = new GeoJSON();
