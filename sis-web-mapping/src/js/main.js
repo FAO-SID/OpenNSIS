@@ -1029,10 +1029,8 @@ function getUnifiedClusterStyle(feature) {
     });
     
     const color = profileColors[dominantProject] || '#63452C';
-    const clusterOpacity = (() => {
-      const sym = projectSymbology(dominantProject);
-      return sym.opacity == null ? 0.8 : Number(sym.opacity);
-    })();
+    const sym = projectSymbology(dominantProject);
+    const clusterOpacity = sym.opacity == null ? 0.8 : Number(sym.opacity);
 
     // Convert hex to rgba
     const hexToRgba = (hex, alpha) => {
@@ -1042,12 +1040,15 @@ function getUnifiedClusterStyle(feature) {
       return `rgba(${r}, ${g}, ${b}, ${alpha})`;
     };
     
+    // Clusters wear the dominant project's symbology too — same shape,
+    // colour and opacity as its single points, sized by member count.
     return new Style({
-      image: new CircleStyle({
-        radius: 15 + Math.min(size / 2, 10),
-        fill: new Fill({ color: hexToRgba(color, clusterOpacity) }),
-        stroke: new Stroke({ color: color, width: 2 })
-      }),
+      image: markerImage(
+        sym.shape || 'circle',
+        15 + Math.min(size / 2, 10),
+        new Fill({ color: hexToRgba(color, clusterOpacity) }),
+        new Stroke({ color: color, width: 2 })
+      ),
       text: new Text({
         text: size.toString(),
         fill: new Fill({ color: '#fff' }),
