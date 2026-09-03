@@ -17,7 +17,6 @@
   "legend.alt": "Leyenda",
   "profiles.data": "Datos",
   "profiles.hide": "Ocultar",
-  "profiles.changeColour": "Cambiar color",
   "profiles.noneInDb": "No se encontraron perfiles en la base de datos",
   "profiles.unknownProject": "Proyecto desconocido",
   "profiles.noValidFeatures": "No se pudieron crear entidades de perfil válidas",

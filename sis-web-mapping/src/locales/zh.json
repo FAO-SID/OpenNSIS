@@ -17,7 +17,6 @@
   "legend.alt": "图例",
   "profiles.data": "数据",
   "profiles.hide": "隐藏",
-  "profiles.changeColour": "更改颜色",
   "profiles.noneInDb": "数据库中未找到剖面",
   "profiles.unknownProject": "未知项目",
   "profiles.noValidFeatures": "无法创建有效的剖面要素",

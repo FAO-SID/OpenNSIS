@@ -17,7 +17,6 @@
   "legend.alt": "Легенда",
   "profiles.data": "Данные",
   "profiles.hide": "Скрыть",
-  "profiles.changeColour": "Изменить цвет",
   "profiles.noneInDb": "Профили в базе данных не найдены",
   "profiles.unknownProject": "Неизвестный проект",
   "profiles.noValidFeatures": "Не удалось создать корректные объекты профилей",

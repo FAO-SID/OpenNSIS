@@ -1180,20 +1180,10 @@ function addProfileLayerControl() {
     colorWrapper.style.overflow = 'hidden';
     colorWrapper.style.border = '2px solid #fff';
     colorWrapper.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
-    colorWrapper.style.cursor = 'pointer';
-    colorWrapper.title = t('profiles.changeColour');
+
+    // Static colour swatch — the colour comes from the admin symbology
+    // (Soil profiles → Symbology); visitors no longer edit it.
     
-    const colorPicker = document.createElement('input');
-    colorPicker.type = 'color';
-    colorPicker.value = color;
-    colorPicker.style.position = 'absolute';
-    colorPicker.style.top = '0';
-    colorPicker.style.left = '0';
-    colorPicker.style.width = '100%';
-    colorPicker.style.height = '100%';
-    colorPicker.style.border = 'none';
-    colorPicker.style.cursor = 'pointer';
-    colorPicker.style.opacity = '0';
     
     const colorCircle = document.createElement('div');
     colorCircle.style.width = '100%';
@@ -1203,7 +1193,6 @@ function addProfileLayerControl() {
     colorCircle.style.pointerEvents = 'none';
     
     colorWrapper.appendChild(colorCircle);
-    colorWrapper.appendChild(colorPicker);
     
     layerItem.appendChild(checkbox);
     layerItem.appendChild(label);
@@ -1279,17 +1268,6 @@ function addProfileLayerControl() {
       }
     });
 
-    // Update color
-    colorPicker.addEventListener('input', (e) => {
-      colorCircle.style.backgroundColor = e.target.value;
-    });
-
-    colorPicker.addEventListener('change', (e) => {
-      profileColors[projectName] = e.target.value;
-      colorCircle.style.backgroundColor = e.target.value;
-      const lyr = profileLayers[projectName].layer;
-      if (lyr) lyr.changed();
-    });
   });
   
   profileGroup.appendChild(content);

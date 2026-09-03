@@ -17,7 +17,6 @@
   "legend.alt": "Legend",
   "profiles.data": "Data",
   "profiles.hide": "Hide",
-  "profiles.changeColour": "Change colour",
   "profiles.noneInDb": "No profiles found in database",
   "profiles.unknownProject": "Unknown Project",
   "profiles.noValidFeatures": "No valid profile features could be created",
