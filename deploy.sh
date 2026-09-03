@@ -132,6 +132,28 @@ sleep 5
 docker exec sis-database psql -d sis -U sis -f /tmp/init.sql
 docker exec sis-database psql -d sis -U sis -f /tmp/sis-database_latest_with_codelist.sql
 
+# Bring the freshly seeded schema up to date. The seed dump can lag behind
+# sis-database/migrations/ (migrations are idempotent, so re-running ones the
+# dump already contains is harmless). Same ledgered runner as update.sh, so a
+# later update.sh skips everything applied here.
+echo "Applying database migrations..."
+docker exec -i sis-database psql -d sis -U sis -v ON_ERROR_STOP=1 -q <<'SQL'
+CREATE SCHEMA IF NOT EXISTS api;
+CREATE TABLE IF NOT EXISTS api.schema_migration (
+  filename   text PRIMARY KEY,
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+SQL
+shopt -s nullglob
+for f in "$PROJECT_DIR"/sis-database/migrations/*.sql; do
+  name=$(basename "$f")
+  echo "  apply  $name"
+  { cat "$f"; printf "\nINSERT INTO api.schema_migration(filename) VALUES ('%s') ON CONFLICT DO NOTHING;\n" "$name"; } \
+    | docker exec -i sis-database psql -d sis -U sis -v ON_ERROR_STOP=1 --single-transaction -q \
+    || { echo "ERROR: migration '$name' failed — rolled back."; exit 1; }
+done
+shopt -u nullglob
+
 # Rotate the sis_glosis role password to the value generated in .env.
 # (sis-api-glosis connects with this. The default password from init.sql is the
 # role name — rotate it now so each deployment has its own.)
