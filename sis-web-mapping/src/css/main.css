@@ -398,11 +398,29 @@ h1, h2, h3, h4, h5 {
 
 .scale-line {
     position: absolute;
-    bottom: 2px;
+    bottom: 8px;
     right: 150px;
-    padding: var(--sp-2) var(--sp-3);
-    border-radius: var(--radius-sm);
     z-index: 1000;
+}
+
+/* Strip OpenLayers' boxed default: a bare white bracket + label with a
+   drop shadow, same family as the other map controls. */
+.scale-line .ol-scale-line {
+    position: static;
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+.scale-line .ol-scale-line-inner {
+    background: none;
+    border: 1.6px solid #fff;
+    border-top: none;
+    color: #fff;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-align: center;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
 }
 
 /* =====================================================================
