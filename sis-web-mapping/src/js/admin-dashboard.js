@@ -3620,7 +3620,7 @@ class AdminDashboard {
         <td>
           <button type="button" class="sp-symbology-btn" data-project-id="${pid}" title="${t('a.sp.symbologyTip')}"
                   style="background:none;border:1px solid #ccc;border-radius:4px;padding:3px 8px;cursor:pointer;line-height:0;">
-            ${this._markerSvg(r.marker_shape || 'circle', r.marker_color || '#63452C', r.marker_opacity == null ? 0.8 : r.marker_opacity)}
+            ${this._markerSvg(r.marker_shape || 'profile', r.marker_color || '#63452C', r.marker_opacity == null ? 0.8 : r.marker_opacity)}
           </button>
         </td>
         <td>
@@ -3760,7 +3760,7 @@ class AdminDashboard {
   openSymbologyModal(row) {
     const pid = row.project_id;
     const cur = {
-      shape: row.marker_shape || 'circle',
+      shape: row.marker_shape || 'profile',
       size: row.marker_size == null ? 8 : Number(row.marker_size),
       color: row.marker_color || '#63452C',
       opacity: row.marker_opacity == null ? 0.8 : Number(row.marker_opacity),

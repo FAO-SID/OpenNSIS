@@ -854,21 +854,6 @@ async function showMetadataPopup(metadataUrl) {
 
 // ==================== Profile Layer ====================
 
-function generateProjectColors(projectNames) {
-  const colors = [
-    '#63452C',                                      // default soil-profile colour
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A',
-    '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E2',
-    '#F8B739', '#52B788', '#E63946', '#457B9D'
-  ];
-  
-  const projectColors = {};
-  projectNames.forEach((name, index) => {
-    projectColors[name] = colors[index % colors.length];
-  });
-  
-  return projectColors;
-}
 
 
 async function loadProfiles() {
@@ -901,7 +886,10 @@ async function loadProfiles() {
     console.log('Projects found:', projectNames);
 
     // Generate colors for each project
-    profileColors = generateProjectColors(projectNames);
+    // Default symbology: every project starts as a brown soil-profile bar;
+    // per-project colours/shapes come from the admin symbology below.
+    profileColors = {};
+    projectNames.forEach(n => { profileColors[n] = '#63452C'; });
 
     // Map project_name → mapset_id so the layer-control row can link to the
     // ISO 19139 metadata popup (the stub mapset_id is also the catalogue id).
@@ -1047,7 +1035,7 @@ function getUnifiedClusterStyle(feature) {
     // colour and opacity as its single points, sized by member count.
     return new Style({
       image: markerImage(
-        sym.shape || 'circle',
+        sym.shape || 'profile',
         15 + Math.min(size / 2, 10),
         new Fill({ color: hexToRgba(color, clusterOpacity) }),
         new Stroke({ color: color, width: 2 })
@@ -1073,7 +1061,7 @@ function getUnifiedClusterStyle(feature) {
     const sym = projectSymbology(projectName);
     return new Style({
       image: markerImage(
-        sym.shape || 'circle',
+        sym.shape || 'profile',
         sym.size == null ? 8 : Number(sym.size),
         new Fill({ color: hexToRgba(color, sym.opacity == null ? 0.8 : Number(sym.opacity)) }),
         new Stroke({ color: '#fff', width: 2 })
@@ -1196,7 +1184,7 @@ function addProfileLayerControl() {
     colorWrapper.style.lineHeight = '0';
     colorWrapper.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))';
     colorWrapper.innerHTML = markerSvgIcon(
-      sym.shape || 'circle', color, sym.opacity == null ? 0.85 : Number(sym.opacity));
+      sym.shape || 'profile', color, sym.opacity == null ? 0.85 : Number(sym.opacity));
     
     layerItem.appendChild(checkbox);
     layerItem.appendChild(label);
