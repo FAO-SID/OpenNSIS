@@ -1107,6 +1107,21 @@ function markerImage(shape, radius, fill, stroke) {
   }
 }
 
+// Small inline-SVG rendering of a project's marker for the layer panel —
+// same shapes as markerImage, so the panel mimics the map.
+function markerSvgIcon(shape, color, opacity, px = 20) {
+  const shapes = {
+    circle:   `<circle cx="9" cy="9" r="7"/>`,
+    square:   `<rect x="2.5" y="2.5" width="13" height="13"/>`,
+    triangle: `<polygon points="9,2 16,15.5 2,15.5"/>`,
+    diamond:  `<polygon points="9,1.5 16.5,9 9,16.5 1.5,9"/>`,
+    star:     `<polygon points="9,1.5 11.2,6.5 16.5,7 12.6,10.7 13.8,16 9,13.2 4.2,16 5.4,10.7 1.5,7 6.8,6.5"/>`,
+    profile:  `<rect x="6" y="1.5" width="6" height="15"/>`,
+  };
+  return `<svg width="${px}" height="${px}" viewBox="0 0 18 18" aria-hidden="true">`
+    + `<g fill="${color}" fill-opacity="${opacity}" stroke="#fff" stroke-width="1.2">${shapes[shape] || shapes.circle}</g></svg>`;
+}
+
 function addProfileLayerControl() {
   const profileGroup = document.createElement('div');
   profileGroup.className = 'layer-group';
@@ -1171,28 +1186,14 @@ function addProfileLayerControl() {
     label.textContent = projectName;
     label.style.flex = '1';
     
-    // Create circular colour picker wrapper
-    const colorWrapper = document.createElement('div');
-    colorWrapper.style.position = 'relative';
-    colorWrapper.style.width = '24px';
-    colorWrapper.style.height = '24px';
-    colorWrapper.style.borderRadius = '50%';
-    colorWrapper.style.overflow = 'hidden';
-    colorWrapper.style.border = '2px solid #fff';
-    colorWrapper.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
-
-    // Static colour swatch — the colour comes from the admin symbology
-    // (Soil profiles → Symbology); visitors no longer edit it.
-    
-    
-    const colorCircle = document.createElement('div');
-    colorCircle.style.width = '100%';
-    colorCircle.style.height = '100%';
-    colorCircle.style.backgroundColor = color;
-    colorCircle.style.borderRadius = '50%';
-    colorCircle.style.pointerEvents = 'none';
-    
-    colorWrapper.appendChild(colorCircle);
+    // Static marker swatch — a miniature of the admin-set symbology
+    // (shape, colour and opacity), so the panel mimics the map.
+    const sym = projectSymbology(projectName);
+    const colorWrapper = document.createElement('span');
+    colorWrapper.style.lineHeight = '0';
+    colorWrapper.style.filter = 'drop-shadow(0 1px 2px rgba(0,0,0,0.3))';
+    colorWrapper.innerHTML = markerSvgIcon(
+      sym.shape || 'circle', color, sym.opacity == null ? 0.85 : Number(sym.opacity));
     
     layerItem.appendChild(checkbox);
     layerItem.appendChild(label);
