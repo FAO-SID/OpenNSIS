@@ -501,5 +501,7 @@
   "a.sp.activeOnTip": "地图视图中默认勾选。点击改为默认不勾选。",
   "a.sp.activeOffTip": "已发布但默认不勾选。点击改为默认勾选。",
   "a.raster.defaultOnTip": "这是地图视图的默认图层。点击取消。",
-  "a.raster.defaultOffTip": "点击将其设为地图视图的默认图层。"
+  "a.raster.defaultOffTip": "点击将其设为地图视图的默认图层。",
+  "a.moveUp": "上移",
+  "a.moveDown": "下移"
 }

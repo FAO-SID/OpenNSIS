@@ -1027,3 +1027,16 @@ input:checked + .toggle-slider:before {
 }
 
 .legend-swatch:hover { box-shadow: 0 0 0 2px var(--color-primary); }
+
+/* Row reorder chevrons (Rasters / Soil profiles Order column). */
+.ord-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 3px;
+    color: #666;
+    line-height: 0;
+}
+
+.ord-btn:hover:not(:disabled) { color: var(--color-primary); }
+.ord-btn:disabled { opacity: 0.25; cursor: default; }

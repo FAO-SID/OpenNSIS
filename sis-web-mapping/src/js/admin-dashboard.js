@@ -3113,7 +3113,7 @@ class AdminDashboard {
     const downloadBase = baseSetting ? baseSetting.value : '/downloads/';
 
     const editStyle = 'padding:2px 6px;font-size:var(--fs-sm);width:100%;box-sizing:border-box;background:transparent;border:1px solid transparent;';
-    tbody.innerHTML = this.layers.map(layer => {
+    tbody.innerHTML = this.layers.map((layer, rowIdx) => {
       const id = this.escapeHtml(layer.layer_id);
       const idJs = this.escapeJsAttr(layer.layer_id);
       const defaultCell = layer.is_default
@@ -3126,9 +3126,12 @@ class AdminDashboard {
         : `<td class="raster-delete-col"></td>`;
       return `
       <tr${layer.is_default ? ' style="background:#fff8d6;"' : ''}>
-        <td><input type="number" class="layer-edit" data-layer-id="${id}" data-field="display_order"
-                   value="${layer.display_order == null ? '' : layer.display_order}" min="0" max="999" step="1"
-                   style="${editStyle}width:52px;" title="${t('a.orderTip')}"></td>
+        <td style="white-space:nowrap;">
+          <button type="button" class="ord-btn layer-move" data-layer-id="${id}" data-dir="-1"
+                  title="${t('a.moveUp')}" ${rowIdx === 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg></button>
+          <button type="button" class="ord-btn layer-move" data-layer-id="${id}" data-dir="1"
+                  title="${t('a.moveDown')}" ${rowIdx === this.layers.length - 1 ? 'disabled' : ''}><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10l6 6 6-6"/></svg></button>
+        </td>
         <td><strong>${id}</strong></td>
         <td title="${this.escapeHtml(layer.file_orig_name || '')}" style="font-size:var(--fs-sm);color:#555;">${this.escapeHtml(layer.file_orig_name || '-')}</td>
         <td style="width:120px;"><input class="layer-edit" data-layer-id="${id}" data-field="project_name" value="${this.escapeHtml(layer.project_name || '')}" placeholder="-" style="${editStyle}" title="${t('a.raster.editGroupTip')}"></td>
@@ -3149,6 +3152,10 @@ class AdminDashboard {
       </tr>
     `;
     }).join('');
+
+    tbody.querySelectorAll('.layer-move').forEach(btn => {
+      btn.addEventListener('click', () => this.moveRasterLayer(btn.dataset.layerId, Number(btn.dataset.dir)));
+    });
 
     // Default-opacity sliders: live value label, save on release.
     tbody.querySelectorAll('.layer-opacity').forEach(el => {
@@ -3516,6 +3523,44 @@ class AdminDashboard {
     });
   }
 
+  // Reorder by swapping with the neighbour, then persist a clean 0..n-1
+  // sequence for every row whose stored position changed.
+  async moveRasterLayer(layerId, dir) {
+    const arr = this.layers.slice();
+    const i = arr.findIndex(l => l.layer_id === layerId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    try {
+      for (let k = 0; k < arr.length; k++) {
+        if (arr[k].display_order !== k) {
+          await api.updateLayerCustom(arr[k].layer_id, { display_order: k });
+        }
+      }
+      await this.loadLayers(); this.renderLayers();
+    } catch (e) {
+      alert(t('a.err.updateFailed') + e.message);
+    }
+  }
+
+  async moveSoilProfileLayer(projectId, dir) {
+    const arr = (this.soilProfileLayers || []).slice();
+    const i = arr.findIndex(r => r.project_id === projectId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= arr.length) return;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    try {
+      for (let k = 0; k < arr.length; k++) {
+        if (arr[k].display_order !== k) {
+          await api.setSoilProfileOrder(arr[k].project_id, k);
+        }
+      }
+      await this.loadSoilProfileLayers(); this.renderSoilProfileLayers();
+    } catch (e) {
+      alert(t('a.err.updateFailed') + e.message);
+    }
+  }
+
   async setDefaultLayer(layerId) {
     try {
       await api.setDefaultLayer(layerId);
@@ -3588,7 +3633,7 @@ class AdminDashboard {
       return;
     }
 
-    tbody.innerHTML = rows.map(r => {
+    tbody.innerHTML = rows.map((r, rowIdx) => {
       const pid = this.escapeHtml(r.project_id);
       const name = this.escapeHtml(r.project_name || r.project_id);
       const limitVal = r.profile_limit == null ? '' : String(r.profile_limit);
@@ -3615,9 +3660,12 @@ class AdminDashboard {
       const pubObs = Number(r.published_observation_count || 0);
       return `
       <tr>
-        <td><input type="number" class="sp-order-input" data-project-id="${pid}"
-                   value="${r.display_order == null ? '' : r.display_order}" min="0" max="999" step="1"
-                   style="width:52px;" title="${t('a.orderTip')}"></td>
+        <td style="white-space:nowrap;">
+          <button type="button" class="ord-btn sp-move" data-project-id="${pid}" data-dir="-1"
+                  title="${t('a.moveUp')}" ${rowIdx === 0 ? 'disabled' : ''}><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 14l6-6 6 6"/></svg></button>
+          <button type="button" class="ord-btn sp-move" data-project-id="${pid}" data-dir="1"
+                  title="${t('a.moveDown')}" ${rowIdx === rows.length - 1 ? 'disabled' : ''}><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 10l6 6 6-6"/></svg></button>
+        </td>
         <td><strong>${name}</strong></td>
         <td title="${t('a.sp.pubTotalTip')}">
           <span class="sp-count-pub">${pubProfiles.toLocaleString()}</span>
@@ -3690,19 +3738,8 @@ class AdminDashboard {
       });
     });
 
-    tbody.querySelectorAll('.sp-order-input').forEach(el => {
-      el.addEventListener('change', async (e) => {
-        const projectId = e.currentTarget.dataset.projectId;
-        const raw = e.currentTarget.value.trim();
-        const order = raw === '' ? null : parseInt(raw, 10);
-        try {
-          await api.setSoilProfileOrder(projectId, order);
-          await this.loadSoilProfileLayers();
-          this.renderSoilProfileLayers();
-        } catch (err) {
-          alert(t('a.err.updateFailed') + err.message);
-        }
-      });
+    tbody.querySelectorAll('.sp-move').forEach(btn => {
+      btn.addEventListener('click', () => this.moveSoilProfileLayer(btn.dataset.projectId, Number(btn.dataset.dir)));
     });
 
     tbody.querySelectorAll('.sp-active-toggle').forEach(el => {
