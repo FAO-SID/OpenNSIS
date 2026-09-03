@@ -554,6 +554,7 @@ class AdminDashboard {
                         <th title="${t('a.sp.shareAttrsTip')}">${t('a.sp.shareAttrs')}</th>
                         <th title="${t('a.sp.showDlTip')}">${t('a.sp.showDl')}</th>
                         <th>${t('a.published')}</th>
+                        <th title="${t('a.sp.activeTip')}">${t('a.active')}</th>
                         <th title="${t('a.sp.pruneTip')}">${t('a.sp.prune')}</th>
                       </tr>
                     </thead>
@@ -3574,7 +3575,7 @@ class AdminDashboard {
 
     const rows = this.soilProfileLayers || [];
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="10" class="empty-state">${t('a.sp.none')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11" class="empty-state">${t('a.sp.none')}</td></tr>`;
       return;
     }
 
@@ -3595,6 +3596,10 @@ class AdminDashboard {
       const showDlBadge = r.hide_download
         ? `<span class="badge badge-danger sp-hide-dl-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="${t('a.sp.dlHiddenTip')}">${t('a.no')}</span>`
         : `<span class="badge badge-success sp-hide-dl-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="${t('a.sp.dlShownTip')}">${t('a.yes')}</span>`;
+      // Active-by-default: published either way; No = starts unticked.
+      const activeBadge = (r.active_default === false)
+        ? `<span class="badge badge-danger sp-active-toggle" data-project-id="${pid}" data-value="1" style="cursor:pointer;" title="${t('a.sp.activeOffTip')}">${t('a.no')}</span>`
+        : `<span class="badge badge-success sp-active-toggle" data-project-id="${pid}" data-value="0" style="cursor:pointer;" title="${t('a.sp.activeOnTip')}">${t('a.yes')}</span>`;
       const totalProfiles = Number(r.total_profile_count || 0);
       const pubProfiles = Number(r.published_profile_count || 0);
       const totalObs = Number(r.total_observation_count || 0);
@@ -3638,6 +3643,7 @@ class AdminDashboard {
             ${r.is_published ? t('a.raster.unpublishBtn') : t('a.raster.publishBtn')}
           </button>
         </td>
+        <td>${activeBadge}</td>
         <td>
           <button class="btn btn-sm sp-delete-btn" style="background:#dc3545;color:#fff;"
                   data-project-id="${pid}" data-project-name="${name}"
@@ -3672,6 +3678,20 @@ class AdminDashboard {
         const value = e.currentTarget.dataset.value === '1';
         await this.flushPendingSoilProfileEdits();
         this.toggleSoilProfileHideDownload(projectId, value);
+      });
+    });
+
+    tbody.querySelectorAll('.sp-active-toggle').forEach(el => {
+      el.addEventListener('click', async (e) => {
+        const projectId = e.currentTarget.dataset.projectId;
+        const value = e.currentTarget.dataset.value === '1';
+        try {
+          await api.setSoilProfileActive(projectId, value);
+          await this.loadSoilProfileLayers();
+          this.renderSoilProfileLayers();
+        } catch (err) {
+          alert(t('a.err.updateFailed') + err.message);
+        }
       });
     });
 

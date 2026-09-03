@@ -496,5 +496,8 @@
   "a.shape.triangle": "三角形",
   "a.shape.diamond": "菱形",
   "a.shape.star": "星形",
-  "a.shape.profile": "土壤剖面（条形）"
+  "a.shape.profile": "土壤剖面（条形）",
+  "a.sp.activeTip": "是 = 图层在地图视图中默认勾选（可见）。否 = 已发布但默认不勾选。",
+  "a.sp.activeOnTip": "地图视图中默认勾选。点击改为默认不勾选。",
+  "a.sp.activeOffTip": "已发布但默认不勾选。点击改为默认勾选。"
 }

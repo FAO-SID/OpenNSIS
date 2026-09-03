@@ -1433,14 +1433,17 @@ async def get_profile_symbology(api_client: dict = Depends(verify_api_key)):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute("""
                 SELECT mapset_id, marker_shape, marker_size,
-                       marker_color, marker_opacity
+                       marker_color, marker_opacity,
+                       COALESCE(active_default, TRUE) AS active_default
                 FROM soil_data.mapset
                 WHERE marker_shape IS NOT NULL OR marker_size IS NOT NULL
                    OR marker_color IS NOT NULL OR marker_opacity IS NOT NULL
+                   OR active_default IS FALSE
             """)
             return {r["mapset_id"]: {
                 "shape": r["marker_shape"], "size": r["marker_size"],
                 "color": r["marker_color"], "opacity": r["marker_opacity"],
+                "active": r["active_default"],
             } for r in cur.fetchall()}
 
 
@@ -4650,6 +4653,7 @@ async def list_soil_profile_layers(current_user: dict = Depends(get_current_user
           COALESCE(pm.locations_only, FALSE) AS locations_only,
           COALESCE(pm.hide_download, FALSE) AS hide_download,
           pm.marker_shape, pm.marker_size, pm.marker_color, pm.marker_opacity,
+          COALESCE(pm.active_default, TRUE) AS active_default,
           COALESCE(pt.total_profiles, 0) AS total_profile_count,
           COALESCE(ppc.published_profiles, 0) AS published_profile_count,
           COALESCE(tobs.total_observations, 0) AS total_observation_count,
@@ -4732,6 +4736,38 @@ async def set_soil_profile_limit(
                 raise HTTPException(status_code=404, detail="Project or stub mapset not found")
             conn.commit()
     return {"project_id": project_id, "profile_limit": body.profile_limit}
+
+
+class SoilProfileActiveUpdate(BaseModel):
+    active_default: bool
+
+
+@app.patch("/api/layer/soil_profiles/{project_id}/active")
+async def set_soil_profile_active(
+    project_id: str,
+    body: SoilProfileActiveUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    """Whether the project's layer starts ticked (visible) in the map view.
+    Publishing is unaffected — the data stays available either way."""
+    with get_db() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE soil_data.mapset m
+                SET active_default = %s
+                FROM soil_data.project p
+                WHERE m.mapset_id = p.country_id || '-' || p.project_id
+                  AND p.project_id = %s
+                """,
+                (body.active_default, project_id),
+            )
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="Project or stub mapset not found")
+            conn.commit()
+    log_audit(current_user["user_id"], None, "soil_profile_active_updated",
+              {"project_id": project_id, "active_default": body.active_default}, None)
+    return {"project_id": project_id, "active_default": body.active_default}
 
 
 class SoilProfileSymbologyUpdate(BaseModel):

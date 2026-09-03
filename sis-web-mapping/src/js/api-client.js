@@ -261,6 +261,13 @@ class SISApiClient {
     });
   }
 
+  async setSoilProfileActive(projectId, activeDefault) {
+    return this.authenticatedRequest(`/api/layer/soil_profiles/${encodeURIComponent(projectId)}/active`, {
+      method: 'PATCH',
+      body: JSON.stringify({ active_default: activeDefault }),
+    });
+  }
+
   async setSoilProfilePublish(projectId, isPublished) {
     return this.authenticatedRequest(`/api/layer/soil_profiles/${encodeURIComponent(projectId)}/publish`, {
       method: 'PATCH',

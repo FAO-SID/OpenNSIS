@@ -496,5 +496,8 @@
   "a.shape.triangle": "Triangle",
   "a.shape.diamond": "Losange",
   "a.shape.star": "Étoile",
-  "a.shape.profile": "Profil de sol (barre)"
+  "a.shape.profile": "Profil de sol (barre)",
+  "a.sp.activeTip": "Oui = la couche démarre cochée (visible) dans la vue cartographique. Non = publiée mais décochée au départ.",
+  "a.sp.activeOnTip": "Démarre cochée dans la vue cartographique. Cliquez pour démarrer décochée.",
+  "a.sp.activeOffTip": "Publiée mais décochée au départ. Cliquez pour démarrer cochée."
 }

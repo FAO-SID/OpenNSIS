@@ -2053,6 +2053,7 @@ COMMENT ON COLUMN soil_data.layer.map IS 'Generated MapServer MAP file content';
 --
 
 CREATE TABLE soil_data.mapset (
+    active_default boolean,
     marker_shape text,
     marker_size real,
     marker_color text,

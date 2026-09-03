@@ -496,5 +496,8 @@
   "a.shape.triangle": "Triângulo",
   "a.shape.diamond": "Losango",
   "a.shape.star": "Estrela",
-  "a.shape.profile": "Perfil de solo (barra)"
+  "a.shape.profile": "Perfil de solo (barra)",
+  "a.sp.activeTip": "Sim = a camada começa marcada (visível) na vista do mapa. Não = publicada mas desmarcada por omissão.",
+  "a.sp.activeOnTip": "Começa marcada na vista do mapa. Clique para começar desmarcada.",
+  "a.sp.activeOffTip": "Publicada mas desmarcada por omissão. Clique para começar marcada."
 }

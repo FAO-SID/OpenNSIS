@@ -981,14 +981,17 @@ async function loadProfiles() {
     projectNames.forEach(name => {
       const vectorSource = new VectorSource({ features: featuresByProject[name] });
       const clusterSource = new Cluster({ distance: 100, source: vectorSource });
+      // Admin can publish a layer without activating it by default — it then
+      // starts unticked and the visitor opts in.
+      const startVisible = projectSymbology(name).active !== false;
       const layer = new VectorLayer({
         source: clusterSource,
         style: getUnifiedClusterStyle,
         zIndex: 1000,
-        visible: true
+        visible: startVisible
       });
       layer.set('name', name);
-      profileLayers[name] = { visible: true, layer };
+      profileLayers[name] = { visible: startVisible, layer };
       map.addLayer(layer);
     });
 
@@ -1179,7 +1182,7 @@ function addProfileLayerControl() {
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
     checkbox.id = checkboxId;
-    checkbox.checked = true;
+    checkbox.checked = profileLayers[projectName] ? profileLayers[projectName].visible : true;
     
     const label = document.createElement('label');
     label.htmlFor = checkboxId;

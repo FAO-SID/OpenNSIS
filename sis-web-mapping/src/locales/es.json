@@ -496,5 +496,8 @@
   "a.shape.triangle": "Triángulo",
   "a.shape.diamond": "Rombo",
   "a.shape.star": "Estrella",
-  "a.shape.profile": "Perfil de suelo (barra)"
+  "a.shape.profile": "Perfil de suelo (barra)",
+  "a.sp.activeTip": "Sí = la capa aparece marcada (visible) al cargar el mapa. No = publicada pero sin marcar.",
+  "a.sp.activeOnTip": "Aparece marcada al cargar el mapa. Haga clic para que empiece sin marcar.",
+  "a.sp.activeOffTip": "Publicada pero sin marcar al cargar el mapa. Haga clic para que empiece marcada."
 }
