@@ -1209,6 +1209,7 @@ function addProfileLayerControl() {
 
   const showDataBtn = document.createElement('button');
   showDataBtn.type = 'button';
+  showDataBtn.id = 'profiles-data-btn';
   showDataBtn.textContent = t('profiles.data');
   showDataBtn.className = 'btn btn-primary';
   showDataBtn.style.padding = '2px 8px';
@@ -1509,14 +1510,16 @@ function setupPopup() {
       const clusterFeatures = feature.get('features');
       
       if (clusterFeatures && clusterFeatures.length === 1) {
+        // Clicking a profile opens the attribute table with it selected —
+        // no popup card.
+        const code = clusterFeatures[0].get('profile_code');
         const panel = document.getElementById('profiles-data-modal');
-        if (panel && panel.style.display !== 'none') {
-          const code = clusterFeatures[0].get('profile_code');
-          toggleProfileSelection(code, { scrollIntoView: true });
-          return;
+        if (!panel || panel.style.display === 'none') {
+          await showVisibleProfilesData();
+          const btn = document.getElementById('profiles-data-btn');
+          if (btn) btn.textContent = t('profiles.hide');
         }
-        // Single profile - show observations
-        await showProfileObservations(clusterFeatures[0], popup, evt.coordinate);
+        toggleProfileSelection(code, { scrollIntoView: true });
         return; // Stop here, don't check raster
       } else if (clusterFeatures && clusterFeatures.length > 1) {
         // Cluster - zoom in
@@ -1535,34 +1538,6 @@ function setupPopup() {
   });
 }
 
-async function showProfileObservations(feature, popup, coordinate) {
-  const profileCode = feature.get('profile_code');
-  const projectName = feature.get('project_name');
-  const altitude = feature.get('altitude');
-  const date = feature.get('date');
-  
-  // Get coordinates from feature geometry
-  const geometry = feature.getGeometry();
-  const coords = geometry.getCoordinates();
-  // Transform from map projection (EPSG:3857) to WGS84 (EPSG:4326)
-  const lonLat = toLonLat(coords);
-  const longitude = lonLat[0].toFixed(6);
-  const latitude = lonLat[1].toFixed(6);
-
-  document.getElementById('popup-content').innerHTML = `
-    <div class="feature-info-layer">
-      <h3>Profile: ${profileCode}</h3>
-      <div class="feature-info-item">
-        <div class="feature-info-property"><strong>Project:</strong> ${projectName || 'N/A'}</div>
-        <div class="feature-info-property"><strong>Latitude:</strong> ${latitude}°</div>
-        <div class="feature-info-property"><strong>Longitude:</strong> ${longitude}°</div>
-        <div class="feature-info-property"><strong>Altitude:</strong> ${altitude || 'N/A'} m</div>
-        <div class="feature-info-property"><strong>Date:</strong> ${date || 'N/A'}</div>
-      </div>
-    </div>
-  `;
-  popup.setPosition(coordinate);
-}
 
 // ==================== Dynamic legend ====================
 // Built from soil_data.class rows shipped on each layer (legend_classes) —
