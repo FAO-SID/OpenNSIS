@@ -499,5 +499,7 @@
   "a.shape.profile": "Profil de sol (barre)",
   "a.sp.activeTip": "Oui = la couche démarre cochée (visible) dans la vue cartographique. Non = publiée mais décochée au départ.",
   "a.sp.activeOnTip": "Démarre cochée dans la vue cartographique. Cliquez pour démarrer décochée.",
-  "a.sp.activeOffTip": "Publiée mais décochée au départ. Cliquez pour démarrer cochée."
+  "a.sp.activeOffTip": "Publiée mais décochée au départ. Cliquez pour démarrer cochée.",
+  "a.raster.defaultOnTip": "Couche par défaut de la vue cartographique. Cliquez pour la retirer.",
+  "a.raster.defaultOffTip": "Cliquez pour en faire la couche par défaut de la vue cartographique."
 }

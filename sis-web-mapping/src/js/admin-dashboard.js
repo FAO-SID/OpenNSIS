@@ -553,7 +553,7 @@ class AdminDashboard {
                         <th title="${t('a.sp.blurTip')}">${t('a.sp.blur')}</th>
                         <th title="${t('a.sp.shareAttrsTip')}">${t('a.sp.shareAttrs')}</th>
                         <th title="${t('a.sp.showDlTip')}">${t('a.sp.showDl')}</th>
-                        <th>${t('a.raster.publishBtn')}</th>
+                        <th>${t('a.published')}</th>
                         <th title="${t('a.sp.activeTip')}">${t('a.active')}</th>
                         <th title="${t('a.sp.pruneTip')}">${t('a.sp.prune')}</th>
                       </tr>
@@ -713,7 +713,7 @@ class AdminDashboard {
                         <th>${t('a.raster.name')}</th>
                         <th style="width:90px;">${t('legend.alt')}</th>
                         <th style="width:70px;" title="${t('a.raster.opacityTip')}">${t('a.raster.opacity')}</th>
-                        <th>${t('a.raster.publishBtn')}</th>
+                        <th>${t('a.published')}</th>
                         <th>${t('a.default')}</th>
                         <th>WMS</th>
                         <th class="raster-delete-col" style="width:90px;">${t('a.delete')}</th>
@@ -3115,9 +3115,9 @@ class AdminDashboard {
       const id = this.escapeHtml(layer.layer_id);
       const idJs = this.escapeJsAttr(layer.layer_id);
       const defaultCell = layer.is_default
-        ? `<button class="btn btn-secondary" onclick="adminDashboard.clearDefaultLayer()">${t('a.raster.clearDefault')}</button>`
+        ? `<span class="badge badge-success" style="cursor:pointer;" title="${t('a.raster.defaultOnTip')}" onclick="adminDashboard.clearDefaultLayer()">${t('a.yes')}</span>`
         : (layer.publish
-            ? `<button class="btn btn-primary" onclick="adminDashboard.setDefaultLayer('${idJs}')">${t('a.raster.setDefault')}</button>`
+            ? `<span class="badge badge-danger" style="cursor:pointer;" title="${t('a.raster.defaultOffTip')}" onclick="adminDashboard.setDefaultLayer('${idJs}')">${t('a.no')}</span>`
             : '-');
       const deleteCell = this.isAdmin
         ? `<td class="raster-delete-col"><button class="btn btn-sm" style="background:#dc3545;color:#fff;" title="${t('a.raster.deleteTip')}" onclick="adminDashboard.deleteRasterLayer('${idJs}')">${t('a.delete')}</button></td>`
@@ -3135,12 +3135,9 @@ class AdminDashboard {
                  style="width:70px;" title="${t('a.raster.opacityTip')}">
           <span class="layer-opacity-val" style="font-size:var(--fs-xs);color:#555;min-width:26px;">${layer.default_opacity == null ? '1' : layer.default_opacity}</span>
         </div></td>
-        <td>
-          <button class="btn ${layer.publish ? 'btn-secondary' : 'btn-success'}"
-                  onclick="adminDashboard.toggleLayerPublish('${idJs}', ${!layer.publish})">
-            ${layer.publish ? t('a.raster.unpublishBtn') : t('a.raster.publishBtn')}
-          </button>
-        </td>
+        <td>${layer.publish
+          ? `<span class="badge badge-success" style="cursor:pointer;" title="${t('a.admdiv.pubTip')}" onclick="adminDashboard.toggleLayerPublish('${idJs}', false)">${t('a.yes')}</span>`
+          : `<span class="badge badge-danger" style="cursor:pointer;" title="${t('a.admdiv.unpubTip')}" onclick="adminDashboard.toggleLayerPublish('${idJs}', true)">${t('a.no')}</span>`}</td>
         <td>${defaultCell}</td>
         <td id="wms-status-${id}">-</td>
         ${deleteCell}
@@ -3644,12 +3641,9 @@ class AdminDashboard {
         </td>
         <td>${shareAttrBadge}</td>
         <td>${showDlBadge}</td>
-        <td>
-          <button class="btn ${r.is_published ? 'btn-secondary' : 'btn-success'} sp-publish-btn"
-                  data-project-id="${pid}" data-publish="${r.is_published ? '0' : '1'}">
-            ${r.is_published ? t('a.raster.unpublishBtn') : t('a.raster.publishBtn')}
-          </button>
-        </td>
+        <td>${r.is_published
+          ? `<span class="badge badge-success sp-publish-btn" data-project-id="${pid}" data-publish="0" style="cursor:pointer;" title="${t('a.admdiv.pubTip')}">${t('a.yes')}</span>`
+          : `<span class="badge badge-danger sp-publish-btn" data-project-id="${pid}" data-publish="1" style="cursor:pointer;" title="${t('a.admdiv.unpubTip')}">${t('a.no')}</span>`}</td>
         <td>${activeBadge}</td>
         <td>
           <button class="btn btn-sm sp-delete-btn" style="background:#dc3545;color:#fff;"

@@ -499,5 +499,7 @@
   "a.shape.profile": "Perfil de suelo (barra)",
   "a.sp.activeTip": "Sí = la capa aparece marcada (visible) al cargar el mapa. No = publicada pero sin marcar.",
   "a.sp.activeOnTip": "Aparece marcada al cargar el mapa. Haga clic para que empiece sin marcar.",
-  "a.sp.activeOffTip": "Publicada pero sin marcar al cargar el mapa. Haga clic para que empiece marcada."
+  "a.sp.activeOffTip": "Publicada pero sin marcar al cargar el mapa. Haga clic para que empiece marcada.",
+  "a.raster.defaultOnTip": "Es la capa predeterminada de la vista del mapa. Haga clic para quitarla.",
+  "a.raster.defaultOffTip": "Haga clic para hacerla la capa predeterminada de la vista del mapa."
 }

@@ -499,5 +499,7 @@
   "a.shape.profile": "Soil profile (bar)",
   "a.sp.activeTip": "Yes = the layer starts ticked (visible) in the map view. No = published but starts unticked.",
   "a.sp.activeOnTip": "Starts ticked in the map view. Click to start unticked.",
-  "a.sp.activeOffTip": "Published but starts unticked in the map view. Click to start ticked."
+  "a.sp.activeOffTip": "Published but starts unticked in the map view. Click to start ticked.",
+  "a.raster.defaultOnTip": "This is the map view's default layer. Click to clear.",
+  "a.raster.defaultOffTip": "Click to make this the map view's default layer."
 }
