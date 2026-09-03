@@ -365,42 +365,35 @@ h1, h2, h3, h4, h5 {
     z-index: 1000;
 }
 
+/* Borderless white stroke icons with a drop shadow — the same family as
+   the login and language buttons top-right. */
 .north-arrow {
-    background: rgba(255, 255, 255, 0.95);
-    padding: var(--sp-2) var(--sp-3);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-sm);
-    font-size: var(--fs-xl);
-    margin-bottom: var(--sp-3);
+    color: #fff;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+    margin-bottom: var(--sp-2);
     text-align: center;
+    line-height: 0;
 }
 
 .zoom-controls {
     display: flex;
     flex-direction: column;
-    gap: var(--sp-1);
+    gap: var(--sp-2);
+    align-items: center;
 }
 
 .zoom-controls button {
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid var(--color-border);
-    padding: var(--sp-2) var(--sp-3);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-sm);
+    background: none;
+    border: none;
+    padding: 4px;
     cursor: pointer;
-    font-size: var(--fs-lg);
-    font-weight: 600;
-    color: var(--color-text);
-    min-width: 36px;
-    transition: all var(--transition);
+    color: #fff;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+    line-height: 0;
+    transition: opacity var(--transition);
 }
 
-.zoom-controls button:hover {
-    background: var(--color-surface-hover);
-    color: var(--color-primary);
-}
-
+.zoom-controls button:hover { opacity: 0.75; }
 .zoom-controls button:active { transform: translateY(1px); }
 
 .scale-line {
