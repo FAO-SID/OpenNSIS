@@ -3748,18 +3748,20 @@ class AdminDashboard {
     const shapeOpts = ['circle', 'square', 'triangle', 'diamond', 'star', 'profile'].map(sh =>
       `<option value="${sh}"${cur.shape === sh ? ' selected' : ''}>${t('a.shape.' + sh)}</option>`).join('');
     const { body } = this._openModal(t('a.sp.symbology') + ' — ' + (row.project_name || pid), `
-      <div style="display:flex;gap:16px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap;">
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.sp.shape')}
+      <div style="display:flex;gap:20px;align-items:flex-end;margin-bottom:12px;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);flex:1;">${t('a.sp.shape')}
           <select class="sym-shape">${shapeOpts}</select></label>
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.sp.colour')}
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);flex:1;">${t('a.sp.colour')}
           <input type="color" class="sym-color" value="${this.escapeHtml(cur.color)}"></label>
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.sp.size')}
+      </div>
+      <div style="display:flex;gap:20px;align-items:flex-end;margin-bottom:14px;">
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);flex:1;">${t('a.sp.size')}
           <span style="display:flex;align-items:center;gap:6px;">
-            <input type="range" class="sym-size" min="4" max="20" step="1" value="${cur.size}" style="width:90px;">
+            <input type="range" class="sym-size" min="4" max="20" step="1" value="${cur.size}" style="flex:1;">
             <span class="sym-size-val" style="font-size:var(--fs-xs);min-width:20px;">${cur.size}</span></span></label>
-        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);">${t('a.raster.opacity')}
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);flex:1;">${t('a.raster.opacity')}
           <span style="display:flex;align-items:center;gap:6px;">
-            <input type="range" class="sym-opacity" min="0" max="1" step="0.05" value="${cur.opacity}" style="width:90px;">
+            <input type="range" class="sym-opacity" min="0" max="1" step="0.05" value="${cur.opacity}" style="flex:1;">
             <span class="sym-opacity-val" style="font-size:var(--fs-xs);min-width:26px;">${cur.opacity}</span></span></label>
       </div>
       <div class="sym-preview" style="display:flex;align-items:center;justify-content:center;height:64px;background:#eef3ee;border-radius:6px;margin-bottom:12px;"></div>
