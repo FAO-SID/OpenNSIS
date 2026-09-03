@@ -4233,6 +4233,89 @@ def _admin_div_features_from_geojson(data) -> list:
     return out
 
 
+def _admin_div_features_from_kml(contents: bytes) -> list:
+    """[(properties_json, geometry_json), …] from a KML document. KML is
+    always WGS 84 lon/lat by specification, so no CRS handling is needed.
+    Tag matching is namespace-agnostic (KML 2.2 and the older Google Earth
+    namespaces differ only in URI). Placemark name/description and
+    ExtendedData Data/SimpleData entries become feature properties."""
+    import xml.etree.ElementTree as ET
+    try:
+        root = ET.fromstring(contents)
+    except ET.ParseError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid KML: {e}")
+
+    def local(el):
+        return el.tag.rsplit("}", 1)[-1]
+
+    def ring(coord_el):
+        # <coordinates> holds whitespace-separated "lon,lat[,alt]" tuples.
+        pts = []
+        for tok in (coord_el.text or "").split():
+            parts = tok.split(",")
+            if len(parts) >= 2:
+                try:
+                    pts.append([float(parts[0]), float(parts[1])])
+                except ValueError:
+                    continue
+        if len(pts) >= 3 and pts[0] != pts[-1]:
+            pts.append(pts[0])   # KML rings are not required to be closed
+        return pts if len(pts) >= 4 else None
+
+    def polygon_rings(poly_el):
+        outer = poly_el.find("./{*}outerBoundaryIs/{*}LinearRing/{*}coordinates")
+        r = ring(outer) if outer is not None else None
+        if not r:
+            return None
+        rings = [r]
+        for inner in poly_el.findall("./{*}innerBoundaryIs/{*}LinearRing/{*}coordinates"):
+            ir = ring(inner)
+            if ir:
+                rings.append(ir)
+        return rings
+
+    out = []
+    for pm in (el for el in root.iter() if local(el) == "Placemark"):
+        polys = []
+        for el in pm.iter():
+            if local(el) == "Polygon":
+                rings = polygon_rings(el)
+                if rings:
+                    polys.append(rings)
+        if not polys:
+            continue   # point/line Placemarks are skipped, like elsewhere
+        props = {}
+        for tag in ("name", "description"):
+            v = pm.find(f"./{{*}}{tag}")
+            if v is not None and (v.text or "").strip():
+                props[tag] = v.text.strip()
+        for d in pm.iter():
+            if local(d) == "Data" and d.get("name"):
+                v = d.find("./{*}value")
+                props[d.get("name")] = (v.text or "").strip() if v is not None else ""
+            elif local(d) == "SimpleData" and d.get("name"):
+                props[d.get("name")] = (d.text or "").strip()
+        geom = ({"type": "Polygon", "coordinates": polys[0]} if len(polys) == 1
+                else {"type": "MultiPolygon", "coordinates": polys})
+        out.append((json.dumps(props, default=str), json.dumps(geom)))
+    return out
+
+
+def _admin_div_kml_from_kmz(contents: bytes) -> bytes:
+    """The KML document inside a KMZ archive (doc.kml by convention, else the
+    first .kml entry)."""
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(contents))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Not a valid KMZ archive")
+    kmls = [n for n in zf.namelist() if n.lower().endswith(".kml")]
+    if not kmls:
+        raise HTTPException(status_code=400,
+                            detail="The KMZ archive contains no .kml document")
+    kmls.sort(key=lambda n: (n.lower() != "doc.kml", n.lower()))
+    return zf.read(kmls[0])
+
+
 def _admin_div_features_from_zip(contents: bytes) -> tuple:
     """(features, epsg) from a zipped ESRI Shapefile, read with pyshp (pure
     Python — no GDAL vector stack in the image). The EPSG code comes from the
@@ -4411,7 +4494,8 @@ async def upload_admin_division(
     name: str = Form(...),
     current_user: dict = Depends(get_current_admin_user),
 ):
-    """Upload a polygon layer: GeoJSON (.geojson/.json) or zipped Shapefile."""
+    """Upload a polygon layer: GeoJSON (.geojson/.json), zipped Shapefile,
+    GeoPackage (.gpkg) or KML (.kml/.kmz)."""
     name = (name or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="A layer name is required")
@@ -4433,10 +4517,14 @@ async def upload_admin_division(
     elif fname.endswith(".gpkg"):
         feats, epsg = _admin_div_features_from_gpkg(contents)
         geom_expr = "ST_GeomFromWKB(%s)"
+    elif fname.endswith(".kml"):
+        feats, epsg = _admin_div_features_from_kml(contents), 4326
+    elif fname.endswith(".kmz"):
+        feats, epsg = _admin_div_features_from_kml(_admin_div_kml_from_kmz(contents)), 4326
     else:
         raise HTTPException(status_code=400, detail=(
-            "Upload GeoJSON (.geojson/.json), a zipped Shapefile (.zip) "
-            "or a GeoPackage (.gpkg)"))
+            "Upload GeoJSON (.geojson/.json), a zipped Shapefile (.zip), "
+            "a GeoPackage (.gpkg) or KML (.kml/.kmz)"))
     if not feats:
         raise HTTPException(status_code=400,
                             detail="No Polygon/MultiPolygon features found in the file")

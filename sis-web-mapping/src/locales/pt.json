@@ -103,7 +103,7 @@
   "a.value": "Valor",
   "a.loadingSettings": "A carregar as definições...",
   "a.admdiv.title": "Divisões administrativas",
-  "a.admdiv.intro": "Carregue camadas de limites poligonais — uma por nível administrativo (p. ex. País, Províncias, Municípios; os níveis e nomes variam por país). Formatos aceites: GeoJSON (.geojson/.json), Shapefile comprimido (.zip) ou GeoPackage (.gpkg). Ficheiros noutro sistema de coordenadas são reprojetados automaticamente para WGS 84 quando declaram o seu código EPSG. As camadas aparecem na lista de camadas do mapa em «Camadas base».",
+  "a.admdiv.intro": "Carregue camadas de limites poligonais — uma por nível administrativo (p. ex. País, Províncias, Municípios; os níveis e nomes variam por país). Formatos aceites: GeoJSON (.geojson/.json), Shapefile comprimido (.zip), GeoPackage (.gpkg) ou KML (.kml/.kmz). Ficheiros noutro sistema de coordenadas são reprojetados automaticamente para WGS 84 quando declaram o seu código EPSG. As camadas aparecem na lista de camadas do mapa em «Camadas base».",
   "a.admdiv.namePh": "Nome da camada (p. ex. Províncias)",
   "a.admdiv.upload": "Carregar camada",
   "a.order": "Ordem",

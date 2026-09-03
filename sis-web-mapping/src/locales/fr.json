@@ -103,7 +103,7 @@
   "a.value": "Valeur",
   "a.loadingSettings": "Chargement des paramètres...",
   "a.admdiv.title": "Divisions administratives",
-  "a.admdiv.intro": "Téléversez des couches de limites polygonales — une par niveau administratif (p. ex. pays, provinces, communes ; les niveaux et les noms varient selon les pays). Formats acceptés : GeoJSON (.geojson/.json), Shapefile compressé (.zip) ou GeoPackage (.gpkg). Les fichiers dans un autre système de coordonnées sont reprojetés automatiquement en WGS 84 lorsqu'ils déclarent leur code EPSG. Les couches apparaissent dans la liste des couches de la carte sous « Couches de base ».",
+  "a.admdiv.intro": "Téléversez des couches de limites polygonales — une par niveau administratif (p. ex. pays, provinces, communes ; les niveaux et les noms varient selon les pays). Formats acceptés : GeoJSON (.geojson/.json), Shapefile compressé (.zip), GeoPackage (.gpkg) ou KML (.kml/.kmz). Les fichiers dans un autre système de coordonnées sont reprojetés automatiquement en WGS 84 lorsqu'ils déclarent leur code EPSG. Les couches apparaissent dans la liste des couches de la carte sous « Couches de base ».",
   "a.admdiv.namePh": "Nom de la couche (p. ex. Provinces)",
   "a.admdiv.upload": "Téléverser la couche",
   "a.order": "Ordre",

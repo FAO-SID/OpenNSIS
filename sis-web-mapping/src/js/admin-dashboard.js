@@ -265,7 +265,7 @@ class AdminDashboard {
                 </p>
                 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 16px;">
                   <input type="text" id="admdiv-name" placeholder="${t('a.admdiv.namePh')}" style="width:240px;">
-                  <input type="file" id="admdiv-file" accept=".geojson,.json,.zip,.gpkg">
+                  <input type="file" id="admdiv-file" accept=".geojson,.json,.zip,.gpkg,.kml,.kmz">
                   <button type="button" id="admdiv-upload-btn" class="btn btn-primary btn-sm">${t('a.admdiv.upload')}</button>
                   <span id="admdiv-upload-status" style="font-size:var(--fs-sm);"></span>
                 </div>
