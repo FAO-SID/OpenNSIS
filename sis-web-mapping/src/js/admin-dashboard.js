@@ -553,7 +553,7 @@ class AdminDashboard {
                         <th title="${t('a.sp.blurTip')}">${t('a.sp.blur')}</th>
                         <th title="${t('a.sp.shareAttrsTip')}">${t('a.sp.shareAttrs')}</th>
                         <th title="${t('a.sp.showDlTip')}">${t('a.sp.showDl')}</th>
-                        <th>${t('a.published')}</th>
+                        <th>${t('a.raster.publishBtn')}</th>
                         <th title="${t('a.sp.activeTip')}">${t('a.active')}</th>
                         <th title="${t('a.sp.pruneTip')}">${t('a.sp.prune')}</th>
                       </tr>
@@ -713,7 +713,7 @@ class AdminDashboard {
                         <th>${t('a.raster.name')}</th>
                         <th style="width:90px;">${t('legend.alt')}</th>
                         <th style="width:70px;" title="${t('a.raster.opacityTip')}">${t('a.raster.opacity')}</th>
-                        <th>${t('a.published')}</th>
+                        <th>${t('a.raster.publishBtn')}</th>
                         <th>${t('a.default')}</th>
                         <th>WMS</th>
                         <th class="raster-delete-col" style="width:90px;">${t('a.delete')}</th>
