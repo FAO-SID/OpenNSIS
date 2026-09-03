@@ -6,7 +6,7 @@ import { OSM, XYZ, ImageWMS, Vector as VectorSource, Cluster } from 'ol/source';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import { ScaleLine, defaults as defaultControls } from 'ol/control';
 import Overlay from 'ol/Overlay';
-import { Circle as CircleStyle, Fill, RegularShape, Stroke, Style, Text } from 'ol/style';
+import { Circle as CircleStyle, Fill, Icon, RegularShape, Stroke, Style, Text } from 'ol/style';
 import { GeoJSON } from 'ol/format';
 import { getCenter } from 'ol/extent';
 import api, { MAPSERVER_URL } from './api-client.js';
@@ -1038,7 +1038,8 @@ function getUnifiedClusterStyle(feature) {
         sym.shape || 'profile',
         15 + Math.min(size / 2, 10),
         new Fill({ color: hexToRgba(color, clusterOpacity) }),
-        new Stroke({ color: color, width: 2 })
+        new Stroke({ color: color, width: 2 }),
+        color, clusterOpacity
       ),
       text: new Text({
         text: size.toString(),
@@ -1064,7 +1065,8 @@ function getUnifiedClusterStyle(feature) {
         sym.shape || 'profile',
         sym.size == null ? 8 : Number(sym.size),
         new Fill({ color: hexToRgba(color, sym.opacity == null ? 0.8 : Number(sym.opacity)) }),
-        new Stroke({ color: '#fff', width: 2 })
+        new Stroke({ color: '#fff', width: 2 }),
+        color, sym.opacity == null ? 0.8 : Number(sym.opacity)
       )
     });
   }
@@ -1077,9 +1079,40 @@ function projectSymbology(projectName) {
   return (mapsetId && profileSymbology[mapsetId]) || {};
 }
 
-// Build the marker image for a shape. Circle is the default; the rest use
-// RegularShape with the conventional point counts/angles.
-function markerImage(shape, radius, fill, stroke) {
+// Mix a hex colour towards black (f < 0) or white (f > 0).
+function shadeColor(hex, f) {
+  const n = (i) => parseInt(hex.slice(i, i + 2), 16);
+  const mix = (c) => Math.max(0, Math.min(255, Math.round(f < 0 ? c * (1 + f) : c + (255 - c) * f)));
+  return '#' + [n(1), n(3), n(5)].map(c => mix(c).toString(16).padStart(2, '0')).join('');
+}
+
+// The profile bar carries a vertical gradient (darker topsoil → lighter
+// subsoil). RegularShape can't gradient-fill, so it's an SVG data-URI Icon,
+// cached per colour/size/opacity.
+const profileBarIconCache = {};
+function profileBarIcon(hexColor, radius, opacity) {
+  const key = `${hexColor}|${radius}|${opacity}`;
+  if (!profileBarIconCache[key]) {
+    const w = Math.max(4, Math.round(radius * 0.8));
+    const h = Math.round(radius * 2.2);
+    const dark = shadeColor(hexColor, -0.35);
+    const light = shadeColor(hexColor, 0.35);
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${w + 4}" height="${h + 4}">` +
+      `<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">` +
+      `<stop offset="0" stop-color="${dark}"/><stop offset="1" stop-color="${light}"/>` +
+      `</linearGradient></defs>` +
+      `<rect x="2" y="2" width="${w}" height="${h}" fill="url(#g)" fill-opacity="${opacity}" ` +
+      `stroke="#fff" stroke-width="1.5"/></svg>`;
+    profileBarIconCache[key] = new Icon({ src: 'data:image/svg+xml;utf8,' + encodeURIComponent(svg) });
+  }
+  return profileBarIconCache[key];
+}
+
+// Build the marker image for a shape. Circle is the default; the polygonal
+// shapes use RegularShape; the profile bar is a gradient SVG icon (hexColor
+// and opacity are only needed for that case).
+function markerImage(shape, radius, fill, stroke, hexColor, opacity) {
   switch (shape) {
     case 'square':
       return new RegularShape({ points: 4, radius, angle: Math.PI / 4, fill, stroke });
@@ -1090,9 +1123,7 @@ function markerImage(shape, radius, fill, stroke) {
     case 'star':
       return new RegularShape({ points: 5, radius, radius2: radius * 0.45, angle: 0, fill, stroke });
     case 'profile':
-      // A narrow vertical bar, like a soil profile pit: a square stretched
-      // tall and squeezed thin via non-uniform scale.
-      return new RegularShape({ points: 4, radius, angle: Math.PI / 4, fill, stroke, scale: [0.5, 1.5] });
+      return profileBarIcon(hexColor || '#63452C', radius, opacity == null ? 0.8 : opacity);
     default:
       return new CircleStyle({ radius, fill, stroke });
   }
@@ -1109,6 +1140,14 @@ function markerSvgIcon(shape, color, opacity, px = 20) {
     star:     `<polygon points="9,1.5 11.2,6.5 16.5,7 12.6,10.7 13.8,16 9,13.2 4.2,16 5.4,10.7 1.5,7 6.8,6.5"/>`,
     profile:  `<rect x="6" y="1.5" width="6" height="15"/>`,
   };
+  if (shape === 'profile') {
+    const gid = 'pg' + color.replace('#', '');
+    return `<svg width="${px}" height="${px}" viewBox="0 0 18 18" aria-hidden="true">`
+      + `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">`
+      + `<stop offset="0" stop-color="${shadeColor(color, -0.35)}"/>`
+      + `<stop offset="1" stop-color="${shadeColor(color, 0.35)}"/></linearGradient></defs>`
+      + `<rect x="6" y="1.5" width="6" height="15" fill="url(#${gid})" fill-opacity="${opacity}" stroke="#fff" stroke-width="1.2"/></svg>`;
+  }
   return `<svg width="${px}" height="${px}" viewBox="0 0 18 18" aria-hidden="true">`
     + `<g fill="${color}" fill-opacity="${opacity}" stroke="#fff" stroke-width="1.2">${shapes[shape] || shapes.circle}</g></svg>`;
 }

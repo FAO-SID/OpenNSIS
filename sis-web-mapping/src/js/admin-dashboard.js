@@ -3742,9 +3742,24 @@ class AdminDashboard {
 
   // Small inline-SVG preview of a marker (shared by the table swatch and
   // the editor preview).
+  _shadeColor(hex, f) {
+    const n = (i) => parseInt(hex.slice(i, i + 2), 16);
+    const mix = (c) => Math.max(0, Math.min(255, Math.round(f < 0 ? c * (1 + f) : c + (255 - c) * f)));
+    return '#' + [n(1), n(3), n(5)].map(c => mix(c).toString(16).padStart(2, '0')).join('');
+  }
+
   _markerSvg(shape, color, opacity, px = 18) {
     const c = this.escapeHtml(color);
     const o = opacity == null ? 0.8 : opacity;
+    if (shape === 'profile') {
+      // Vertical gradient — darker topsoil to lighter subsoil.
+      const gid = 'pg' + c.replace('#', '') + String(px);
+      return `<svg width="${px}" height="${px}" viewBox="0 0 18 18" aria-hidden="true">`
+        + `<defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">`
+        + `<stop offset="0" stop-color="${this._shadeColor(c, -0.35)}"/>`
+        + `<stop offset="1" stop-color="${this._shadeColor(c, 0.35)}"/></linearGradient></defs>`
+        + `<rect x="6" y="1.5" width="6" height="15" fill="url(#${gid})" fill-opacity="${o}" stroke="#666" stroke-width="1"/></svg>`;
+    }
     const shapes = {
       circle:   `<circle cx="9" cy="9" r="7"/>`,
       square:   `<rect x="2.5" y="2.5" width="13" height="13"/>`,
