@@ -496,5 +496,6 @@
   "a.shape.square": "Square",
   "a.shape.triangle": "Triangle",
   "a.shape.diamond": "Diamond",
-  "a.shape.star": "Star"
+  "a.shape.star": "Star",
+  "a.shape.profile": "Soil profile (bar)"
 }

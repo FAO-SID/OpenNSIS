@@ -3731,6 +3731,7 @@ class AdminDashboard {
       triangle: `<polygon points="9,2 16,15.5 2,15.5"/>`,
       diamond:  `<polygon points="9,1.5 16.5,9 9,16.5 1.5,9"/>`,
       star:     `<polygon points="9,1.5 11.2,6.5 16.5,7 12.6,10.7 13.8,16 9,13.2 4.2,16 5.4,10.7 1.5,7 6.8,6.5"/>`,
+      profile:  `<rect x="6" y="1.5" width="6" height="15"/>`,
     };
     return `<svg width="${px}" height="${px}" viewBox="0 0 18 18" aria-hidden="true">`
       + `<g fill="${c}" fill-opacity="${o}" stroke="#666" stroke-width="1">${shapes[shape] || shapes.circle}</g></svg>`;
@@ -3744,7 +3745,7 @@ class AdminDashboard {
       color: row.marker_color || '#63452C',
       opacity: row.marker_opacity == null ? 0.8 : Number(row.marker_opacity),
     };
-    const shapeOpts = ['circle', 'square', 'triangle', 'diamond', 'star'].map(sh =>
+    const shapeOpts = ['circle', 'square', 'triangle', 'diamond', 'star', 'profile'].map(sh =>
       `<option value="${sh}"${cur.shape === sh ? ' selected' : ''}>${t('a.shape.' + sh)}</option>`).join('');
     const { body } = this._openModal(t('a.sp.symbology') + ' — ' + (row.project_name || pid), `
       <div style="display:flex;gap:16px;align-items:flex-end;margin-bottom:14px;flex-wrap:wrap;">

@@ -496,5 +496,6 @@
   "a.shape.square": "Квадрат",
   "a.shape.triangle": "Треугольник",
   "a.shape.diamond": "Ромб",
-  "a.shape.star": "Звезда"
+  "a.shape.star": "Звезда",
+  "a.shape.profile": "Почвенный профиль (столбик)"
 }

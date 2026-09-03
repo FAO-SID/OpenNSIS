@@ -496,5 +496,6 @@
   "a.shape.square": "方形",
   "a.shape.triangle": "三角形",
   "a.shape.diamond": "菱形",
-  "a.shape.star": "星形"
+  "a.shape.star": "星形",
+  "a.shape.profile": "土壤剖面（条形）"
 }

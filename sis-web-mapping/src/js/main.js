@@ -1098,6 +1098,10 @@ function markerImage(shape, radius, fill, stroke) {
       return new RegularShape({ points: 4, radius, angle: 0, fill, stroke });
     case 'star':
       return new RegularShape({ points: 5, radius, radius2: radius * 0.45, angle: 0, fill, stroke });
+    case 'profile':
+      // A narrow vertical bar, like a soil profile pit: a square stretched
+      // tall and squeezed thin via non-uniform scale.
+      return new RegularShape({ points: 4, radius, angle: Math.PI / 4, fill, stroke, scale: [0.5, 1.5] });
     default:
       return new CircleStyle({ radius, fill, stroke });
   }

@@ -496,5 +496,6 @@
   "a.shape.square": "Cuadrado",
   "a.shape.triangle": "Triángulo",
   "a.shape.diamond": "Rombo",
-  "a.shape.star": "Estrella"
+  "a.shape.star": "Estrella",
+  "a.shape.profile": "Perfil de suelo (barra)"
 }

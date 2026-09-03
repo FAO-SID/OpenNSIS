@@ -496,5 +496,6 @@
   "a.shape.square": "Quadrado",
   "a.shape.triangle": "Triângulo",
   "a.shape.diamond": "Losango",
-  "a.shape.star": "Estrela"
+  "a.shape.star": "Estrela",
+  "a.shape.profile": "Perfil de solo (barra)"
 }

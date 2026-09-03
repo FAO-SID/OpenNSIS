@@ -4741,7 +4741,7 @@ class SoilProfileSymbologyUpdate(BaseModel):
     marker_opacity: Optional[float] = None
 
 
-MARKER_SHAPES = {"circle", "square", "triangle", "diamond", "star"}
+MARKER_SHAPES = {"circle", "square", "triangle", "diamond", "star", "profile"}
 
 
 @app.patch("/api/layer/soil_profiles/{project_id}/symbology")

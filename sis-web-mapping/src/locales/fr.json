@@ -496,5 +496,6 @@
   "a.shape.square": "Carré",
   "a.shape.triangle": "Triangle",
   "a.shape.diamond": "Losange",
-  "a.shape.star": "Étoile"
+  "a.shape.star": "Étoile",
+  "a.shape.profile": "Profil de sol (barre)"
 }
