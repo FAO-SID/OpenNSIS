@@ -162,7 +162,7 @@ COUNTRY_LAT=$(echo "$COUNTRY_CENTROID" | cut -d'|' -f2)
 
 # App settings. DOWNLOAD_BASE_URL stays relative (/downloads/) → resolves
 # against this country's own origin:port.
-dx sis-database psql -d sis -U sis \
+dx sis-database psql -d sis -U sis -v ON_ERROR_STOP=1 \
   -v title="Soil Information System of $COUNTRY_NAME" \
   -v lat="$COUNTRY_LAT" -v lon="$COUNTRY_LON" <<EOF
 INSERT INTO api.setting(key, value) VALUES
@@ -175,7 +175,8 @@ INSERT INTO api.setting(key, value) VALUES
  ('LONGITUDE', :'lon'),
  ('ZOOM','9'),
  ('BASE_MAP_DEFAULT','esri-imagery'),
- ('DOWNLOAD_BASE_URL','/downloads/');
+ ('DOWNLOAD_BASE_URL','/downloads/')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 EOF
 
 # API client used by the SPA (key matches .env WEB_MAPPING_API_KEY).
